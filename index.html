@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
-    <title>Bahthi — بحثي | منسق البحوث وبطاقات القراءة الأكاديمية</title>
+    <title>Bahthi — بحثي | منسق وتوليد البحوث الأكاديمية بالذكاء الاصطناعي والطباعة المباشرة</title>
     <script>
         (function() {
             function updateMobileClass() {
@@ -1667,6 +1667,95 @@
                 box-sizing: border-box !important;
             }
         }
+        /* ==============================================================
+           تنسيقات نظام توليد البحث بالذكاء الاصطناعي (AI Research Generator)
+           ============================================================== */
+        .converter-subtabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 1rem;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 5px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .subtab-btn {
+            flex: 1;
+            padding: 8px 10px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .subtab-btn:hover {
+            color: #f1f5f9;
+            background: rgba(30, 41, 59, 0.6);
+        }
+        .subtab-btn.active {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+        }
+        .subtab-btn-ai.active {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            border-color: #a78bfa;
+            box-shadow: 0 2px 12px rgba(124, 58, 237, 0.4);
+        }
+        .subtab-ai-badge {
+            background: #f59e0b;
+            color: #000;
+            font-size: 0.64rem;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 6px;
+        }
+        .ai-topic-pill {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+            font-size: 0.74rem;
+            padding: 4px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .ai-topic-pill:hover {
+            background: rgba(124, 58, 237, 0.25);
+            border-color: #a78bfa;
+            color: #f8fafc;
+            transform: translateY(-1px);
+        }
+        .ai-progress-card {
+            background: linear-gradient(145deg, rgba(30, 27, 75, 0.8), rgba(15, 23, 42, 0.9));
+            border: 1px solid rgba(167, 139, 250, 0.35);
+            border-radius: 10px;
+            padding: 14px;
+            margin-top: 12px;
+            display: none;
+        }
+        .ai-loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #a78bfa;
+            animation: ai-spin 0.8s linear infinite;
+        }
+        @keyframes ai-spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -1677,7 +1766,7 @@
             <img src="app_icon.png" alt="Bahthi Logo" style="width: 44px; height: 44px; border-radius: 11px; object-fit: cover; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);">
             <div>
                 <div class="brand-title">Bahthi — بحثي</div>
-                <div class="brand-desc">منسق البحوث وبطاقات القراءة الأكاديمية والطباعة المباشرة بصيغة PDF</div>
+                <div class="brand-desc">منسق وتوليد البحوث الأكاديمية وبطاقات القراءة بالذكاء الاصطناعي والطباعة المباشرة</div>
             </div>
         </div>
 
@@ -1983,6 +2072,149 @@
             <!-- تبويب 3: لصق وتحويل النص الخام تلقائياً -->
             <div id="paste-tab" class="tab-content active">
                 
+                <!-- شريط التبديل العلوي الأنيق بين: لصق نص مسودة وبين: توليد بالذكاء الاصطناعي -->
+                <div class="converter-subtabs">
+                    <button type="button" id="subtab-btn-paste" class="subtab-btn active" onclick="switchConverterSubTab('paste')">
+                        <span>📋</span><span>لصق نص مسودة جاهز</span>
+                    </button>
+                    <button type="button" id="subtab-btn-ai" class="subtab-btn subtab-btn-ai" onclick="switchConverterSubTab('ai')">
+                        <span>✨</span><span>توليد بحث كامل بالذكاء الاصطناعي (AI)</span>
+                        <span class="subtab-ai-badge">جديد 🚀</span>
+                    </button>
+                </div>
+
+                <!-- اللوحة 1: توليد بالذكاء الاصطناعي (AI Generator) -->
+                <div id="panel-converter-ai" style="display: none;">
+                    
+                    <!-- بطاقة مزود الذكاء الاصطناعي ومفتاح الـ API -->
+                    <div class="section-card" style="background: linear-gradient(135deg, rgba(30, 27, 75, 0.85), rgba(17, 24, 39, 0.9)); border-color: rgba(167, 139, 250, 0.35);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+                            <span style="font-size:1.3rem;">🔑</span>
+                            <div>
+                                <div style="font-weight: 800; color: #a78bfa; font-size: 0.92rem;">مفتاح الذكاء الاصطناعي (API Key)</div>
+                                <div style="font-size: 0.72rem; color: #94a3b8;">يُحفظ المفتاح محلياً في متصفحك فقط ولا يشاركه أحد</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label class="form-label" style="font-size: 0.78rem;">مزود ونموذج الذكاء الاصطناعي:</label>
+                            <select id="ai-provider-select" class="form-control" style="font-size: 0.82rem;" onchange="onAiProviderChange()">
+                                <option value="gemini" selected>Google Gemini (Gemini 3.8 Flash) — مجاني وسريع جداً وموصى به</option>
+                                <option value="openai">OpenAI (ChatGPT: GPT-4o-mini / GPT-4o)</option>
+                                <option value="groq">Groq (Llama 3.3 70B - فائق السرعة)</option>
+                                <option value="openrouter">OpenRouter / DeepSeek (مزود مخصص)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0.6rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <label class="form-label" style="margin-bottom: 0; font-size: 0.78rem;">مفتاح الـ API Key:</label>
+                                <a id="ai-key-link" href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size: 0.72rem; color: #38bdf8; text-decoration: none;">
+                                    🔗 احصل على مفتاح Gemini مجاني في 30 ثانية
+                                </a>
+                            </div>
+                            <div style="position: relative; display: flex; align-items: center;">
+                                <input type="password" id="ai-api-key-input" class="form-control" style="padding-left: 40px; font-family: monospace; font-size: 0.82rem;" placeholder="ألصق مفتاحك هنا (مثل: AIzaSy...)" oninput="saveAiApiKey()">
+                                <button type="button" onclick="toggleApiKeyVisibility()" style="position: absolute; left: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="إظهار/إخفاء المفتاح">
+                                    <span id="ai-key-eye">👁️</span>
+                                </button>
+                            </div>
+                            <div id="ai-key-status" style="font-size: 0.70rem; color: #10b981; margin-top: 4px; display: none;">✓ المفتاح محفوظ تلقائياً في المتصفح</div>
+                        </div>
+
+                        <div id="ai-custom-url-group" class="form-group" style="display: none; margin-bottom: 0.6rem;">
+                            <label class="form-label" style="font-size: 0.78rem;">عنوان الرابط المخصص (Endpoint URL):</label>
+                            <input type="text" id="ai-custom-url" class="form-control" style="font-size: 0.8rem; font-family: monospace;" placeholder="https://api.groq.com/openai/v1/chat/completions">
+                        </div>
+                    </div>
+
+                    <!-- بطاقة تفاصيل البحث المطلوب وموضوعه -->
+                    <div class="section-card" style="background: var(--card-gradient); border-color: rgba(56, 189, 248, 0.25);">
+                        <div class="section-card-header">
+                            <div class="section-card-title">
+                                <span class="icon-pill">📖</span>
+                                <span>موضوع وخطة البحث المطلوب</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label class="form-label" style="font-size: 0.82rem; font-weight: 700;">موضوع أو عنوان البحث الأكاديمي: <span style="color:#f87171;">*</span></label>
+                            <textarea id="ai-topic-input" class="form-control" style="height: 72px; font-size: 0.85rem; line-height: 1.5;" placeholder="اكتب هنا موضوع أو عنوان البحث كاملاً، مثال:&#10;«استراتيجيات إدارة الموارد البشرية وأثرها على الأداء المؤسسي في الشركات الجزائرية»"></textarea>
+                        </div>
+
+                        <!-- أزرار اقتراحات مواضيع سريعة للتجربة الفورية -->
+                        <div style="margin-bottom: 0.85rem;">
+                            <div style="font-size: 0.73rem; color: #94a3b8; margin-bottom: 5px;">أمثلة ومواضيع جاهزة للتجربة السريعة:</div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" class="ai-topic-pill" onclick="setQuickAiTopic('أثر التحول الرقمي ونظم المعلومات على أداء المؤسسات الجامعية')">
+                                    💡 التحول الرقمي والجامعات
+                                </button>
+                                <button type="button" class="ai-topic-pill" onclick="setQuickAiTopic('واقع التدقيق الداخلي وإدارة المخاطر في المؤسسات الجزائرية')">
+                                    💡 التدقيق الداخلي والمؤسسات
+                                </button>
+                                <button type="button" class="ai-topic-pill" onclick="setQuickAiTopic('المسؤولية الاجتماعية للشركات ودورها في تحقيق التنمية المستدامة')">
+                                    💡 المسؤولية الاجتماعية والتنمية
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- حجم وعمق البحث المطلوب -->
+                        <div class="form-group" style="margin-bottom: 0.75rem;">
+                            <label class="form-label" style="font-size: 0.78rem; font-weight: 700;">حجم وعمق البحث المطلوب:</label>
+                            <select id="ai-length-select" class="form-control" style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; background: #0f172a; border-color: rgba(56, 189, 248, 0.4);" onchange="onAiLengthChange()">
+                                <option value="giant" selected>🏆 بحث أكاديمي موسع ومعمق (فوق 12 إلى 15 صفحة) — موصى به</option>
+                                <option value="medium">📄 بحث متوسط (8 إلى 12 صفحة)</option>
+                                <option value="short">📝 بحث موجز ومركز (5 إلى 8 صفحات)</option>
+                            </select>
+                        </div>
+
+                        <!-- إعدادات المنهجية الأكاديمية للبحث -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0.85rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">عدد المباحث:</label>
+                                <select id="ai-mabhath-select" class="form-control" style="font-size: 0.80rem;">
+                                    <option value="2" selected>مبحثان (النمط الجامعي القياسي)</option>
+                                    <option value="3">3 مباحث (بحث مفصل)</option>
+                                    <option value="1">مبحث واحد (دراسة مركزة)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">مطالب كل مبحث:</label>
+                                <select id="ai-matlab-select" class="form-control" style="font-size: 0.80rem;">
+                                    <option value="3" selected>3 مطالب لكل مبحث (موسع)</option>
+                                    <option value="2">مطلبان لكل مبحث</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(15, 23, 42, 0.55); border-radius: 8px; padding: 8px 10px; font-size: 0.73rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 0.95rem; border: 1px dashed rgba(148, 163, 184, 0.25);">
+                            📚 <strong>التوثيق الأكاديمي التلقائي:</strong> سيقوم الذكاء الاصطناعي بكتابة وتوثيق إحالات وهوامش علمية حقيقية (مراجع وكتب ودوريات علمية مع أرقام الصفحات ودور النشر) ووضعها آلياً في أسفل كل صفحة A4.
+                        </div>
+
+                        <button type="button" id="btn-generate-ai" class="btn-magic" style="background: linear-gradient(135deg, #7c3aed, #2563eb); box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45); font-size: 0.88rem; padding: 0.85rem 1rem;" onclick="generateResearchWithAI()">
+                            <span>🚀 صياغة وتوليد وتنسيق البحث الأكاديمي فوراً</span>
+                        </button>
+
+                        <!-- بطاقة تقدم التوليد الحية -->
+                        <div id="ai-progress-box" class="ai-progress-card">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <div class="ai-loading-spinner"></div>
+                                <div id="ai-progress-text" style="font-size: 0.82rem; font-weight: 700; color: #a78bfa;">
+                                    جاري الاتصال بالذكاء الاصطناعي وصياغة البحث...
+                                </div>
+                            </div>
+                            <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.4;">
+                                يتم الآن صياغة الإشكالية، تحرير المباحث والمطالب، وتوثيق المراجع وتوزيع الصفحات A4... قد تستغرق العملية بضع ثوانٍ.
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- اللوحة 2: لصق نص مسودة جاهز (المحول اليدوي الحالي) -->
+                <div id="panel-converter-paste">
+                
                 <!-- بانر الخطوات الثلاث البسيطة للمبتدئين -->
                 <div class="section-card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 32, 60, 0.9)); border-color: rgba(56, 189, 248, 0.3);">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
@@ -2039,6 +2271,8 @@
                     <button class="btn-magic" onclick="parseRawTextToDocument()">
                         <span>⚡ تحليل النص واستبدال البحث وتوليد الصفحات المنسقة فوراً</span>
                     </button>
+                </div>
+
                 </div>
 
                 <!-- بطاقة المطور وحقوق الملكية والتواصل -->
@@ -3877,6 +4111,12 @@
                     return `<strong>${letMatch[1]}</strong> ${letMatch[2]}`;
                 }
 
+                // 4. ترقيم مراجع ومصادر [1]، [2]...
+                const refNumMatch = text.match(/^(?:[-*•–—]\s*)?(\[\d+\]|\(\d+\))\s*(.*)$/);
+                if (refNumMatch) {
+                    return `<strong>${refNumMatch[1]}</strong> ${refNumMatch[2]}`;
+                }
+
                 return cleanSym;
             }
 
@@ -3913,11 +4153,12 @@
                     }
 
                     const isCitationTerm = /(?:ص\s*\.?\s*\d+|دار\s+|نشر|مطبعة|طبعة|جامعة|مرجع\s+سبق|مجلة|أطروحة|مذكرة)/i.test(trimmed);
-                    const isFn = /^[\^]\s*\d+/.test(trimmed) || 
+                    const isFn = (sec.type !== 'references') && (
+                                 /^[\^]\s*\d+/.test(trimmed) || 
                                  /^\[\d+\]/.test(trimmed) ||
                                  /^\(\d+\)\s+[^\d]/.test(trimmed) ||
                                  (/^[\^\[\(]?\s*\d+\s*[\.\)\]\-]?\s+[^\d]/.test(trimmed) && (isCitationTerm || inFootnotesBlock)) ||
-                                 /^مرجع\s*[:\-\d]/i.test(trimmed);
+                                 /^مرجع\s*[:\-\d]/i.test(trimmed));
 
                     if (isFn) {
                         const numMatch = trimmed.match(/^[\^\[\(]?\s*(\d+)[\.\)\]\-]?/);
@@ -3948,11 +4189,14 @@
                 // تحويل أسطر المحتوى إلى عناصر هيكلية مع استخراج أرقام الإحالات وتحديد الارتفاع المتوقع
                 const items = [];
                 expandedContentLines.forEach((line, idx) => {
-                    let processedLine = line.replace(/\$?[\^](\d+)\$?/g, '<sup>$1</sup>');
-                    processedLine = processedLine.replace(/\[(\d+)\]/g, '<sup>$1</sup>');
+                    let processedLine = line;
+                    if (sec.type !== 'references') {
+                        processedLine = processedLine.replace(/\$?[\^](\d+)\$?/g, '<sup>$1</sup>');
+                        processedLine = processedLine.replace(/\[(\d+)\]/g, '<sup>$1</sup>');
+                    }
 
                     const isOrd = /^(?:#+\s*)?(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(processedLine);
-                    const isNum = /^(?:#+\s*)?(?:[-*•–—]\s*)?\(?\d+[\.\-\)/:]\s+/.test(processedLine);
+                    const isNum = /^(?:#+\s*)?(?:[-*•–—]\s*)?(?:[\(\[]?\d+[\.\-\)/:\]]|\d+\s*[\.\-\)/:])\s*/.test(processedLine);
                     const isLet = /^(?:#+\s*)?(?:[-*•–—]\s*)?[أ-ي][\.\-\)/:]\s+/.test(processedLine);
                     const isSym = /^[-*•–—]\s+/.test(processedLine);
 
@@ -3992,6 +4236,7 @@
                     const isSubtitle = !isIntro && ((/^#{1,4}\s+/.test(processedLine)) ||
                                        (/^(?:الفرع\s+(?:الأول|الثاني|الثالث|الرابع|الخامس))\s*[:\-]/i.test(processedLine)) ||
                                        (/^(?:أهمية\s+البحث|أهداف\s+البحث|إشكالية\s+البحث|فرضيات\s+البحث|منهجية\s+البحث|الأسئلة\s+الفرعية|أبرز\s+النتائج|التوصيات|التوصيات\s+والاقتراحات)\s*[:\-]?$/i.test(processedLine)) ||
+                                       (sec.type === 'references' && /^(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|الكتب|المؤلفات|المجلات|الدوريات|الأطروحات|المعاجم|القوانين|المواقع)[\s:\-–—]/i.test(processedLine)) ||
                                        (isOrd && !inListContext && !hasSiblingListItems && processedLine.length < 100 && (idx + 1 < expandedContentLines.length && !/^(?:#+\s*)?(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(expandedContentLines[idx + 1]))) ||
                                        (processedLine.endsWith(':') && processedLine.length < 75 && !processedLine.includes('.') && !isOrd && !isNum && !isSym));
 
@@ -4002,14 +4247,22 @@
                         const heightMm = Math.ceil(clean.length / 70) * 7.5 + 4.5;
                         const citations = [];
                         const supMatches = [...processedLine.matchAll(/<sup>(\d+)<\/sup>/g)];
-                        supMatches.forEach(m => citations.push(parseInt(m[1], 10)));
+                        supMatches.forEach(m => {
+                            const origNum = parseInt(m[1], 10);
+                            const fnObj = rawFootnotes.find(f => f.num === origNum);
+                            citations.push({ origNum: origNum, text: fnObj ? fnObj.text : '' });
+                        });
                         items.push({ type: 'subtitle', rawText: processedLine, cleanText: clean, heightMm, citations });
                     } else if (isBullet) {
                         const clean = processedLine.replace(/^[-*•–—]\s*/, '');
                         const heightMm = Math.ceil(clean.length / 80) * 6.5 + 3.2;
                         const citations = [];
                         const supMatches = [...processedLine.matchAll(/<sup>(\d+)<\/sup>/g)];
-                        supMatches.forEach(m => citations.push(parseInt(m[1], 10)));
+                        supMatches.forEach(m => {
+                            const origNum = parseInt(m[1], 10);
+                            const fnObj = rawFootnotes.find(f => f.num === origNum);
+                            citations.push({ origNum: origNum, text: fnObj ? fnObj.text : '' });
+                        });
                         items.push({ type: 'bullet', rawText: processedLine, cleanText: clean, heightMm, citations });
                     } else {
                         // تقسيم الفقرات الطويلة جداً إن لزم الأمر
@@ -4018,7 +4271,11 @@
                             const heightMm = Math.ceil(subP.length / 85) * 6.6 + 4;
                             const citations = [];
                             const supMatches = [...subP.matchAll(/<sup>(\d+)<\/sup>/g)];
-                            supMatches.forEach(m => citations.push(parseInt(m[1], 10)));
+                            supMatches.forEach(m => {
+                                const origNum = parseInt(m[1], 10);
+                                const fnObj = rawFootnotes.find(f => f.num === origNum);
+                                citations.push({ origNum: origNum, text: fnObj ? fnObj.text : '' });
+                            });
                             items.push({ type: 'paragraph', rawText: subP, cleanText: subP, heightMm, citations });
                         });
                     }
@@ -4041,7 +4298,6 @@
             const recordedPlan = [];
 
             let curPageItems = [];
-            let curPageFootnotesPool = [];
             let curPageMabhath = '';
             let curPageMatlab = '';
             let curHeight = 0;
@@ -4056,26 +4312,22 @@
             function emitCurrentPage() {
                 if (curPageItems.length === 0) return;
 
-                // استخراج الإحالات المستخدمة في هذه الصفحة بالترتيب
-                const usedCitationsList = [];
-                curPageItems.forEach(it => {
-                    if (it.citations) {
-                        it.citations.forEach(c => {
-                            if (!usedCitationsList.includes(c)) usedCitationsList.push(c);
-                        });
-                    }
-                });
-
-                // ربط الهوامش بالصفحة وإعادة ترقيمها محلياً من 1، 2، 3... لكل صفحة
+                // ربط الهوامش بالصفحة وإعادة ترقيمها محلياً من 1، 2، 3... لكل صفحة بدقة متناهية
                 const pageFootnotes = [];
-                const renumberMap = {};
 
-                usedCitationsList.forEach(origNum => {
-                    const matchFn = curPageFootnotesPool.find(fn => fn.num === origNum);
-                    if (matchFn) {
-                        const newIndex = pageFootnotes.length + 1;
-                        renumberMap[origNum] = newIndex;
-                        pageFootnotes.push(matchFn.text);
+                curPageItems.forEach(it => {
+                    if (it.citations && it.citations.length > 0) {
+                        it.citations.forEach(c => {
+                            if (c.text) {
+                                let existingIndex = pageFootnotes.indexOf(c.text);
+                                if (existingIndex === -1) {
+                                    pageFootnotes.push(c.text);
+                                    c.newPageNum = pageFootnotes.length;
+                                } else {
+                                    c.newPageNum = existingIndex + 1;
+                                }
+                            }
+                        });
                     }
                 });
 
@@ -4085,10 +4337,11 @@
 
                 curPageItems.forEach(it => {
                     let text = it.rawText || '';
-                    if (Object.keys(renumberMap).length > 0) {
-                        text = text.replace(/<sup>(\d+)<\/sup>/g, (match, p1) => {
-                            const orig = parseInt(p1, 10);
-                            return `<sup>${renumberMap[orig] || p1}</sup>`;
+                    if (it.citations && it.citations.length > 0) {
+                        it.citations.forEach(c => {
+                            if (c.newPageNum) {
+                                text = text.replace(new RegExp(`<sup>${c.origNum}</sup>`, 'g'), `<sup>${c.newPageNum}</sup>`);
+                            }
                         });
                     }
 
@@ -4128,7 +4381,6 @@
                 });
 
                 curPageItems = [];
-                curPageFootnotesPool = [];
                 curPageMabhath = '';
                 curPageMatlab = '';
                 curHeight = 0;
@@ -4198,9 +4450,7 @@
                     recordedPlan.push({ type: 'matlab', title: sec.matlabTitle, pageNum: curPageNum });
                 }
 
-                if (sec.rawFootnotes) {
-                    curPageFootnotesPool.push(...sec.rawFootnotes);
-                }
+
 
                 sec.items.forEach(item => {
                     let fnHeight = (item.citations ? item.citations.length : 0) * 6;
@@ -4638,7 +4888,448 @@ ${documentHtml}
                 localStorage.setItem('saved_baht_document', JSON.stringify(documentState));
             });
         }
-    </script>
+    
+
+        // ==============================================================
+        // نظام توليد البحوث الأكاديمية بالذكاء الاصطناعي (AI Research Generator)
+        // ==============================================================
+        
+        // التبديل بين وضع لصق النص اليدوي ووضع التوليد بالذكاء الاصطناعي
+        function switchConverterSubTab(mode) {
+            var btnPaste = document.getElementById('subtab-btn-paste');
+            var btnAi = document.getElementById('subtab-btn-ai');
+            var panelPaste = document.getElementById('panel-converter-paste');
+            var panelAi = document.getElementById('panel-converter-ai');
+
+            if (mode === 'ai') {
+                if (btnPaste) btnPaste.classList.remove('active');
+                if (btnAi) btnAi.classList.add('active');
+                if (panelPaste) panelPaste.style.display = 'none';
+                if (panelAi) panelAi.style.display = 'block';
+                loadSavedAiApiKey();
+            } else {
+                if (btnPaste) btnPaste.classList.add('active');
+                if (btnAi) btnAi.classList.remove('active');
+                if (panelPaste) panelPaste.style.display = 'block';
+                if (panelAi) panelAi.style.display = 'none';
+            }
+        }
+
+        // استرجاع مفتاح الـ API المحفوظ في المتصفح
+        function loadSavedAiApiKey() {
+            var input = document.getElementById('ai-api-key-input');
+            var status = document.getElementById('ai-key-status');
+            var savedKey = localStorage.getItem('bahthi_ai_api_key') || localStorage.getItem('bahthi_ai_api_key_sandbox') || '';
+            if (input && savedKey) {
+                input.value = savedKey;
+                if (status) status.style.display = 'block';
+            }
+        }
+
+        // حفظ مفتاح الـ API تلقائياً
+        function saveAiApiKey() {
+            var input = document.getElementById('ai-api-key-input');
+            var status = document.getElementById('ai-key-status');
+            if (input) {
+                var key = input.value.trim();
+                if (key) {
+                    localStorage.setItem('bahthi_ai_api_key', key); localStorage.setItem('bahthi_ai_api_key_sandbox', key);
+                    if (status) status.style.display = 'block';
+                } else {
+                    localStorage.removeItem('bahthi_ai_api_key'); localStorage.removeItem('bahthi_ai_api_key_sandbox');
+                    if (status) status.style.display = 'none';
+                }
+            }
+        }
+
+        // إظهار أو إخفاء مفتاح الـ API
+        function toggleApiKeyVisibility() {
+            var input = document.getElementById('ai-api-key-input');
+            var eye = document.getElementById('ai-key-eye');
+            if (input && eye) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    eye.innerText = '🙈';
+                } else {
+                    input.type = 'password';
+                    eye.innerText = '👁️';
+                }
+            }
+        }
+
+        // تغيير مزود الذكاء الاصطناعي
+        function onAiProviderChange() {
+            var provider = document.getElementById('ai-provider-select').value;
+            var input = document.getElementById('ai-api-key-input');
+            var link = document.getElementById('ai-key-link');
+            var customGroup = document.getElementById('ai-custom-url-group');
+
+            if (provider === 'gemini') {
+                if (link) {
+                    link.style.display = 'inline';
+                    link.href = 'https://aistudio.google.com/app/apikey';
+                    link.innerText = '🔗 احصل على مفتاح Gemini مجاني في 30 ثانية';
+                }
+                if (input) input.placeholder = 'ألصق مفتاح Gemini هنا (يبدأ بـ AIzaSy...)';
+                if (customGroup) customGroup.style.display = 'none';
+            } else if (provider === 'openai') {
+                if (link) {
+                    link.style.display = 'inline';
+                    link.href = 'https://platform.openai.com/api-keys';
+                    link.innerText = '🔗 صفحة مفاتيح OpenAI';
+                }
+                if (input) input.placeholder = 'ألصق مفتاح OpenAI هنا (يبدأ بـ sk-...)';
+                if (customGroup) customGroup.style.display = 'none';
+            } else if (provider === 'groq') {
+                if (link) {
+                    link.style.display = 'inline';
+                    link.href = 'https://console.groq.com/keys';
+                    link.innerText = '🔗 صفحة مفاتيح Groq مجانية';
+                }
+                if (input) input.placeholder = 'ألصق مفتاح Groq هنا (يبدأ بـ gsk_...)';
+                if (customGroup) customGroup.style.display = 'none';
+            } else {
+                if (link) link.style.display = 'none';
+                if (input) input.placeholder = 'ألصق مفتاح الـ API للمزود المخصص هنا';
+                if (customGroup) customGroup.style.display = 'block';
+            }
+        }
+
+        // تغيير حجم وعمق البحث المطلوب
+        function onAiLengthChange() {
+            var len = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'giant';
+            var mbSelect = document.getElementById('ai-mabhath-select');
+            var mtSelect = document.getElementById('ai-matlab-select');
+            if (len === 'giant') {
+                if (mbSelect) mbSelect.value = '2';
+                if (mtSelect) mtSelect.value = '3';
+            } else if (len === 'medium') {
+                if (mbSelect) mbSelect.value = '2';
+                if (mtSelect) mtSelect.value = '2';
+            } else {
+                if (mbSelect) mbSelect.value = '1';
+                if (mtSelect) mtSelect.value = '2';
+            }
+        }
+
+        // وضع موضوع تجريبي سريع بنقرة واحدة
+        function setQuickAiTopic(topic) {
+            var input = document.getElementById('ai-topic-input');
+            if (input) {
+                input.value = topic;
+                input.focus();
+            }
+        }
+
+        // تنفيذ طلب التوليد الكامل بالذكاء الاصطناعي
+        async function generateResearchWithAI() {
+            var keyInput = document.getElementById('ai-api-key-input');
+            var topicInput = document.getElementById('ai-topic-input');
+            var btn = document.getElementById('btn-generate-ai');
+            var progressBox = document.getElementById('ai-progress-box');
+            var progressText = document.getElementById('ai-progress-text');
+
+            var apiKey = keyInput ? keyInput.value.trim() : '';
+            var topic = topicInput ? topicInput.value.trim() : '';
+            var lengthMode = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'giant';
+            var mabhathCount = document.getElementById('ai-mabhath-select') ? document.getElementById('ai-mabhath-select').value : '2';
+            var matlabCount = document.getElementById('ai-matlab-select') ? document.getElementById('ai-matlab-select').value : '3';
+            var provider = document.getElementById('ai-provider-select') ? document.getElementById('ai-provider-select').value : 'gemini';
+
+            if (!apiKey) {
+                alert('يرجى إدخال مفتاح الـ API أولاً. إذا لم يكن لديك مفتاح، يمكنك الحصول على مفتاح Google Gemini مجاناً في ثوانٍ عبر الرابط بالأعلى.');
+                if (keyInput) keyInput.focus();
+                return;
+            }
+
+            if (!topic) {
+                alert('يرجى كتابة عنوان أو موضوع البحث المراد صياغته وتوليده.');
+                if (topicInput) topicInput.focus();
+                return;
+            }
+
+            // تفعيل حالة التحميل
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+                btn.innerHTML = '<span>⏳ جاري صياغة وتوليد البحث الموسع (>12 صفحة) بالذكاء الاصطناعي...</span>';
+            }
+            if (progressBox) progressBox.style.display = 'block';
+            if (progressText) progressText.innerText = '1/3 جاري الاتصال بالذكاء الاصطناعي وصياغة المنهجية وإشكالية البحث...';
+
+            try {
+                // صياغة البرومبت الأكاديمي الموسع والمتوافق تماماً مع نظام Bahthi
+                var systemPrompt = 'أنت بروفيسور وعالم أكاديمي خبير ومحكم في مناهج البحث العلمي والدراسات الجامعية العليا.\n' +
+'المطلوب منك تأليف وصياغة بحث أكاديمي موسع ومعمق وشامل جداً حول الموضوع المطلوب بحيث يغطي بحثاً كاملاً يتجاوز 12 إلى 15 صفحة A4 عند توزيعه وتنسيقه طباعياً.\n\n' +
+'قواعد التنسيق المنهجي الصارم (يجب الالتزام بها حرفياً لكي يقرأها النظام ويوزعها تلقائياً على صفحات A4):\n' +
+'1. ابدأ السطر الأول مباشرة بـ:\n' +
+'بحث بعنوان: [العنوان الأكاديمي الدقيق والكامل للبحث]\n\n' +
+'2. ثم اكتب المقدمة بصياغة موسعة ورصينة (تغطي صفحتين على الأقل):\n' +
+'المقدمة:\n' +
+'اكتب مقدمة مفصلة وشاملة تتضمن:\n' +
+'- تمهيد عام وتأصيل نظري واسع للموضوع مع توثيق الإحالات بأرقام مثل ^1 و ^2 في نهاية الفقرات.\n' +
+'- أهمية الموضوع ودوافع اختياره العلمية والعملية.\n' +
+'- الإشكالية الرئيسية مصاغة بدقة أكاديمية، وتفرع منها 3 أسئلة فرعية على الأقل.\n' +
+'- فرضيات البحث والمنهج العلمي المتبع (وصفي، تحليلي، مقارن...).\n' +
+'- الدراسات السابقة باختصار وموقع هذا البحث منها.\n' +
+'الهوامش:\n' +
+'^1 اسم المؤلف، عنوان المرجع أو الكتاب، دار النشر، مكان النشر، رقم الطبعة، سنة النشر، ص [رقم الصفحة].\n' +
+'^2 اسم الباحث، عنوان المقال، اسم المجلة العلمية المحكمة، المجلد، العدد، جهة الإصدار، السنة، ص [رقم الصفحة].\n' +
+'^3 اسم المؤلف، عنوان الكتاب، دار النشر، السنة، ص...\n\n' +
+'3. المتن: قسّم المتن بدقة إلى ' + mabhathCount + ' مباحث، وفي كل مبحث ' + matlabCount + ' مطالب موسعة.\n' +
+'شرط حاسم للمطالب: كل مطلب يجب أن يكون مفصلاً جداً ومقسماً إلى فرعين على الأقل:\n' +
+'المبحث الأول: [عنوان المبحث الأول]\n' +
+'المطلب الأول: [عنوان المطلب الأول]\n' +
+'الفرع الأول: [عنوان الفرع الأول]\n' +
+'(فقرات علمية تفصيلية ومناقشة معمقة لا تقل عن 4-5 فقرات غنية بالمعلومات والتحليلات وقوائم نقطية تبدأ بـ - مع توثيق إحالات ^1، ^2، ^3 في نهايات الفقرات والجمل).\n' +
+'الفرع الثاني: [عنوان الفرع الثاني]\n' +
+'(شرح وافٍ وتفصيل دقيق وأمثلة ونماذج تطبيقية مع توثيق إحالات ^4، ^5، ^6 في نهايات الفقرات).\n' +
+'الهوامش:\n' +
+'^1 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+'^2 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+'^3 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+'^4 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+'^5 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+'^6 اسم المرجع الكامل، دار النشر، السنة، ص...\n\n' +
+'يجب كتابة كافة المطالب كاملة نصاً دون أي اختصار: في المبحث الأول (المطلب الأول، المطلب الثاني، المطلب الثالث) وفي المبحث الثاني (المطلب الأول، المطلب الثاني، المطلب الثالث). وفي كل مطلب من هذه المطالب الستة يجب أن تكتب الفرع الأول ثم الفرع الثاني، ثم في نهاية كل مطلب مباشرة تضع قسم الهوامش الخاص به مع توثيق كامل (المؤلف، الكتاب أو المجلة، الدار، السنة، الصفحة) وإحالات ^1، ^2 في متن النص.\n\n' +
+'4. الخاتمة:\n' +
+'الخـاتـمـــة:\n' +
+'خاتمة أكاديمية موسعة تتضمن:\n' +
+'- حوصلة شاملة ودقيقة للنتائج المتوصل إليها في المباحث السابقة.\n' +
+'- قائمة توصيات عملية وتطبيقية مرقمة موجزة ومحددة.\n' +
+'- آفاق وفتح آفاق لدراسات وبحوث مستقبلية.\n' +
+'الهوامش:\n' +
+'^1 تقرير أو مرجع موثق، جهة الإصدار، السنة، ص...\n\n' +
+'5. قائمة المصادر والمراجع:\n' +
+'قائمة المصادر والمراجع:\n' +
+'اكتب قائمة ببليوغرافية موسعة تشمل ما لا يقل عن 14 إلى 20 مرجعاً أكاديمياً حقيقياً مقسمة كالتالي:\n' +
+'أولاً: الكتب والمؤلفات العامة والخاصة:\n' +
+'[1] اسم المؤلف، عنوان الكتاب، دار النشر، مكان النشر، الطبعة، سنة النشر.\n' +
+'ثانياً: المجلات والدوريات العلمية والأطروحات الجامعية:\n' +
+'[2] اسم الباحث، عنوان المقال، اسم المجلة، المجلد، العدد، السنة.\n\n' +
+'تنبيهات صارمة لا تقبل الاستثناء:\n' +
+'- اكتب بحثاً طويلاً وموسعاً وتفصيلياً جداً وغزيراً بالمادة العلمية ليتجاوز 3500 كلمة ليملأ أكثر من 12 إلى 15 صفحة A4.\n' +
+'- لا تضع أي مقدمات خارج البحث أو نصوص ترحيبية أو كتل كود markdown (ابدأ مباشرة بـ: بحث بعنوان: ...).\n' +
+'- التزم تماماً بوضع قسم الهوامش (الهوامش:) في نهاية كل مطلب ونهاية المقدمة ونهاية الخاتمة مع توثيق حقيقي كامل (اسم المؤلف، الكتاب، دار النشر، السنة، رقم الصفحة).';
+
+                var userPrompt = 'اكتب الآن البحث الأكاديمي الموسع والشامل (أكثر من 12 إلى 15 صفحة A4) مع كامل الهوامش والمراجع وفق الشروط المنهجية الصارمة حول الموضوع التالي:\n«' + topic + '»';
+
+                if (progressText) progressText.innerText = '2/3 جاري استلام النص وتوليد المباحث والمطالب وتوثيق الهوامش...';
+
+                var generatedText = '';
+
+                if (provider === 'gemini') {
+                    generatedText = await executeGeminiGeneration(apiKey, systemPrompt, userPrompt);
+                } else if (provider === 'openai') {
+                    generatedText = await executeOpenAiGeneration(apiKey, 'https://api.openai.com/v1/chat/completions', 'gpt-4o-mini', systemPrompt, userPrompt);
+                } else if (provider === 'groq') {
+                    generatedText = await executeOpenAiGeneration(apiKey, 'https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', systemPrompt, userPrompt);
+                } else {
+                    var customUrl = (document.getElementById('ai-custom-url') && document.getElementById('ai-custom-url').value.trim()) || 'https://openrouter.ai/api/v1/chat/completions';
+                    generatedText = await executeOpenAiGeneration(apiKey, customUrl, 'auto', systemPrompt, userPrompt);
+                }
+
+                if (progressText) progressText.innerText = '3/3 تم التوليد بنجاح! جاري التنسيق وبناء أوراق A4...';
+
+                // تنظيف أي زوائد Markdown مثل ``` أو ```markdown
+                generatedText = generatedText.replace(/^\`\`\`[a-zA-Z]*\n?/, '').replace(/\`\`\`$/, '').trim();
+
+                // وضع النص في خانة النص الخام
+                var rawInput = document.getElementById('raw-text-input');
+                if (rawInput) {
+                    rawInput.value = generatedText;
+                }
+
+                // استدعاء محرك التحليل والتنسيق الفوري
+                parseRawTextToDocument();
+
+                // التبديل إلى وضع المعاينة على الهواتف تلقائياً ليشاهد المستخدم النتيجة
+                if (window.innerWidth <= 850 && typeof setMobileView === 'function') {
+                    setMobileView('preview');
+                }
+
+                if (progressBox) progressBox.style.display = 'none';
+                alert('تم بنجاح توليد وصياغة البحث الأكاديمي وتنسيقه بالكامل! تم إنشاء الغلاف والخطة وكافة صفحات البحث وهوامشها.');
+
+            } catch (err) {
+                console.error('AI Generation Error:', err);
+                if (progressBox) progressBox.style.display = 'none';
+                alert('حدث خطأ أثناء التوليد: ' + err.message + '. تأكد من صحة مفتاح الـ API واتصالك بالإنترنت ثم حاول مجدداً.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '<span>🚀 صياغة وتوليد وتنسيق البحث الأكاديمي فوراً</span>';
+                }
+            }
+        }
+
+        // دالة مساعدة لاستخراج النص من مختلف استجابات Google Gemini الحديثة (generateContent و Interactions API)
+        function extractGeminiResponseText(data) {
+            if (!data) return null;
+            // 1. generateContent candidates format
+            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+                var parts = data.candidates[0].content.parts;
+                var full = '';
+                for (var p = 0; p < parts.length; p++) {
+                    if (parts[p].text) full += parts[p].text;
+                }
+                if (full.trim()) return full;
+            }
+            // 2. output_text convenience field
+            if (typeof data.output_text === 'string' && data.output_text.trim()) {
+                return data.output_text;
+            }
+            // 3. outputs array
+            if (Array.isArray(data.outputs)) {
+                var outAcc = '';
+                for (var o = 0; o < data.outputs.length; o++) {
+                    if (data.outputs[o].text) outAcc += data.outputs[o].text;
+                    else if (typeof data.outputs[o].content === 'string') outAcc += data.outputs[o].content;
+                }
+                if (outAcc.trim()) return outAcc;
+            }
+            // 4. steps array (Interactions API)
+            if (Array.isArray(data.steps)) {
+                var stepAcc = '';
+                for (var s = 0; s < data.steps.length; s++) {
+                    var step = data.steps[s];
+                    if (step.type === 'model_output' && Array.isArray(step.content)) {
+                        for (var c = 0; c < step.content.length; c++) {
+                            if (step.content[c].text) stepAcc += step.content[c].text;
+                        }
+                    } else if (step.text) {
+                        stepAcc += step.text;
+                    }
+                }
+                if (stepAcc.trim()) return stepAcc;
+            }
+            // 5. fallback output / response properties
+            if (data.output && typeof data.output.text === 'string') return data.output.text;
+            if (data.response && typeof data.response.text === 'string') return data.response.text;
+            return null;
+        }
+
+        // استدعاء نموذج Google Gemini (متوافق مع أحدث إصدارات Gemini 3.8 Flash و Interactions API)
+        async function executeGeminiGeneration(apiKey, systemPrompt, userPrompt) {
+            var fullPrompt = systemPrompt + '\n\n' + userPrompt;
+            // النماذج النشطة في Google Gemini مع تفضيل gemini-3.8-flash الموصى به رسمياً
+            var models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+            var lastErr = null;
+
+            // المرحلة 1: الاتصال عبر generateContent مع أحدث النماذج المعتمدة
+            for (var i = 0; i < models.length; i++) {
+                var m = models[i];
+                try {
+                    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + apiKey;
+                    var res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [
+                                {
+                                    role: 'user',
+                                    parts: [
+                                        { text: fullPrompt }
+                                    ]
+                                }
+                            ],
+                            generationConfig: {
+                                temperature: 0.7,
+                                maxOutputTokens: 24000
+                            }
+                        })
+                    });
+
+                    if (res.ok) {
+                        var data = await res.json();
+                        var text = extractGeminiResponseText(data);
+                        if (text && text.trim()) {
+                            return text;
+                        }
+                    } else {
+                        var errJson = await res.json().catch(function() { return {}; });
+                        var msg = (errJson.error && errJson.error.message) || res.statusText;
+                        lastErr = new Error('Gemini (' + m + '): ' + msg);
+                    }
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+
+            // المرحلة 2: الاتصال عبر Interactions API (الموصى به من قبل Google في حال كان الحساب يتطلب ذلك)
+            var interModels = ['gemini-3.8-flash', 'gemini-3.8-flash-lite'];
+            for (var j = 0; j < interModels.length; j++) {
+                var im = interModels[j];
+                try {
+                    var interUrl = 'https://generativelanguage.googleapis.com/v1beta/interactions?key=' + apiKey;
+                    var interRes = await fetch(interUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: im,
+                            input: fullPrompt
+                        })
+                    });
+
+                    if (interRes.ok) {
+                        var interData = await interRes.json();
+                        var interText = extractGeminiResponseText(interData);
+                        if (interText && interText.trim()) {
+                            return interText;
+                        }
+                    } else {
+                        var interErrJson = await interRes.json().catch(function() { return {}; });
+                        var interMsg = (interErrJson.error && interErrJson.error.message) || interRes.statusText;
+                        lastErr = new Error('Gemini Interactions (' + im + '): ' + interMsg);
+                    }
+                } catch (e) {
+                    // استمرار مع الخطأ المسجل السابق
+                }
+            }
+
+            throw lastErr || new Error('فشل استلام الرد من نموذج Gemini. يرجى التأكد من صلاحية المفتاح والاتصال بالإنترنت.');
+        }
+
+        // استدعاء النماذج المتوافقة مع واجهة OpenAI (OpenAI, Groq, OpenRouter)
+        async function executeOpenAiGeneration(apiKey, endpoint, model, systemPrompt, userPrompt) {
+            var res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: model || 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 16384
+                })
+            });
+
+            if (!res.ok) {
+                var errJson = await res.json().catch(function() { return {}; });
+                var msg = (errJson.error && errJson.error.message) || res.statusText;
+                throw new Error('API Error: ' + msg);
+            }
+
+            var data = await res.json();
+            var text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+            if (!text || !text.trim()) {
+                throw new Error('لم يرجع النموذج أي محتوى.');
+            }
+            return text;
+        }
+
+        // تحميل المفتاح المحفوظ عند بدء التشغيل
+        window.addEventListener('DOMContentLoaded', function() {
+            loadSavedAiApiKey();
+        });
+
+</script>
 
 </body>
 </html>
