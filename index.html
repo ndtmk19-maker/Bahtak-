@@ -1756,6 +1756,66 @@
         @keyframes ai-spin {
             to { transform: rotate(360deg); }
         }
+
+        /* تنسيقات نافذة الإرشاد التفاعلية للطلبة */
+        .student-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .student-modal-content {
+            background: #111827;
+            border: 1px solid rgba(167, 139, 250, 0.4);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 540px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px 22px;
+            position: relative;
+            color: #f8fafc;
+            animation: modalFadeIn 0.25s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .guide-step-card {
+            background: rgba(30, 41, 59, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        .guide-step-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(30, 41, 59, 0.85);
+        }
+        .guide-step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: #38bdf8;
+            color: #0f172a;
+            border-radius: 50%;
+            font-weight: 800;
+            font-size: 0.78rem;
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body>
@@ -2086,45 +2146,62 @@
                 <!-- اللوحة 1: توليد بالذكاء الاصطناعي (AI Generator) -->
                 <div id="panel-converter-ai" style="display: none;">
                     
-                    <!-- بطاقة مزود الذكاء الاصطناعي ومفتاح الـ API -->
-                    <div class="section-card" style="background: linear-gradient(135deg, rgba(30, 27, 75, 0.85), rgba(17, 24, 39, 0.9)); border-color: rgba(167, 139, 250, 0.35);">
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
-                            <span style="font-size:1.3rem;">🔑</span>
-                            <div>
-                                <div style="font-weight: 800; color: #a78bfa; font-size: 0.92rem;">مفتاح الذكاء الاصطناعي (API Key)</div>
-                                <div style="font-size: 0.72rem; color: #94a3b8;">يُحفظ المفتاح محلياً في متصفحك فقط ولا يشاركه أحد</div>
+                    <!-- بطاقة مزود ونموذج الذكاء الاصطناعي ورمز الـ API (ظاهرة بشكل عادي ومباشر لجميع الطلبة) -->
+                    <div class="section-card" style="background: var(--card-gradient); border-color: rgba(56, 189, 248, 0.35); margin-bottom: 0.9rem;">
+                        <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div class="section-card-title">
+                                <span class="icon-pill">🤖</span>
+                                <span>مزود الذكاء الاصطناعي ورمز الـ API</span>
                             </div>
+                            <!-- زر بارز لفتح نافذة الإرشاد التفاعلية للطلبة -->
+                            <button type="button" onclick="openStudentActivationModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: #000; font-size: 0.75rem; font-weight: 800; padding: 5px 12px; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35); display: flex; align-items: center; gap: 5px;">
+                                <span>💡</span>
+                                <span>نافذة إرشاد الطالب: كيف أحصل على الرمز مجاناً؟ (3 خطوات)</span>
+                            </button>
                         </div>
 
+                        <!-- 1. مزود ونموذج الذكاء الاصطناعي (ظاهر عادي) -->
                         <div class="form-group" style="margin-bottom: 0.75rem;">
-                            <label class="form-label" style="font-size: 0.78rem;">مزود ونموذج الذكاء الاصطناعي:</label>
-                            <select id="ai-provider-select" class="form-control" style="font-size: 0.82rem;" onchange="onAiProviderChange()">
-                                <option value="gemini" selected>Google Gemini (Gemini 3.8 Flash) — مجاني وسريع جداً وموصى به</option>
+                            <label class="form-label" style="font-size: 0.78rem; font-weight: 700;">مزود ونموذج الذكاء الاصطناعي:</label>
+                            <select id="ai-provider-select" class="form-control" style="font-size: 0.82rem; font-weight: 600;" onchange="onAiProviderChange()">
+                                <option value="gemini" selected>Google Gemini (Gemini 3.8 Flash) — مجاني وسريع جداً (موصى به للطلبة)</option>
                                 <option value="openai">OpenAI (ChatGPT: GPT-4o-mini / GPT-4o)</option>
                                 <option value="groq">Groq (Llama 3.3 70B - فائق السرعة)</option>
                                 <option value="openrouter">OpenRouter / DeepSeek (مزود مخصص)</option>
                             </select>
                         </div>
 
+                        <!-- 2. رمز الـ API المباشر (ظاهر عادي) -->
                         <div class="form-group" style="margin-bottom: 0.6rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <label class="form-label" style="margin-bottom: 0; font-size: 0.78rem;">مفتاح الـ API Key:</label>
-                                <a id="ai-key-link" href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size: 0.72rem; color: #38bdf8; text-decoration: none;">
-                                    🔗 احصل على مفتاح Gemini مجاني في 30 ثانية
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+                                <label class="form-label" style="margin-bottom: 0; font-size: 0.78rem; font-weight: 700;">
+                                    رمز الـ API المباشر: <span style="font-weight: 400; color: #94a3b8; font-size: 0.72rem;">(يضعه كل طالب وباحث لمرة واحدة فقط)</span>
+                                </label>
+                                <a id="ai-key-link" href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size: 0.72rem; color: #38bdf8; text-decoration: none; font-weight: 600;">
+                                    🔗 رابط صفحة Google AI Studio المباشر ↗
                                 </a>
                             </div>
-                            <div style="position: relative; display: flex; align-items: center;">
-                                <input type="password" id="ai-api-key-input" class="form-control" style="padding-left: 40px; font-family: monospace; font-size: 0.82rem;" placeholder="ألصق مفتاحك هنا (مثل: AIzaSy...)" oninput="saveAiApiKey()">
-                                <button type="button" onclick="toggleApiKeyVisibility()" style="position: absolute; left: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="إظهار/إخفاء المفتاح">
-                                    <span id="ai-key-eye">👁️</span>
+                            <div style="position: relative; display: flex; align-items: center; gap: 6px;">
+                                <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                                    <input type="password" id="ai-api-key-input" class="form-control" style="padding-left: 40px; font-family: monospace; font-size: 0.82rem;" placeholder="ألصق الرمز هنا (يبدأ بـ AIzaSy...)" oninput="saveAiApiKey()">
+                                    <button type="button" onclick="toggleApiKeyVisibility()" style="position: absolute; left: 8px; background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.95rem; padding: 4px;" title="إظهار/إخفاء الرمز">
+                                        <span id="ai-key-eye">👁️</span>
+                                    </button>
+                                </div>
+                                <button type="button" onclick="clearAiApiKey()" class="btn" style="font-size: 0.75rem; padding: 7px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; border-radius: 6px; cursor: pointer;" title="مسح الرمز المحفوظ في هذا المتصفح">
+                                    🗑️ مسح الرمز
                                 </button>
                             </div>
-                            <div id="ai-key-status" style="font-size: 0.70rem; color: #10b981; margin-top: 4px; display: none;">✓ المفتاح محفوظ تلقائياً في المتصفح</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; font-size: 0.72rem; flex-wrap: wrap; gap: 4px;">
+                                <span id="ai-key-status" style="color: #10b981; display: none;">✓ تم حفظ الرمز في هذا المتصفح</span>
+                                <span style="color: #94a3b8;">يبقى الرمز محفوظاً في متصفحك الشخصي فقط ولا يُشارك مع أي خادم خارجي.</span>
+                            </div>
                         </div>
 
-                        <div id="ai-custom-url-group" class="form-group" style="display: none; margin-bottom: 0.6rem;">
-                            <label class="form-label" style="font-size: 0.78rem;">عنوان الرابط المخصص (Endpoint URL):</label>
-                            <input type="text" id="ai-custom-url" class="form-control" style="font-size: 0.8rem; font-family: monospace;" placeholder="https://api.groq.com/openai/v1/chat/completions">
+                        <!-- مجموعة الرابط المخصص إن اختار openrouter فقط -->
+                        <div id="ai-custom-url-group" class="form-group" style="display: none; margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 0.75rem;">عنوان الرابط المخصص (Endpoint URL):</label>
+                            <input type="text" id="ai-custom-url" class="form-control" style="font-size: 0.78rem; font-family: monospace;" placeholder="https://api.groq.com/openai/v1/chat/completions">
                         </div>
                     </div>
 
@@ -4915,14 +4992,81 @@ ${documentHtml}
             }
         }
 
+
+        // فتح نافذة إرشاد وتفعيل الطالب
+        function openStudentActivationModal(noticeMsg) {
+            var modal = document.getElementById('student-activation-modal');
+            var banner = document.getElementById('modal-notice-banner');
+            var input = document.getElementById('modal-student-key-input');
+            var feedback = document.getElementById('modal-key-feedback');
+
+            var currentKey = (localStorage.getItem('bahthi_ai_api_key') || '').trim();
+            if (input) input.value = currentKey;
+
+            if (noticeMsg && banner) {
+                banner.innerText = noticeMsg;
+                banner.style.display = 'block';
+            } else if (banner) {
+                banner.style.display = 'none';
+            }
+
+            if (feedback) feedback.style.display = 'none';
+            if (modal) modal.style.display = 'flex';
+            if (input) setTimeout(function() { input.focus(); }, 150);
+        }
+
+        // إغلاق نافذة إرشاد الطالب
+        function closeStudentActivationModal() {
+            var modal = document.getElementById('student-activation-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // حفظ وتفعيل الرمز من داخل النافذة الإرشادية
+        function saveStudentKeyFromModal() {
+            var input = document.getElementById('modal-student-key-input');
+            var feedback = document.getElementById('modal-key-feedback');
+            var mainKeyInput = document.getElementById('ai-api-key-input');
+            var status = document.getElementById('ai-key-status');
+
+            if (!input) return;
+            var val = input.value.trim();
+
+            if (!val) {
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = 'rgba(239, 68, 68, 0.2)';
+                    feedback.style.color = '#f87171';
+                    feedback.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                    feedback.innerText = 'يرجى لصق الرمز أولاً!';
+                }
+                return;
+            }
+
+            localStorage.setItem('bahthi_ai_api_key', val);
+            if (mainKeyInput) mainKeyInput.value = val;
+            if (status) status.style.display = 'inline';
+
+            if (feedback) {
+                feedback.style.display = 'block';
+                feedback.style.background = 'rgba(16, 185, 129, 0.2)';
+                feedback.style.color = '#34d399';
+                feedback.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                feedback.innerText = '🎉 تم حفظ الرمز وتطبيقه بنجاح! يمكنك الآن توليد أبحاثك فوراً.';
+            }
+
+            setTimeout(function() {
+                closeStudentActivationModal();
+            }, 1000);
+        }
+
         // استرجاع مفتاح الـ API المحفوظ في المتصفح
         function loadSavedAiApiKey() {
             var input = document.getElementById('ai-api-key-input');
             var status = document.getElementById('ai-key-status');
-            var savedKey = localStorage.getItem('bahthi_ai_api_key') || localStorage.getItem('bahthi_ai_api_key_sandbox') || '';
-            if (input && savedKey) {
+            var savedKey = localStorage.getItem('bahthi_ai_api_key') || '';
+            if (input) {
                 input.value = savedKey;
-                if (status) status.style.display = 'block';
+                if (status) status.style.display = savedKey ? 'inline' : 'none';
             }
         }
 
@@ -4933,13 +5077,22 @@ ${documentHtml}
             if (input) {
                 var key = input.value.trim();
                 if (key) {
-                    localStorage.setItem('bahthi_ai_api_key', key); localStorage.setItem('bahthi_ai_api_key_sandbox', key);
-                    if (status) status.style.display = 'block';
+                    localStorage.setItem('bahthi_ai_api_key', key);
+                    if (status) status.style.display = 'inline';
                 } else {
-                    localStorage.removeItem('bahthi_ai_api_key'); localStorage.removeItem('bahthi_ai_api_key_sandbox');
+                    localStorage.removeItem('bahthi_ai_api_key');
                     if (status) status.style.display = 'none';
                 }
             }
+        }
+
+        // مسح الرمز المحفوظ في المتصفح بنقرة واحدة
+        function clearAiApiKey() {
+            localStorage.removeItem('bahthi_ai_api_key');
+            var input = document.getElementById('ai-api-key-input');
+            var status = document.getElementById('ai-key-status');
+            if (input) input.value = '';
+            if (status) status.style.display = 'none';
         }
 
         // إظهار أو إخفاء مفتاح الـ API
@@ -5037,8 +5190,7 @@ ${documentHtml}
             var provider = document.getElementById('ai-provider-select') ? document.getElementById('ai-provider-select').value : 'gemini';
 
             if (!apiKey) {
-                alert('يرجى إدخال مفتاح الـ API أولاً. إذا لم يكن لديك مفتاح، يمكنك الحصول على مفتاح Google Gemini مجاناً في ثوانٍ عبر الرابط بالأعلى.');
-                if (keyInput) keyInput.focus();
+                openStudentActivationModal('عزيزي الطالب، خطوة واحدة متبقية فقط! يرجى إدخال رمزك المجاني من Google في 30 ثانية لتتمكن من التوليد فوراً.');
                 return;
             }
 
@@ -5330,6 +5482,78 @@ ${documentHtml}
         });
 
 </script>
+
+
+    <!-- نافذة إرشاد تفاعلية منبثقة للطلبة (3 خطوات مصورة) -->
+    <div id="student-activation-modal" class="student-modal-overlay" onclick="if(event.target === this) closeStudentActivationModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 999999; align-items: center; justify-content: center; padding: 15px;">
+        <div class="student-modal-content" style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.85); border-radius: 16px; max-width: 560px; width: 100%; padding: 22px; max-height: 90vh; overflow-y: auto; color: #f1f5f9; direction: rtl; text-align: right;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.8rem;">🎓</span>
+                    <div>
+                        <div style="font-weight: 800; font-size: 1.1rem; color: #38bdf8;">نافذة إرشاد الطالب: الحصول على رمز التفعيل المجاني</div>
+                        <div style="font-size: 0.74rem; color: #94a3b8;">3 خطوات سريعة في 30 ثانية لتفعيل حصتك المجانية الخاصة مدى الحياة</div>
+                    </div>
+                </div>
+                <button type="button" onclick="closeStudentActivationModal()" style="background: rgba(148, 163, 184, 0.15); border: none; color: #cbd5e1; font-size: 1.2rem; cursor: pointer; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;" title="إغلاق">✕</button>
+            </div>
+
+            <div id="modal-notice-banner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 10px 12px; font-size: 0.80rem; color: #fbbf24; margin-bottom: 14px; line-height: 1.5;"></div>
+
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 9px 12px; font-size: 0.75rem; color: #6ee7b7; line-height: 1.5; margin-bottom: 14px;">
+                💡 <strong>معلومة هامة:</strong> تقدم شركة Google لكل طالب وباحث رصيداً ضخماً مجانياً (أكثر من <strong>1,500 بحث يومياً</strong>) دون أي رسوم أو بطاقة بنكية. كل ما تحتاجه هو حساب Gmail معتاد!
+            </div>
+
+            <!-- الخطوة 1 -->
+            <div class="guide-step-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;">
+                <div style="font-weight: 800; font-size: 0.85rem; color: #38bdf8; margin-bottom: 5px;">
+                    <span class="guide-step-num" style="display: inline-block; width: 22px; height: 22px; background: #0284c7; color: #fff; border-radius: 50%; text-align: center; line-height: 22px; font-size: 0.75rem; margin-left: 6px;">1</span>
+                    افتح صفحة التفعيل الرسمية من Google
+                </div>
+                <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 9px;">
+                    انقر على الزر الأزرق أدناه للدخول إلى صفحة Google الرسمية (سجّل دخولك بحسابك Gmail المعتاد إذا طُلب منك):
+                </div>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; text-decoration: none; font-weight: 700; font-size: 0.82rem; padding: 9px 14px; border-radius: 8px; box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);">
+                    <span>🌐 انقر هنا لفتح صفحة Google AI Studio في تبويب جديد</span>
+                    <span>↗</span>
+                </a>
+            </div>
+
+            <!-- الخطوة 2 -->
+            <div class="guide-step-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;">
+                <div style="font-weight: 800; font-size: 0.85rem; color: #38bdf8; margin-bottom: 5px;">
+                    <span class="guide-step-num" style="display: inline-block; width: 22px; height: 22px; background: #0284c7; color: #fff; border-radius: 50%; text-align: center; line-height: 22px; font-size: 0.75rem; margin-left: 6px;">2</span>
+                    اضغط على الزر الأزرق لإنشاء الرمز ثم انسخه
+                </div>
+                <div style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.6;">
+                    في صفحة Google، ستجد زراً أزرق بارزاً مكتوب عليه:
+                    <span style="display: inline-block; background: #1a73e8; color: #fff; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 0.74rem; margin: 2px 4px;">+ Create API Key</span>
+                    انقر عليه، ثم اختر أي مشروع أو أنشئ مشروعاً جديداً، ثم اضغط زر <strong>Copy</strong> لنسخ الرمز المولد.
+                </div>
+            </div>
+
+            <!-- الخطوة 3 -->
+            <div class="guide-step-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;">
+                <div style="font-weight: 800; font-size: 0.85rem; color: #38bdf8; margin-bottom: 5px;">
+                    <span class="guide-step-num" style="display: inline-block; width: 22px; height: 22px; background: #0284c7; color: #fff; border-radius: 50%; text-align: center; line-height: 22px; font-size: 0.75rem; margin-left: 6px;">3</span>
+                    الصق الرمز هنا واضغط تفعيل
+                </div>
+                <div style="margin-top: 8px;">
+                    <input type="text" id="modal-student-key-input" class="form-control" style="font-family: monospace; font-size: 0.82rem; padding: 9px 12px;" placeholder="ألصق الرمز هنا (يبدأ بـ AIzaSy...)">
+                </div>
+                <button type="button" class="btn" onclick="saveStudentKeyFromModal()" style="width: 100%; margin-top: 10px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 800; font-size: 0.86rem; padding: 10px; border-radius: 8px; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+                    <span>✨ حفظ وتطبيق الرمز في بحثي</span>
+                </button>
+                <div id="modal-key-feedback" style="display: none; margin-top: 8px; font-size: 0.78rem; text-align: center; border-radius: 6px; padding: 6px;"></div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" onclick="closeStudentActivationModal()" class="btn btn-secondary" style="font-size: 0.78rem; padding: 6px 16px;">
+                    إغلاق النافذة
+                </button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
