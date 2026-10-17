@@ -1268,6 +1268,224 @@
                 break-after: auto !important;
             }
         }
+
+        /* ==============================================================
+           التجاوب التام والذكي مع الهواتف الذكية (Responsive Mobile Design)
+           يحافظ 100% على تصميم شاشات الحاسوب المكتبية (Desktop) دون أدنى تغيير
+           ============================================================== */
+
+        /* شريط التبديل الخاص بالهاتف (مخفي افتراضياً على شاشات الحاسوب) */
+        .mobile-view-toggle-bar {
+            display: none;
+            background: linear-gradient(180deg, #101c31 0%, #0c1424 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 6px 10px;
+            gap: 8px;
+            z-index: 95;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        .mobile-toggle-btn {
+            flex: 1;
+            padding: 8px 10px;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 8px;
+            color: #94a3b8;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .mobile-toggle-btn:hover {
+            color: #f1f5f9;
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .mobile-toggle-btn.active {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+        }
+
+        .mobile-toggle-btn .tab-badge {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+            padding: 1px 7px;
+            font-size: 0.68rem;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 900px) {
+            /* إظهار شريط تبديل الهاتف */
+            .mobile-view-toggle-bar {
+                display: flex;
+            }
+
+            /* شريط العنوان العلوي مدمج وأنيق */
+            header.app-header {
+                padding: 0.45rem 0.8rem;
+                gap: 8px;
+            }
+
+            .brand-container {
+                gap: 8px;
+                min-width: 0;
+                flex: 1;
+            }
+
+            .brand-container img {
+                width: 36px !important;
+                height: 36px !important;
+                border-radius: 9px !important;
+            }
+
+            .brand-title {
+                font-size: 0.95rem;
+                white-space: nowrap;
+            }
+
+            .brand-desc {
+                display: none !important; /* إخفاء الوصف الطويل على شاشات الهاتف لمنع تشوه الشريط العلوي */
+            }
+
+            .header-actions {
+                gap: 6px;
+                flex-shrink: 0;
+            }
+
+            .header-actions .btn {
+                padding: 0.38rem 0.62rem;
+                font-size: 0.74rem;
+                gap: 4px;
+            }
+
+            /* هيكل التطبيق على الهاتف */
+            .main-layout {
+                flex-direction: column;
+                height: calc(100vh - 106px);
+                height: calc(100dvh - 106px);
+                overflow: hidden;
+            }
+
+            /* وضع المحرر النشط على الهاتف */
+            .main-layout.mobile-mode-editor .sidebar {
+                display: flex !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                flex: 1;
+                border-left: none;
+            }
+
+            .main-layout.mobile-mode-editor .preview-canvas {
+                display: none !important;
+            }
+
+            /* وضع المعاينة النشط على الهاتف */
+            .main-layout.mobile-mode-preview .sidebar {
+                display: none !important;
+            }
+
+            .main-layout.mobile-mode-preview .preview-canvas {
+                display: flex !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                flex: 1;
+            }
+
+            /* شريط التبويبات في اللوحة الجانبية أفقي قابل للتمرير بسلاسة باللمس */
+            .tabs-header {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 6px 6px 0 6px;
+                gap: 4px;
+                scrollbar-width: none;
+            }
+
+            .tabs-header::-webkit-scrollbar {
+                display: none;
+            }
+
+            .tab-btn {
+                flex: 0 0 auto;
+                min-width: max-content;
+                padding: 0.55rem 0.75rem;
+                font-size: 0.74rem;
+            }
+
+            .tab-content {
+                padding: 0.85rem 0.65rem;
+            }
+
+            .section-card {
+                padding: 0.85rem;
+                margin-bottom: 0.85rem;
+            }
+
+            /* مساحة المعاينة الحية لصفحات A4 على الهاتف */
+            .preview-canvas {
+                padding: 0.75rem 0.25rem 2.5rem 0.25rem;
+                overflow-x: auto;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+            }
+
+            .preview-controls-bar {
+                position: sticky;
+                top: 0;
+                padding: 0.35rem 0.65rem;
+                gap: 6px;
+                margin-bottom: 0.75rem;
+                border-radius: 20px;
+                max-width: 98%;
+                flex-wrap: wrap;
+                justify-content: center;
+                font-size: 0.76rem;
+            }
+
+            .preview-controls-bar .btn {
+                padding: 3px 8px;
+                font-size: 0.72rem;
+            }
+
+            .preview-scale-wrapper {
+                gap: 6mm;
+                padding-bottom: 25px;
+            }
+        }
+
+        /* تحسينات إضافية للشاشات الصغيرة جداً (أقل من 480px) */
+        @media (max-width: 480px) {
+            header.app-header {
+                padding: 0.35rem 0.5rem;
+            }
+
+            .header-actions .btn {
+                padding: 0.35rem 0.5rem;
+                font-size: 0.70rem;
+            }
+
+            .wizard-steps {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+
+            .btn-magic {
+                font-size: 0.82rem;
+                padding: 0.65rem 0.6rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1284,16 +1502,27 @@
 
         <div class="header-actions">
             <button class="btn btn-secondary" onclick="resetAppToDefault()" title="إعادة تعيين وبدء بحث جديد" style="border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;">
-                <span>🔄 إعادة تعيين</span>
+                <span>🔄</span><span>إعادة تعيين</span>
             </button>
-            <button class="btn btn-success" onclick="printDocument()">
-                <span>🖨️ طباعة / حفظ كـ PDF</span>
+            <button class="btn btn-success" onclick="printDocument()" title="طباعة أو حفظ البحث كملف PDF">
+                <span>🖨️</span><span>طباعة / PDF</span>
             </button>
         </div>
     </header>
 
+    <!-- شريط التبديل الخاص بالهاتف (يظهر فقط في شاشات الهواتف والأجهزة اللوحية) -->
+    <div class="mobile-view-toggle-bar" id="mobile-view-toggle-bar">
+        <button class="mobile-toggle-btn active" id="btn-mobile-editor" onclick="setMobileView('editor')">
+            <span>📝 المحرر والتحكم</span>
+        </button>
+        <button class="mobile-toggle-btn" id="btn-mobile-preview" onclick="setMobileView('preview')">
+            <span>👁️ معاينة البحث A4</span>
+            <span id="mobile-pages-badge" class="tab-badge">1</span>
+        </button>
+    </div>
+
     <!-- الهيكل الرئيسي للتطبيق -->
-    <div class="main-layout">
+    <div class="main-layout mobile-mode-editor" id="app-main-layout">
         
         <!-- اللوحة الجانبية / شاشة التحكم والتحرير -->
         <div class="sidebar">
@@ -1828,10 +2057,11 @@
             
             <div class="preview-controls-bar">
                 <span style="font-size: 0.82rem; font-weight: bold; color: #94a3b8;">نسبة العرض:</span>
-                <button class="btn btn-secondary" style="padding: 2px 10px;" onclick="changeZoom(-0.1)">➖</button>
+                <button class="btn btn-secondary" style="padding: 2px 9px;" onclick="changeZoom(-0.05)" title="تصغير">➖</button>
                 <span id="zoom-text" style="font-size: 0.85rem; font-weight: bold; min-width: 45px; text-align: center;">85%</span>
-                <button class="btn btn-secondary" style="padding: 2px 10px;" onclick="changeZoom(0.1)">➕</button>
-                <button class="btn btn-secondary" style="padding: 2px 10px; font-size: 0.75rem;" onclick="resetZoom()">إعادة ضبط</button>
+                <button class="btn btn-secondary" style="padding: 2px 9px;" onclick="changeZoom(0.05)" title="تكبير">➕</button>
+                <button class="btn btn-secondary" style="padding: 2px 9px; font-size: 0.74rem;" onclick="fitZoomToScreen()" title="ملاءمة عرض الشاشة تلقائياً">📱 ملاءمة الشاشة</button>
+                <button class="btn btn-secondary" style="padding: 2px 9px; font-size: 0.74rem;" onclick="resetZoom()" title="إعادة ضبط الحجم الافتراضي">إعادة ضبط</button>
             </div>
 
             <!-- الحاوية التي تحمل صفحات A4 الحقيقية -->
@@ -1915,6 +2145,63 @@
         };
 
         let currentZoom = 0.85;
+        let mobileCurrentView = 'editor';
+
+        // التبديل بين وضع المحرر ووضع المعاينة على شاشات الهواتف
+        function setMobileView(mode) {
+            mobileCurrentView = mode;
+            const layout = document.getElementById('app-main-layout');
+            const btnEditor = document.getElementById('btn-mobile-editor');
+            const btnPreview = document.getElementById('btn-mobile-preview');
+
+            if (mode === 'editor') {
+                if (layout) {
+                    layout.classList.add('mobile-mode-editor');
+                    layout.classList.remove('mobile-mode-preview');
+                }
+                if (btnEditor) btnEditor.classList.add('active');
+                if (btnPreview) btnPreview.classList.remove('active');
+            } else {
+                if (layout) {
+                    layout.classList.add('mobile-mode-preview');
+                    layout.classList.remove('mobile-mode-editor');
+                }
+                if (btnEditor) btnEditor.classList.remove('active');
+                if (btnPreview) btnPreview.classList.add('active');
+
+                // ملاءمة عرض صفحات A4 تلقائياً عند التبديل لشاشة المعاينة على الهاتف
+                if (window.innerWidth <= 900) {
+                    fitZoomToScreen();
+                }
+            }
+        }
+
+        // ملاءمة حجم العرض تلقائياً مع حجم الشاشة (هاتف أو حاسوب)
+        function fitZoomToScreen() {
+            const isMobile = window.innerWidth <= 900;
+            if (isMobile) {
+                const availableWidth = window.innerWidth - 20;
+                // عرض الورقة A4 يقارب 794 بكسل مع الهوامش
+                const fitScale = Math.min(1.0, Math.max(0.30, availableWidth / 815));
+                currentZoom = Math.round(fitScale * 100) / 100;
+            } else {
+                const availableWidth = window.innerWidth - 530; // خصم عرض اللوحة الجانبية
+                const fitScale = Math.min(1.0, Math.max(0.40, availableWidth / 830));
+                currentZoom = Math.round(fitScale * 100) / 100;
+            }
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const wrapper = document.getElementById('document-scale-wrapper');
+            if (wrapper) {
+                wrapper.style.transform = `scale(${currentZoom})`;
+            }
+            const zoomText = document.getElementById('zoom-text');
+            if (zoomText) {
+                zoomText.innerText = `${Math.round(currentZoom * 100)}%`;
+            }
+        }
 
         // التهيئة المبدئية عند فتح التطبيق
         window.addEventListener('DOMContentLoaded', () => {
@@ -1924,6 +2211,18 @@
             updatePlanToggleUI();
             updateStudentToggleUI();
             setupAutoSave();
+
+            // فحص مقاس الشاشة لضبط نسبة العرض المناسبة تلقائياً
+            if (window.innerWidth <= 900) {
+                fitZoomToScreen();
+            }
+        });
+
+        // ضبط نسبة العرض عند تدوير شاشة الهاتف أو تغيير حجم النافذة
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 900 && mobileCurrentView === 'preview') {
+                fitZoomToScreen();
+            }
         });
 
         // تبديل التبويبات في اللوحة الجانبية بسلاسة
@@ -1940,15 +2239,18 @@
 
         // تغيير مستوى تكبير المعاينة
         function changeZoom(delta) {
-            currentZoom = Math.min(Math.max(0.4, currentZoom + delta), 1.3);
-            document.getElementById('document-scale-wrapper').style.transform = `scale(${currentZoom})`;
-            document.getElementById('zoom-text').innerText = `${Math.round(currentZoom * 100)}%`;
+            currentZoom = Math.min(Math.max(0.25, currentZoom + delta), 1.6);
+            currentZoom = Math.round(currentZoom * 100) / 100;
+            applyZoom();
         }
 
         function resetZoom() {
-            currentZoom = 0.85;
-            document.getElementById('document-scale-wrapper').style.transform = `scale(${currentZoom})`;
-            document.getElementById('zoom-text').innerText = '85%';
+            if (window.innerWidth <= 900) {
+                fitZoomToScreen();
+            } else {
+                currentZoom = 0.85;
+                applyZoom();
+            }
         }
 
         // مزامنة عنوان الغلاف تلقائياً مع عنوان البحث العام في خطة البحث
@@ -2597,6 +2899,8 @@
 
             const badge = document.getElementById('pages-count-badge');
             if (badge) badge.innerText = documentState.pages.length;
+            const mobileBadge = document.getElementById('mobile-pages-badge');
+            if (mobileBadge) mobileBadge.innerText = documentState.pages.length;
             const stat = document.getElementById('pages-count-stat');
             if (stat) stat.innerText = `${documentState.pages.length} صفحة`;
 
@@ -3772,8 +4076,11 @@
             renderEditorList();
             renderDocument();
 
-            // 9. الانتقال فوراً لتبويب محرر الصفحات
+            // 9. الانتقال فوراً لتبويب محرر الصفحات، وإذا كان المستخدم على الهاتف نحوله تلقائياً لمعاينة الصفحات
             switchTab('editor-tab');
+            if (window.innerWidth <= 900) {
+                setMobileView('preview');
+            }
 
             alert(`✅ تم بنجاح تنسيق البحث وتقسيمه بدقة على الصفحات!\n• عدد الصفحات المتولدة: ${parsedPages.length} صفحة.\n• يواصل المحتوى تدفقه في الصفحة التالية مباشرة دون تكرار عنوان المطلب.\n• تم توزيع الهوامش على نفس الصفحات وترقيمها بدقة.`);
         }
