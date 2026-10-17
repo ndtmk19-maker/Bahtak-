@@ -2,8 +2,25 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
     <title>Bahthi — بحثي | منسق البحوث وبطاقات القراءة الأكاديمية</title>
+    <script>
+        (function() {
+            function updateMobileClass() {
+                var isMob = (window.innerWidth <= 1100) || 
+                            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                            (window.matchMedia && window.matchMedia('(max-width: 1100px)').matches);
+                if (isMob) {
+                    document.documentElement.classList.add('mobile-screen');
+                } else {
+                    document.documentElement.classList.remove('mobile-screen');
+                }
+            }
+            updateMobileClass();
+            window.addEventListener('resize', updateMobileClass);
+            window.addEventListener('orientationchange', updateMobileClass);
+        })();
+    </script>
     <!-- خطوط جوجل الرسمية -->
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -1324,10 +1341,10 @@
             border-radius: 10px;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1100px), (pointer: coarse) and (max-width: 1360px) {
             /* إظهار شريط تبديل الهاتف */
             .mobile-view-toggle-bar {
-                display: flex;
+                display: flex !important;
             }
 
             /* شريط العنوان العلوي مدمج وأنيق */
@@ -1370,10 +1387,10 @@
 
             /* هيكل التطبيق على الهاتف */
             .main-layout {
-                flex-direction: column;
-                height: calc(100vh - 106px);
-                height: calc(100dvh - 106px);
-                overflow: hidden;
+                flex-direction: column !important;
+                height: calc(100vh - 106px) !important;
+                height: calc(100dvh - 106px) !important;
+                overflow: hidden !important;
             }
 
             /* وضع المحرر النشط على الهاتف */
@@ -1382,8 +1399,8 @@
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100% !important;
-                flex: 1;
-                border-left: none;
+                flex: 1 !important;
+                border-left: none !important;
             }
 
             .main-layout.mobile-mode-editor .preview-canvas {
@@ -1400,27 +1417,27 @@
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100% !important;
-                flex: 1;
+                flex: 1 !important;
             }
 
             /* شريط التبويبات في اللوحة الجانبية أفقي قابل للتمرير بسلاسة باللمس */
             .tabs-header {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                padding: 6px 6px 0 6px;
-                gap: 4px;
-                scrollbar-width: none;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding: 6px 6px 0 6px !important;
+                gap: 4px !important;
+                scrollbar-width: none !important;
             }
 
             .tabs-header::-webkit-scrollbar {
-                display: none;
+                display: none !important;
             }
 
             .tab-btn {
-                flex: 0 0 auto;
-                min-width: max-content;
-                padding: 0.55rem 0.75rem;
-                font-size: 0.74rem;
+                flex: 0 0 auto !important;
+                min-width: max-content !important;
+                padding: 0.55rem 0.75rem !important;
+                font-size: 0.74rem !important;
             }
 
             .tab-content {
@@ -1434,11 +1451,11 @@
 
             /* مساحة المعاينة الحية لصفحات A4 على الهاتف */
             .preview-canvas {
-                padding: 0.75rem 0.25rem 2.5rem 0.25rem;
-                overflow-x: auto;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                width: 100%;
+                padding: 0.75rem 0.25rem 2.5rem 0.25rem !important;
+                overflow-x: auto !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                width: 100% !important;
             }
 
             .preview-controls-bar {
@@ -1463,6 +1480,69 @@
                 gap: 6mm;
                 padding-bottom: 25px;
             }
+        }
+
+        /* قواعد داعمة في حال فتح الهاتف بوضع سطح المكتب (Desktop Mode) لضمان عدم حدوث قص أو تداخل */
+        html.mobile-screen .mobile-view-toggle-bar {
+            display: flex !important;
+        }
+        html.mobile-screen header.app-header {
+            padding: 0.45rem 0.8rem !important;
+            gap: 8px !important;
+        }
+        html.mobile-screen .brand-desc {
+            display: none !important;
+        }
+        html.mobile-screen .main-layout {
+            flex-direction: column !important;
+            height: calc(100vh - 106px) !important;
+            height: calc(100dvh - 106px) !important;
+            overflow: hidden !important;
+        }
+        html.mobile-screen .main-layout.mobile-mode-editor .sidebar {
+            display: flex !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            flex: 1 !important;
+            border-left: none !important;
+        }
+        html.mobile-screen .main-layout.mobile-mode-editor .preview-canvas {
+            display: none !important;
+        }
+        html.mobile-screen .main-layout.mobile-mode-preview .sidebar {
+            display: none !important;
+        }
+        html.mobile-screen .main-layout.mobile-mode-preview .preview-canvas {
+            display: flex !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            flex: 1 !important;
+        }
+        html.mobile-screen .tabs-header {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding: 6px 6px 0 6px !important;
+            gap: 4px !important;
+            scrollbar-width: none !important;
+        }
+        html.mobile-screen .tab-btn {
+            flex: 0 0 auto !important;
+            min-width: max-content !important;
+            padding: 0.55rem 0.75rem !important;
+            font-size: 0.74rem !important;
+        }
+        html.mobile-screen .preview-canvas {
+            padding: 0.75rem 0.25rem 2.5rem 0.25rem !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            width: 100% !important;
+        }
+        html.mobile-screen .preview-scale-wrapper {
+            gap: 6mm !important;
+            padding-bottom: 25px !important;
         }
 
         /* تحسينات إضافية للشاشات الصغيرة جداً (أقل من 480px) */
@@ -1513,10 +1593,10 @@
     <!-- شريط التبديل الخاص بالهاتف (يظهر فقط في شاشات الهواتف والأجهزة اللوحية) -->
     <div class="mobile-view-toggle-bar" id="mobile-view-toggle-bar">
         <button class="mobile-toggle-btn active" id="btn-mobile-editor" onclick="setMobileView('editor')">
-            <span>📝 المحرر والتحكم</span>
+            <span>📝 لوحة التحكم والتحرير</span>
         </button>
         <button class="mobile-toggle-btn" id="btn-mobile-preview" onclick="setMobileView('preview')">
-            <span>👁️ معاينة البحث A4</span>
+            <span>👁️ معاينة الورقة A4 كاملة</span>
             <span id="mobile-pages-badge" class="tab-badge">1</span>
         </button>
     </div>
@@ -2169,20 +2249,24 @@
                 if (btnEditor) btnEditor.classList.remove('active');
                 if (btnPreview) btnPreview.classList.add('active');
 
-                // ملاءمة عرض صفحات A4 تلقائياً عند التبديل لشاشة المعاينة على الهاتف
-                if (window.innerWidth <= 900) {
+                // ملاءمة عرض صفحات A4 تلقائياً وفوراً مع الشاشة لضمان ظهور الورقة كاملة
+                setTimeout(() => {
                     fitZoomToScreen();
-                }
+                }, 40);
             }
         }
 
         // ملاءمة حجم العرض تلقائياً مع حجم الشاشة (هاتف أو حاسوب)
         function fitZoomToScreen() {
-            const isMobile = window.innerWidth <= 900;
+            const isMobile = document.documentElement.classList.contains('mobile-screen') || 
+                             (window.innerWidth <= 1100) || 
+                             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
             if (isMobile) {
-                const availableWidth = window.innerWidth - 20;
-                // عرض الورقة A4 يقارب 794 بكسل مع الهوامش
-                const fitScale = Math.min(1.0, Math.max(0.30, availableWidth / 815));
+                // في الهاتف نأخذ عرض الشاشة الحقيقي مع خصم هامش خفيف (14px) لضمان ظهور الصفحة كاملة بإطارها
+                const availableWidth = Math.max(300, window.innerWidth - 14);
+                // الورقة A4 بعرض 210mm (تقارب 794 بكسل مع الهوامش والإطار)
+                const fitScale = Math.min(1.0, Math.max(0.25, availableWidth / 815));
                 currentZoom = Math.round(fitScale * 100) / 100;
             } else {
                 const availableWidth = window.innerWidth - 530; // خصم عرض اللوحة الجانبية
@@ -2213,14 +2297,20 @@
             setupAutoSave();
 
             // فحص مقاس الشاشة لضبط نسبة العرض المناسبة تلقائياً
-            if (window.innerWidth <= 900) {
+            const isMobile = document.documentElement.classList.contains('mobile-screen') || 
+                             (window.innerWidth <= 1100) || 
+                             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
                 fitZoomToScreen();
             }
         });
 
         // ضبط نسبة العرض عند تدوير شاشة الهاتف أو تغيير حجم النافذة
         window.addEventListener('resize', () => {
-            if (window.innerWidth <= 900 && mobileCurrentView === 'preview') {
+            const isMobile = document.documentElement.classList.contains('mobile-screen') || 
+                             (window.innerWidth <= 1100) || 
+                             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile && mobileCurrentView === 'preview') {
                 fitZoomToScreen();
             }
         });
@@ -4078,7 +4168,10 @@
 
             // 9. الانتقال فوراً لتبويب محرر الصفحات، وإذا كان المستخدم على الهاتف نحوله تلقائياً لمعاينة الصفحات
             switchTab('editor-tab');
-            if (window.innerWidth <= 900) {
+            const isMobile = document.documentElement.classList.contains('mobile-screen') || 
+                             (window.innerWidth <= 1100) || 
+                             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
                 setMobileView('preview');
             }
 
