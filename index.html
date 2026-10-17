@@ -7,18 +7,28 @@
     <script>
         (function() {
             function updateMobileClass() {
-                var isMob = (window.innerWidth <= 1100) || 
-                            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                            (window.matchMedia && window.matchMedia('(max-width: 1100px)').matches);
+                var isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+                var isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                var isSmallScreen = window.innerWidth <= 820;
+                var isMob = isMobileUA || (isTouch && window.innerWidth <= 1024) || isSmallScreen;
+                var layout = document.getElementById('app-main-layout');
                 if (isMob) {
                     document.documentElement.classList.add('mobile-screen');
+                    if (layout && !layout.classList.contains('mobile-mode-editor') && !layout.classList.contains('mobile-mode-preview')) {
+                        layout.classList.add('mobile-mode-editor');
+                    }
                 } else {
                     document.documentElement.classList.remove('mobile-screen');
+                    if (layout) {
+                        layout.classList.remove('mobile-mode-editor');
+                        layout.classList.remove('mobile-mode-preview');
+                    }
                 }
             }
             updateMobileClass();
             window.addEventListener('resize', updateMobileClass);
             window.addEventListener('orientationchange', updateMobileClass);
+            window.addEventListener('DOMContentLoaded', updateMobileClass);
         })();
     </script>
     <!-- خطوط جوجل الرسمية -->
@@ -1202,89 +1212,7 @@
             margin-bottom: 4mm;
         }
 
-        /* ==============================================================
-           إعدادات الطباعة الصارمة للـ PDF وتفادي مشكلة الصفحة الواحدة
-           ============================================================== */
-        @media print {
-            html, body {
-                background: #ffffff !important;
-                color: #000000 !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                min-height: 100% !important;
-                overflow: visible !important;
-                display: block !important;
-                position: static !important;
-            }
-
-            header.app-header, 
-            .sidebar, 
-            .preview-controls-bar {
-                display: none !important;
-            }
-
-            .main-layout {
-                height: auto !important;
-                min-height: 100% !important;
-                display: block !important;
-                overflow: visible !important;
-                position: static !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-            }
-
-            .preview-canvas {
-                padding: 0 !important;
-                margin: 0 !important;
-                background: transparent !important;
-                overflow: visible !important;
-                display: block !important;
-                height: auto !important;
-                min-height: 100% !important;
-                position: static !important;
-                width: 100% !important;
-            }
-
-            .preview-scale-wrapper {
-                transform: none !important;
-                display: block !important;
-                gap: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                position: static !important;
-            }
-
-            .a4-page {
-                box-shadow: none !important;
-                margin: 0 auto !important;
-                padding: 8mm !important;
-                width: 210mm !important;
-                height: 296mm !important;
-                max-height: 296mm !important;
-                min-height: 296mm !important;
-                box-sizing: border-box !important;
-                page-break-before: auto !important;
-                page-break-after: always !important;
-                break-after: page !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                display: flex !important;
-                flex-direction: column !important;
-                position: relative !important;
-                overflow: hidden !important;
-            }
-
-            .a4-page:last-child,
-            .a4-page:last-of-type {
-                page-break-after: auto !important;
-                break-after: auto !important;
-            }
-        }
+        /* تم نقل إعدادات الطباعة الشاملة لنهاية ملف التنسيقات لضمان الأسبقية التامة */
 
         /* ==============================================================
            التجاوب التام والذكي مع الهواتف الذكية (Responsive Mobile Design)
@@ -1341,7 +1269,7 @@
             border-radius: 10px;
         }
 
-        @media (max-width: 1100px), (pointer: coarse) and (max-width: 1360px) {
+        @media screen and (max-width: 850px), screen and (pointer: coarse) and (max-width: 1024px) {
             /* إظهار شريط تبديل الهاتف */
             .mobile-view-toggle-bar {
                 display: flex !important;
@@ -1482,71 +1410,73 @@
             }
         }
 
-        /* قواعد داعمة في حال فتح الهاتف بوضع سطح المكتب (Desktop Mode) لضمان عدم حدوث قص أو تداخل */
-        html.mobile-screen .mobile-view-toggle-bar {
-            display: flex !important;
-        }
-        html.mobile-screen header.app-header {
-            padding: 0.45rem 0.8rem !important;
-            gap: 8px !important;
-        }
-        html.mobile-screen .brand-desc {
-            display: none !important;
-        }
-        html.mobile-screen .main-layout {
-            flex-direction: column !important;
-            height: calc(100vh - 106px) !important;
-            height: calc(100dvh - 106px) !important;
-            overflow: hidden !important;
-        }
-        html.mobile-screen .main-layout.mobile-mode-editor .sidebar {
-            display: flex !important;
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            flex: 1 !important;
-            border-left: none !important;
-        }
-        html.mobile-screen .main-layout.mobile-mode-editor .preview-canvas {
-            display: none !important;
-        }
-        html.mobile-screen .main-layout.mobile-mode-preview .sidebar {
-            display: none !important;
-        }
-        html.mobile-screen .main-layout.mobile-mode-preview .preview-canvas {
-            display: flex !important;
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            flex: 1 !important;
-        }
-        html.mobile-screen .tabs-header {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            padding: 6px 6px 0 6px !important;
-            gap: 4px !important;
-            scrollbar-width: none !important;
-        }
-        html.mobile-screen .tab-btn {
-            flex: 0 0 auto !important;
-            min-width: max-content !important;
-            padding: 0.55rem 0.75rem !important;
-            font-size: 0.74rem !important;
-        }
-        html.mobile-screen .preview-canvas {
-            padding: 0.75rem 0.25rem 2.5rem 0.25rem !important;
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            width: 100% !important;
-        }
-        html.mobile-screen .preview-scale-wrapper {
-            gap: 6mm !important;
-            padding-bottom: 25px !important;
+        /* قواعد داعمة في حال فتح الهاتف بوضع سطح المكتب (Desktop Mode) لضمان عدم حدوث قص أو تداخل (خاصة بالشاشة فقط ولا تؤثر على الطباعة) */
+        @media screen {
+            html.mobile-screen .mobile-view-toggle-bar {
+                display: flex !important;
+            }
+            html.mobile-screen header.app-header {
+                padding: 0.45rem 0.8rem !important;
+                gap: 8px !important;
+            }
+            html.mobile-screen .brand-desc {
+                display: none !important;
+            }
+            html.mobile-screen .main-layout {
+                flex-direction: column !important;
+                height: calc(100vh - 106px) !important;
+                height: calc(100dvh - 106px) !important;
+                overflow: hidden !important;
+            }
+            html.mobile-screen .main-layout.mobile-mode-editor .sidebar {
+                display: flex !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                flex: 1 !important;
+                border-left: none !important;
+            }
+            html.mobile-screen .main-layout.mobile-mode-editor .preview-canvas {
+                display: none !important;
+            }
+            html.mobile-screen .main-layout.mobile-mode-preview .sidebar {
+                display: none !important;
+            }
+            html.mobile-screen .main-layout.mobile-mode-preview .preview-canvas {
+                display: flex !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                flex: 1 !important;
+            }
+            html.mobile-screen .tabs-header {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding: 6px 6px 0 6px !important;
+                gap: 4px !important;
+                scrollbar-width: none !important;
+            }
+            html.mobile-screen .tab-btn {
+                flex: 0 0 auto !important;
+                min-width: max-content !important;
+                padding: 0.55rem 0.75rem !important;
+                font-size: 0.74rem !important;
+            }
+            html.mobile-screen .preview-canvas {
+                padding: 0.75rem 0.25rem 2.5rem 0.25rem !important;
+                overflow-x: auto !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                width: 100% !important;
+            }
+            html.mobile-screen .preview-scale-wrapper {
+                gap: 6mm !important;
+                padding-bottom: 25px !important;
+            }
         }
 
         /* تحسينات إضافية للشاشات الصغيرة جداً (أقل من 480px) */
-        @media (max-width: 480px) {
+        @media screen and (max-width: 480px) {
             header.app-header {
                 padding: 0.35rem 0.5rem;
             }
@@ -1564,6 +1494,177 @@
             .btn-magic {
                 font-size: 0.82rem;
                 padding: 0.65rem 0.6rem;
+            }
+        }
+        /* ==============================================================
+           إعدادات الطباعة الصارمة والنهائية لملف الـ PDF الأكاديمي المعتمد
+           تضمن طباعة صفحات البحث والغلاف والخطة فقط بدون أي أشرطة أو نوافذ تحكم نهائياً
+           ============================================================== */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0mm;
+            }
+
+            *, *::before, *::after {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                box-sizing: border-box !important;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow: visible !important;
+                display: block !important;
+                position: static !important;
+            }
+
+            /* إخفاء تام ونهائي لكافة عناصر واجهة المستخدم والأشرطة واللوحة الجانبية أياً كانت الفئات النشطة */
+            header,
+            header.app-header,
+            .app-header,
+            .mobile-view-toggle-bar,
+            #mobile-view-toggle-bar,
+            .sidebar,
+            #app-sidebar,
+            .preview-controls-bar,
+            .page-quick-toolbar,
+            .btn,
+            button,
+            .tabs-header,
+            .tab-content,
+            .section-card,
+            .wizard-steps,
+            .btn-magic,
+            .main-layout .sidebar,
+            .main-layout.mobile-mode-editor .sidebar,
+            .main-layout.mobile-mode-preview .sidebar,
+            html.mobile-screen .sidebar,
+            html.mobile-screen .main-layout .sidebar,
+            html.mobile-screen .main-layout.mobile-mode-editor .sidebar,
+            html.mobile-screen .main-layout.mobile-mode-preview .sidebar,
+            html.mobile-screen .mobile-view-toggle-bar,
+            html.mobile-screen header.app-header,
+            body.printing-active .sidebar,
+            body.printing-active header.app-header,
+            body.printing-active .mobile-view-toggle-bar {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                width: 0 !important;
+                height: 0 !important;
+                max-width: 0 !important;
+                max-height: 0 !important;
+                min-width: 0 !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                top: -99999px !important;
+                left: -99999px !important;
+                pointer-events: none !important;
+                z-index: -9999 !important;
+            }
+
+            /* إظهار صفحات البحث وقماشة العرض بشكل نقي ومطلق */
+            .main-layout,
+            .main-layout.mobile-mode-editor,
+            .main-layout.mobile-mode-preview,
+            html.mobile-screen .main-layout,
+            html.mobile-screen .main-layout.mobile-mode-editor,
+            html.mobile-screen .main-layout.mobile-mode-preview,
+            body.printing-active .main-layout {
+                display: block !important;
+                visibility: visible !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                position: static !important;
+            }
+
+            .preview-canvas,
+            .main-layout .preview-canvas,
+            .main-layout.mobile-mode-editor .preview-canvas,
+            .main-layout.mobile-mode-preview .preview-canvas,
+            html.mobile-screen .preview-canvas,
+            html.mobile-screen .main-layout .preview-canvas,
+            html.mobile-screen .main-layout.mobile-mode-editor .preview-canvas,
+            html.mobile-screen .main-layout.mobile-mode-preview .preview-canvas,
+            body.printing-active .preview-canvas {
+                display: block !important;
+                visibility: visible !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                position: static !important;
+            }
+
+            .preview-scale-wrapper,
+            #document-scale-wrapper,
+            html.mobile-screen .preview-scale-wrapper,
+            body.printing-active .preview-scale-wrapper {
+                display: block !important;
+                visibility: visible !important;
+                transform: none !important;
+                -webkit-transform: none !important;
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                gap: 0 !important;
+                position: static !important;
+            }
+
+            .a4-page {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 auto !important;
+                padding: 8mm !important;
+                width: 210mm !important;
+                height: 296mm !important;
+                max-height: 296mm !important;
+                min-height: 296mm !important;
+                box-sizing: border-box !important;
+                page-break-before: auto !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                position: relative !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+            }
+
+            .a4-page:last-child,
+            .a4-page:last-of-type {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            .page-border {
+                box-sizing: border-box !important;
             }
         }
     </style>
@@ -1602,7 +1703,7 @@
     </div>
 
     <!-- الهيكل الرئيسي للتطبيق -->
-    <div class="main-layout mobile-mode-editor" id="app-main-layout">
+    <div class="main-layout" id="app-main-layout">
         
         <!-- اللوحة الجانبية / شاشة التحكم والتحرير -->
         <div class="sidebar">
@@ -4321,18 +4422,63 @@ ${documentHtml}
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
-        // طباعة المستند المباشرة مع إلغاء التحجيم مؤقتاً لتجنب خطأ حصر الصفحات في صفحة واحدة في كروم
+        // طباعة المستند المباشرة مع عزل اللوحة الجانبية وإلغاء التحجيم مؤقتاً لضمان طباعة صفحات البحث A4 فقط
         function printDocument() {
             const wrapper = document.getElementById('document-scale-wrapper');
-            const oldTransform = wrapper.style.transform;
-            wrapper.style.transform = 'none';
+            const oldTransform = wrapper ? wrapper.style.transform : '';
+            if (wrapper) wrapper.style.transform = 'none';
+
+            // إذا كان المستخدم على هاتف في وضع المحرر، نحوله مؤقتاً لوضع المعاينة أثناء الطباعة
+            const layout = document.getElementById('app-main-layout');
+            const wasMobileEditor = layout && layout.classList.contains('mobile-mode-editor');
+            if (wasMobileEditor) {
+                layout.classList.remove('mobile-mode-editor');
+                layout.classList.add('mobile-mode-preview');
+            }
+            document.body.classList.add('printing-active');
 
             window.print();
 
             setTimeout(() => {
-                wrapper.style.transform = oldTransform;
+                if (wrapper) wrapper.style.transform = oldTransform;
+                if (wasMobileEditor && layout) {
+                    layout.classList.remove('mobile-mode-preview');
+                    layout.classList.add('mobile-mode-editor');
+                }
+                document.body.classList.remove('printing-active');
             }, 800);
         }
+
+        // دعم الطباعة المباشرة عند الضغط على Ctrl+P في لوحة المفاتيح
+        window.addEventListener('beforeprint', () => {
+            const wrapper = document.getElementById('document-scale-wrapper');
+            if (wrapper) {
+                wrapper.dataset.savedTransform = wrapper.style.transform;
+                wrapper.style.transform = 'none';
+            }
+            const layout = document.getElementById('app-main-layout');
+            if (layout && layout.classList.contains('mobile-mode-editor')) {
+                layout.dataset.wasMobileEditor = 'true';
+                layout.classList.remove('mobile-mode-editor');
+                layout.classList.add('mobile-mode-preview');
+            }
+            document.body.classList.add('printing-active');
+        });
+
+        window.addEventListener('afterprint', () => {
+            const wrapper = document.getElementById('document-scale-wrapper');
+            if (wrapper && wrapper.dataset.savedTransform !== undefined) {
+                wrapper.style.transform = wrapper.dataset.savedTransform;
+                delete wrapper.dataset.savedTransform;
+            }
+            const layout = document.getElementById('app-main-layout');
+            if (layout && layout.dataset.wasMobileEditor === 'true') {
+                layout.classList.remove('mobile-mode-preview');
+                layout.classList.add('mobile-mode-editor');
+                delete layout.dataset.wasMobileEditor;
+            }
+            document.body.classList.remove('printing-active');
+        });
 
         // فتح مستند البحث كاملاً (الغلاف + الخطة + كافة الصفحات) في نافذة طباعة مستقلة ونظيفة
         function openPrintWindow() {
@@ -4406,93 +4552,4 @@ ${documentHtml}
         .cover-theme-black .cover-top-line { width: 120px; height: 1.5px; background: linear-gradient(90deg, transparent, #000000, transparent); margin: 3mm auto 0 auto; }
         .cover-theme-black .cover-type-label { font-family: 'Cairo', sans-serif; font-size: 13pt; font-weight: 700; color: #000000; margin-bottom: 5mm; }
         .cover-theme-black .cover-main-title { font-family: 'Cairo', sans-serif; font-size: 24pt; font-weight: 900; color: #000000; line-height: 1.35; margin-bottom: 3.5mm; }
-        .cover-theme-black .cover-subtitle { font-family: 'Amiri', serif; font-size: 15pt; font-style: italic; font-weight: 700; color: #000000; margin-bottom: 6mm; }
-        .cover-theme-black .cover-diamond-divider { display: flex; align-items: center; justify-content: center; width: 160px; gap: 8px; margin: 0 auto; }
-        .cover-theme-black .cover-diamond-line { flex-grow: 1; height: 1.5px; background-color: #000000; }
-        .cover-theme-black .cover-diamond-icon { color: #000000; font-size: 11pt; }
-        .cover-theme-black .cover-info-heading { font-family: 'Cairo', sans-serif; font-size: 12.5pt; font-weight: 800; color: #000000; margin-bottom: 3mm; }
-        .cover-theme-black .cover-info-names { display: flex; flex-direction: column; gap: 1.8mm; font-family: 'Cairo', sans-serif; font-size: 10.8pt; color: #000000; font-weight: 700; }
-        .cover-theme-black .cover-academic-year { text-align: center; font-family: 'Cairo', sans-serif; font-size: 12.5pt; font-weight: 800; color: #000000; padding-top: 3.5mm; border-top: 1.5px solid #000000; }
-
-        .cover-theme-gold .cover-country { font-family: 'Cairo', sans-serif; font-size: 15pt; font-weight: 800; color: #0f172a; }
-        .cover-theme-gold .cover-ministry { font-family: 'Cairo', sans-serif; font-size: 11.5pt; font-weight: 600; color: #475569; }
-        .cover-theme-gold .cover-top-line { width: 100px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 3mm auto 0 auto; }
-        .cover-theme-gold .cover-type-label { font-family: 'Cairo', sans-serif; font-size: 12pt; font-weight: 600; color: #b48c36; margin-bottom: 5mm; }
-        .cover-theme-gold .cover-main-title { font-family: 'Cairo', sans-serif; font-size: 24pt; font-weight: 900; color: #0f2952; line-height: 1.35; margin-bottom: 3.5mm; }
-        .cover-theme-gold .cover-subtitle { font-family: 'Amiri', serif; font-size: 15pt; font-style: italic; color: #334155; margin-bottom: 6mm; }
-        .cover-theme-gold .cover-diamond-divider { display: flex; align-items: center; justify-content: center; width: 160px; gap: 8px; margin: 0 auto; }
-        .cover-theme-gold .cover-diamond-line { flex-grow: 1; height: 1px; background-color: var(--gold); }
-        .cover-theme-gold .cover-diamond-icon { color: var(--gold); font-size: 10pt; }
-        .cover-theme-gold .cover-info-heading { font-family: 'Cairo', sans-serif; font-size: 12pt; font-weight: 800; color: #0f172a; margin-bottom: 3mm; }
-        .cover-theme-gold .cover-info-names { display: flex; flex-direction: column; gap: 1.8mm; font-family: 'Cairo', sans-serif; font-size: 10.5pt; color: #334155; font-weight: 600; }
-        .cover-theme-gold .cover-academic-year { text-align: center; font-family: 'Cairo', sans-serif; font-size: 12.5pt; font-weight: 800; color: #0f2952; padding-top: 3mm; border-top: 1px solid #e2e8f0; }
-
-        .cover-body { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: auto 0; padding: 5mm 0; }
-        .cover-footer { width: 100%; margin-top: auto; }
-        .cover-info-grid { display: flex; justify-content: space-between; align-items: flex-start; text-align: right; margin-bottom: 8mm; padding: 0 4mm; }
-        .cover-info-box { display: flex; flex-direction: column; }
-
-        .doc-mabhath-title { font-family: 'Cairo', sans-serif; font-size: 15.5pt; font-weight: 800; text-align: center; margin: 0 0 4mm 0; padding-bottom: 2mm; border-bottom: 2px solid #222; }
-        .doc-matlab-title { font-family: 'Cairo', sans-serif; font-size: 13.5pt; font-weight: 700; margin: 3mm 0 2.5mm 0; padding-right: 3mm; border-right: 4px solid #222; }
-        .doc-subtitle { font-family: 'Cairo', sans-serif; font-size: 11.8pt; font-weight: 700; margin: 2mm 0 1.2mm 0; overflow-wrap: break-word; }
-        .doc-paragraph { font-size: ${documentState.fontSize}pt; line-height: ${documentState.lineHeight}; margin: 0 0 2.2mm 0; text-indent: 8mm; overflow-wrap: break-word; word-wrap: break-word; }
-        .doc-ul { margin: 1mm 0 2.5mm 0; padding-right: 6.5mm; list-style-type: disc !important; }
-        .doc-li { font-size: 11.8pt; line-height: 1.55; margin-bottom: 1.8mm; text-align: justify; list-style-type: disc !important; overflow-wrap: break-word; word-wrap: break-word; }
-        .doc-li::marker { color: #000; font-size: 1.1em; }
-        
-        .plan-header { text-align: center; margin-bottom: 5mm; padding-bottom: 2.5mm; border-bottom: 2px solid #222; }
-        .plan-main-title { font-family: 'Cairo', sans-serif; font-size: 18pt; font-weight: 900; color: #000; letter-spacing: 1px; margin-bottom: 1mm; }
-        .plan-research-title { font-family: 'Cairo', sans-serif; font-size: 11pt; font-weight: 700; color: #333; }
-        .plan-items-container { display: flex; flex-direction: column; gap: 2mm; }
-        .plan-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 11.2pt; line-height: 1.45; }
-        .plan-row.main-row { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 11.8pt; color: #000; margin-top: 2.5mm; padding-bottom: 0.8mm; border-bottom: 1px dashed #aaa; }
-        .plan-row.sub-row { padding-right: 7mm; font-size: 10.8pt; color: #222; }
-        .plan-row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .plan-row-dots { flex-grow: 1; border-bottom: 1.5px dotted #666; margin: 0 6px 4px 6px; }
-        .plan-row-page { font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 10pt; color: #333; min-width: 32px; text-align: left; }
-        
-        .doc-student-info { display: flex; justify-content: space-between; margin-bottom: 2.5mm; font-family: 'Cairo', sans-serif; font-size: 10pt; font-weight: 700; border-bottom: 1px solid #bbb; padding-bottom: 1.2mm; flex-shrink: 0; }
-        .doc-footer { flex-shrink: 0; margin-top: auto; padding-top: 1.5mm; }
-        .doc-separator { width: 38%; border: 0; border-top: 1px solid #333; margin: 0 0 1.5mm 0; }
-        .doc-footnotes { font-size: 9pt; line-height: 1.42; font-family: 'Amiri', serif; color: #222; overflow-wrap: break-word; }
-        .doc-footnotes p { font-size: 9pt; line-height: 1.42; margin: 0 0 1mm 0; overflow-wrap: break-word; }
-        .doc-page-number { text-align: center; font-family: 'Cairo', sans-serif; font-size: 10pt; font-weight: 700; margin-top: 2mm; color: #333; }
-        
-        @media print {
-            html, body { background: transparent !important; padding: 0 !important; margin: 0 !important; }
-            .a4-page { box-shadow: none !important; margin: 0 !important; width: 210mm !important; height: 296mm !important; }
-        }
-    </style>
-</head>
-<body>
-${documentHtml}
-<script>
-    window.onload = function() {
-        setTimeout(function() {
-            window.print();
-        }, 300);
-    };
-<\/script>
-</body>
-</html>`;
-            printWin.document.open();
-            printWin.document.write(fullHtml);
-            printWin.document.close();
-        }
-
-        // فتح حساب إنستغرام
-        function openInstagramProfile(username) {
-            username = username || 'mk.abdouuu';
-            window.open('https://instagram.com/' + username, '_blank');
-        }
-
-        // الحفظ التلقائي في المتصفح
-        function setupAutoSave() {
-            window.addEventListener('beforeunload', () => {
-                localStorage.setItem('saved_baht_document', JSON.stringify(documentState));
-            });
-        }
-    </script>
-
-</body>
-</html>
+        .cover-theme-black .cover-subtitle { font-family: 'Amiri', serif; font-size: 15pt; font-style: italic; font-weight: 700; color: #000000; margin-bottom: 6mm
