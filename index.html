@@ -1030,6 +1030,10 @@
             padding-right: 3mm;
             border-right: 4px solid #222;
             color: #000;
+            text-decoration: underline;
+            text-underline-offset: 4.5px;
+            text-decoration-thickness: 1.5px;
+            text-decoration-color: #000;
         }
 
         .doc-subtitle {
@@ -1039,6 +1043,10 @@
             margin: 2mm 0 1.2mm 0;
             color: #111;
             overflow-wrap: break-word;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            text-decoration-thickness: 1.5px;
+            text-decoration-color: #111;
         }
 
         .doc-paragraph {
@@ -4740,8 +4748,8 @@
 
         /* عناوين ومحتويات البحث */
         .doc-mabhath-title { font-family: 'Cairo', sans-serif; font-size: 15.5pt; font-weight: 800; text-align: center; margin: 0 0 4mm 0; padding-bottom: 2mm; border-bottom: 2px solid #222; }
-        .doc-matlab-title { font-family: 'Cairo', sans-serif; font-size: 13.5pt; font-weight: 700; margin: 3mm 0 2.5mm 0; padding-right: 3mm; border-right: 4px solid #222; }
-        .doc-subtitle { font-family: 'Cairo', sans-serif; font-size: 11.8pt; font-weight: 700; margin: 2mm 0 1.2mm 0; overflow-wrap: break-word; }
+        .doc-matlab-title { font-family: 'Cairo', sans-serif; font-size: 13.5pt; font-weight: 700; margin: 3mm 0 2.5mm 0; padding-right: 3mm; border-right: 4px solid #222; text-decoration: underline; text-underline-offset: 4.5px; text-decoration-thickness: 1.5px; }
+        .doc-subtitle { font-family: 'Cairo', sans-serif; font-size: 11.8pt; font-weight: 700; margin: 2mm 0 1.2mm 0; overflow-wrap: break-word; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
         .doc-paragraph { font-size: ${documentState.fontSize}pt; line-height: ${documentState.lineHeight}; margin: 0 0 2.2mm 0; text-indent: 8mm; overflow-wrap: break-word; word-wrap: break-word; }
         .doc-ul { margin: 1mm 0 2.5mm 0; padding-right: 6.5mm; list-style-type: disc !important; }
         .doc-li { font-size: 11.8pt; line-height: 1.55; margin-bottom: 1.8mm; text-align: justify; list-style-type: disc !important; overflow-wrap: break-word; word-wrap: break-word; }
@@ -4949,8 +4957,8 @@ ${documentHtml}
         .cover-info-box { display: flex; flex-direction: column; }
 
         .doc-mabhath-title { font-family: 'Cairo', sans-serif; font-size: 15.5pt; font-weight: 800; text-align: center; margin: 0 0 4mm 0; padding-bottom: 2mm; border-bottom: 2px solid #222; }
-        .doc-matlab-title { font-family: 'Cairo', sans-serif; font-size: 13.5pt; font-weight: 700; margin: 3mm 0 2.5mm 0; padding-right: 3mm; border-right: 4px solid #222; }
-        .doc-subtitle { font-family: 'Cairo', sans-serif; font-size: 11.8pt; font-weight: 700; margin: 2mm 0 1.2mm 0; overflow-wrap: break-word; }
+        .doc-matlab-title { font-family: 'Cairo', sans-serif; font-size: 13.5pt; font-weight: 700; margin: 3mm 0 2.5mm 0; padding-right: 3mm; border-right: 4px solid #222; text-decoration: underline; text-underline-offset: 4.5px; text-decoration-thickness: 1.5px; }
+        .doc-subtitle { font-family: 'Cairo', sans-serif; font-size: 11.8pt; font-weight: 700; margin: 2mm 0 1.2mm 0; overflow-wrap: break-word; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
         .doc-paragraph { font-size: ${documentState.fontSize}pt; line-height: ${documentState.lineHeight}; margin: 0 0 2.2mm 0; text-indent: 8mm; overflow-wrap: break-word; word-wrap: break-word; }
         .doc-ul { margin: 1mm 0 2.5mm 0; padding-right: 6.5mm; list-style-type: disc !important; }
         .doc-li { font-size: 11.8pt; line-height: 1.55; margin-bottom: 1.8mm; text-align: justify; list-style-type: disc !important; overflow-wrap: break-word; word-wrap: break-word; }
