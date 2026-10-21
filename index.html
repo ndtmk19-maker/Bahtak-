@@ -1897,6 +1897,9 @@
             <button class="btn btn-secondary" onclick="resetAppToDefault()" title="إعادة تعيين وبدء بحث جديد" style="border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;">
                 <span>🔄</span><span>إعادة تعيين</span>
             </button>
+            <button class="btn btn-primary" onclick="exportWordDocument()" title="تصدير وتحميل البحث بصيغة وورد Word (.doc)" style="background: linear-gradient(135deg, #1d4ed8, #2563eb); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35); border-radius: 6px; transition: transform 0.2s, box-shadow 0.2s;">
+                <span>📝</span><span>تصدير Word</span>
+            </button>
             <button class="btn btn-success" onclick="printDocument()" title="طباعة أو حفظ البحث كملف PDF">
                 <span>🖨️</span><span>طباعة / PDF</span>
             </button>
@@ -2206,9 +2209,9 @@
                             <div style="font-size: 0.72rem; color: #cbd5e1;">دقيقة واحدة تشرح لك كل خطوة من كتابة البحث إلى طباعته A4 كـ PDF</div>
                         </div>
                     </div>
-                    <span style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff; font-weight: 700; font-size: 0.75rem; padding: 5px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;">
-                        <span>🎥</span><span>تشغيل الفيديو</span>
-                    </span>
+                    <button type="button" onclick="openVideoTutorialModal()" class="btn btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff; font-weight: 700; font-size: 0.78rem; padding: 6px 14px; border-radius: 20px; border: none; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <span>▶️</span><span>مشاهدة الفيديو</span>
+                    </button>
                 </div>
 
                 <!-- شريط التبديل العلوي الأنيق بين: لصق نص مسودة وبين: توليد بالذكاء الاصطناعي -->
@@ -2595,6 +2598,27 @@
                             <label class="form-label" style="font-size: 0.78rem;">الفوج:</label>
                             <input type="text" id="student-fawj-input" class="form-control" value="01" oninput="renderDocument()">
                         </div>
+                    </div>
+                </div>
+
+                <!-- بطاقة خيارات التصدير والطباعة -->
+                <div class="section-card" style="border: 1px solid rgba(59, 130, 246, 0.35); background: rgba(59, 130, 246, 0.05); margin-top: 15px;">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <span class="icon-pill" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">📥</span>
+                            <span style="color: #60a5fa;">خيارات التصدير والطباعة</span>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                        يمكنك حفظ بحثك كاملاً بصيغة ملف Word (.doc) قابل للتعديل المباشر في برنامج مايكروسوفت وورد، أو طباعته وحفظه بصيغة PDF:
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="btn btn-block" onclick="exportWordDocument()" style="background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; border: none; font-weight: 700; padding: 10px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; border-radius: 6px; box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);">
+                            <span>📝 تصدير وتحميل كملف Word (.doc)</span>
+                        </button>
+                        <button class="btn btn-block" onclick="printDocument()" style="background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; font-weight: 700; padding: 10px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; border-radius: 6px; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);">
+                            <span>🖨️ طباعة أو حفظ كملف PDF</span>
+                        </button>
                     </div>
                 </div>
 
@@ -4876,6 +4900,271 @@ ${documentHtml}
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
+        // تصدير وتحميل المستند كاملاً بصيغة وورد Word (.doc) متوافق تماماً مع Microsoft Word
+        function exportWordDocument() {
+            try {
+                // مزامنة أي بيانات تم تعديلها في الحقول المفتوحة حالياً
+                if (typeof updateCoverSettings === 'function' && document.getElementById('cover-title')) {
+                    updateCoverSettings();
+                }
+                if (typeof updatePlanSettings === 'function' && document.getElementById('plan-page-title')) {
+                    updatePlanSettings();
+                }
+
+                const docTitle = (documentState.coverState && documentState.coverState.title && documentState.coverState.title !== '[عنوان البحث هنا]') 
+                    ? documentState.coverState.title.trim() 
+                    : 'بحث_أكاديمي_منسق';
+
+                let bodyHtml = '';
+
+                // 1. إضافة صفحة الغلاف الأكاديمي إذا كانت مفعلة
+                if (documentState.coverState && documentState.coverState.enabled) {
+                    const cs = documentState.coverState;
+                    const studentsList = (cs.studentsText || '').split('\n').filter(s => s.trim() !== '');
+                    const studentsHtml = studentsList.map(s => `<div style="font-size: 13pt; margin-bottom: 4pt; font-weight: 600;">${escapeHtml(s.trim())}</div>`).join('');
+
+                    bodyHtml += `
+                    <!-- صفحة الغلاف الأكاديمي -->
+                    <div class="word-cover-page" style="text-align: center; margin-bottom: 20pt;">
+                        <div style="font-size: 13.5pt; font-weight: bold; margin-bottom: 4pt;">${escapeHtml(cs.country || 'الجمهورية الجزائرية الديمقراطية الشعبية')}</div>
+                        <div style="font-size: 12.5pt; font-weight: bold; margin-bottom: 12pt;">${escapeHtml(cs.ministry || 'وزارة التعليم العالي والبحث العلمي')}</div>
+                        <hr style="width: 55%; border: none; border-top: 1.5px solid #000; margin: 0 auto 35pt auto;">
+
+                        <div style="margin: 40pt auto 30pt auto;">
+                            <div style="font-size: 13pt; color: #334155; margin-bottom: 12pt; font-weight: bold;">${escapeHtml(cs.workType || 'بحث أكاديمي حول')}</div>
+                            <table dir="rtl" align="center" style="width: 88%; border: 2.5px solid #000; margin: 0 auto; text-align: center; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 20pt 14pt;">
+                                        <div style="font-size: 21pt; font-weight: bold; color: #000; line-height: 1.4;">${escapeHtml(cs.title || 'عنوان البحث')}</div>
+                                        ${cs.subtitle ? `<div style="font-size: 14pt; margin-top: 10pt; color: #333333; font-weight: bold;">${escapeHtml(cs.subtitle)}</div>` : ''}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <table dir="rtl" style="width: 100%; margin-top: 60pt; border-collapse: collapse;">
+                            <tr>
+                                <td style="width: 50%; vertical-align: top; text-align: right; padding-right: 15pt;">
+                                    <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; margin-bottom: 8pt;">إعداد الطلبة:</div>
+                                    ${studentsHtml}
+                                </td>
+                                <td style="width: 50%; vertical-align: top; text-align: left; padding-left: 15pt;">
+                                    <div style="font-size: 13pt; font-weight: bold; text-decoration: underline; margin-bottom: 8pt;">تحت إشراف الأستاذ(ة):</div>
+                                    <div style="font-size: 13pt; font-weight: 600;">${escapeHtml(cs.supervisor || '')}</div>
+                                    <div style="font-size: 12.5pt; font-weight: bold; margin-top: 5pt;">${escapeHtml(cs.group || '')}</div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div style="text-align: center; margin-top: 75pt; font-size: 13pt; font-weight: bold;">
+                            ${escapeHtml(cs.academicYear || '')}
+                        </div>
+                    </div>
+                    <br clear="all" style="page-break-before: always; mso-special-character: line-break;">
+                    `;
+                }
+
+                // 2. إضافة صفحة خطة البحث إذا كانت مفعلة
+                if (documentState.planState && documentState.planState.enabled) {
+                    const ps = documentState.planState;
+                    const lines = (ps.itemsText || '').split('\n').filter(l => l.trim() !== '');
+                    let planRows = '';
+
+                    lines.forEach(line => {
+                        const parts = line.split('|');
+                        const title = parts[0].trim();
+                        const pageNum = parts.length > 1 ? parts[1].trim() : '';
+                        const isMain = title.startsWith('المبحث') || title.startsWith('مقدمة') || title.includes('الخاتمة') || title.includes('المصادر');
+                        const cleanTitle = title.replace(/^[-*]\s*/, '');
+
+                        planRows += `
+                        <tr>
+                            <td style="text-align: right; padding: 7pt 6pt; font-size: ${isMain ? '14pt' : '12.5pt'}; font-weight: ${isMain ? 'bold' : 'normal'}; ${isMain ? 'border-bottom: 1.5px solid #334155;' : 'border-bottom: 1px dotted #cbd5e1;'}">
+                                ${isMain ? '📌 ' : '&nbsp;&nbsp;&nbsp;&nbsp;• '}${escapeHtml(cleanTitle)}
+                            </td>
+                            ${ps.showPageNumbers ? `<td style="text-align: left; width: 65pt; padding: 7pt 6pt; font-size: 12pt; font-weight: bold; color: #1e293b; ${isMain ? 'border-bottom: 1.5px solid #334155;' : 'border-bottom: 1px dotted #cbd5e1;'}">${escapeHtml(pageNum)}</td>` : ''}
+                        </tr>
+                        `;
+                    });
+
+                    bodyHtml += `
+                    <!-- صفحة خطة البحث -->
+                    <div class="word-plan-page" style="margin-bottom: 20pt;">
+                        <div style="text-align: center; font-size: 18pt; font-weight: bold; text-decoration: underline; margin-bottom: 8pt;">${escapeHtml(ps.pageTitle || 'خـطّـة البـحـث')}</div>
+                        ${ps.researchTitle ? `<div style="text-align: center; font-size: 13pt; font-weight: bold; color: #475569; margin-bottom: 22pt;">${escapeHtml(ps.researchTitle)}</div>` : ''}
+                        <table dir="rtl" style="width: 100%; border-collapse: collapse; margin-top: 15pt;">
+                            ${planRows}
+                        </table>
+                        <div style="text-align: center; font-size: 11pt; margin-top: 35pt; color: #475569;">- أ -</div>
+                    </div>
+                    <br clear="all" style="page-break-before: always; mso-special-character: line-break;">
+                    `;
+                }
+
+                // 3. إضافة صفحات محتوى البحث
+                const studentName = document.getElementById('student-name-input')?.value || documentState.studentName || '';
+                const studentFawj = document.getElementById('student-fawj-input')?.value || documentState.studentFawj || '';
+                const showStudent = !!documentState.showStudentInfo;
+
+                (documentState.pages || []).forEach((page, index) => {
+                    let studentHeader = '';
+                    if (showStudent) {
+                        studentHeader = `
+                        <table dir="rtl" style="width: 100%; border-bottom: 1px solid #94a3b8; margin-bottom: 12pt; font-size: 11pt; color: #334155;">
+                            <tr>
+                                <td style="text-align: right; padding-bottom: 4pt;">الاسم واللقب: ${escapeHtml(studentName)}</td>
+                                <td style="text-align: left; padding-bottom: 4pt;">الفوج: ${escapeHtml(studentFawj)}</td>
+                            </tr>
+                        </table>
+                        `;
+                    }
+
+                    let mabhathHeader = '';
+                    if (page.mabhathTitle && page.mabhathTitle.trim() !== '') {
+                        mabhathHeader = `<div style="text-align: center; font-size: 16pt; font-weight: bold; margin: 10pt 0 12pt 0; text-decoration: underline;">${escapeHtml(page.mabhathTitle)}</div>`;
+                    }
+
+                    let matlabHeader = '';
+                    if (page.matlabTitle && page.matlabTitle.trim() !== '') {
+                        matlabHeader = `<div style="text-align: right; font-size: 14pt; font-weight: bold; margin: 8pt 0 10pt 0; text-decoration: underline;">${escapeHtml(page.matlabTitle)}</div>`;
+                    }
+
+                    let pageContent = page.content || '';
+
+                    let footnotesHtml = '';
+                    if (page.footnotes && page.footnotes.length > 0) {
+                        footnotesHtml = `
+                        <div style="margin-top: 25pt; padding-top: 6pt; border-top: 1.5px solid #000; width: 45%;">
+                            ${page.footnotes.map((fn, i) => `
+                                <p style="margin: 3pt 0; font-size: 11pt; line-height: 1.35; text-indent: 0; text-align: justify;">
+                                    <sup style="font-weight: bold; color: #1e3a8a;">(${i + 1})</sup> ${escapeHtml(fn)}
+                                </p>
+                            `).join('')}
+                        </div>
+                        `;
+                    }
+
+                    bodyHtml += `
+                    <!-- صفحة محتوى رقم ${index + 1} -->
+                    <div class="word-content-page" style="margin-bottom: 20pt;">
+                        ${studentHeader}
+                        ${mabhathHeader}
+                        ${matlabHeader}
+                        <div class="word-body-text" style="text-align: justify; text-justify: inter-word; font-size: 13.5pt; line-height: 1.6;">
+                            ${pageContent}
+                        </div>
+                        ${footnotesHtml}
+                        <div style="text-align: center; font-size: 11pt; margin-top: 18pt; color: #475569;">- ${index + 1} -</div>
+                    </div>
+                    ${index < documentState.pages.length - 1 ? '<br clear="all" style="page-break-before: always; mso-special-character: line-break;">' : ''}
+                    `;
+                });
+
+                const fullWordHtml = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'
+      dir='rtl' lang='ar'>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>${escapeHtml(docTitle)}</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+        @page {
+            size: 210mm 297mm; /* A4 */
+            margin: 25mm 20mm 20mm 25mm; /* الهوامش الأكاديمية: 2.5 سم يمين وأعلى، 2 سم يسار وأسفل */
+            mso-page-orientation: portrait;
+            mso-header-margin: 36pt;
+            mso-footer-margin: 36pt;
+        }
+        body {
+            font-family: 'Amiri', 'Traditional Arabic', 'Simplified Arabic', Tahoma, Arial, serif;
+            direction: rtl;
+            text-align: justify;
+            text-justify: inter-word;
+            font-size: 13.5pt;
+            line-height: 1.6;
+            color: #000000;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        p, .doc-paragraph {
+            margin-top: 0pt;
+            margin-bottom: 6pt;
+            text-indent: 1cm;
+            text-align: justify;
+            text-justify: inter-word;
+            line-height: 1.6;
+            font-size: 13.5pt;
+        }
+        .doc-subtitle {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 10pt;
+            margin-bottom: 5pt;
+            text-align: right;
+            text-indent: 0;
+        }
+        ul, .doc-ul {
+            margin-right: 1.2cm;
+            margin-top: 4pt;
+            margin-bottom: 6pt;
+        }
+        li, .doc-li {
+            margin-bottom: 3pt;
+            text-align: justify;
+            line-height: 1.5;
+            font-size: 13pt;
+        }
+        sup {
+            font-size: 9.5pt;
+            vertical-align: super;
+            color: #1e3a8a;
+            font-weight: bold;
+        }
+        strong {
+            font-weight: bold;
+        }
+        .mso-page-break {
+            page-break-before: always;
+            mso-special-character: line-break;
+            clear: all;
+        }
+    </style>
+</head>
+<body>
+    <div class="Section1">
+        ${bodyHtml}
+    </div>
+</body>
+</html>`;
+
+                const blob = new Blob(['\\ufeff' + fullWordHtml], {
+                    type: 'application/msword;charset=utf-8'
+                });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                const cleanFileName = docTitle.replace(/[\\\\/:*?\"<>|]/g, '_');
+                link.download = `${cleanFileName}.doc`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            } catch (err) {
+                console.error('خطأ في تصدير ملف الوورد:', err);
+                alert('حدث خطأ أثناء تصدير ملف Word: ' + err.message);
+            }
+        }
+
         // طباعة المستند المباشرة مع عزل اللوحة الجانبية وإلغاء التحجيم مؤقتاً لضمان طباعة صفحات البحث A4 فقط
         function printDocument() {
             const wrapper = document.getElementById('document-scale-wrapper');
@@ -5615,33 +5904,23 @@ ${documentHtml}
         // رابط فيديو يوتيوب الافتراضي لشرح التطبيق (فيديو الشورتس المعتمد)
         var DEFAULT_YOUTUBE_TUTORIAL_URL = 'https://www.youtube.com/shorts/uXaSKzTdk1s';
 
-        // دالة استخراج رابط التضمين النظيف لأي رابط يوتيوب مهما كانت صيغته
+        // دالة استخراج رابط التضمين النظيف المتوافق مع كافة المتصفحات وهواتف أندرويد لمنع خطأ 153
         function getYouTubeEmbedUrl(urlOrId) {
             if (!urlOrId) return '';
             var str = ('' + urlOrId).trim();
-            // رابط تضمين مباشر جاهز
-            if (str.indexOf('youtube.com/embed/') !== -1 || str.indexOf('youtube-nocookie.com/embed/') !== -1) {
-                var base = str.split('?')[0];
-                return base + '?autoplay=1&rel=0&enablejsapi=1';
-            }
-            // رابط شورتس youtube.com/shorts/ID
+            var videoId = '';
             var shortsMatch = str.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
-            if (shortsMatch && shortsMatch[1]) {
-                return 'https://www.youtube-nocookie.com/embed/' + shortsMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
-            }
-            // رابط قصير youtu.be/ID
+            if (shortsMatch && shortsMatch[1]) videoId = shortsMatch[1];
             var shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-            if (shortMatch && shortMatch[1]) {
-                return 'https://www.youtube-nocookie.com/embed/' + shortMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
-            }
-            // رابط كامل youtube.com/watch?v=ID
+            if (shortMatch && shortMatch[1]) videoId = shortMatch[1];
             var fullMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-            if (fullMatch && fullMatch[1]) {
-                return 'https://www.youtube-nocookie.com/embed/' + fullMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
-            }
-            // معرف فيديو مباشر (11 حرف)
-            if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
-                return 'https://www.youtube-nocookie.com/embed/' + str + '?autoplay=1&rel=0&enablejsapi=1';
+            if (fullMatch && fullMatch[1]) videoId = fullMatch[1];
+            var embedMatch = str.match(/embed\/([a-zA-Z0-9_-]{11})/);
+            if (embedMatch && embedMatch[1]) videoId = embedMatch[1];
+            if (/^[a-zA-Z0-9_-]{11}$/.test(str)) videoId = str;
+
+            if (videoId) {
+                return 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&playsinline=1&rel=0';
             }
             return str;
         }
