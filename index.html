@@ -5848,21 +5848,6 @@ ${documentHtml}
                 💡 <strong>ملاحظة (Erreur 153):</strong> يوتيوب يمنع تشغيل التضمين داخل الصفحات التي تُفتح مباشرة كملف محلي (file://). سيعمل الفيديو داخل الإطار تلقائياً بمجرد رفع الموقع على استضافة. يمكنك الآن فتحه فوراً بالزر الأحمر أعلاه!
             </div>
 
-            <!-- شريط تعديل أو تبديل رابط فيديو اليوتيوب بسهولة -->
-            <div style="margin-top: 14px; padding: 12px 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 260px;">
-                    <span style="font-size: 1.1rem; color: #ef4444;">▶️</span>
-                    <span style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; white-space: nowrap;">رابط فيديو YouTube:</span>
-                    <input type="text" id="youtube-custom-url-input" class="form-control" style="font-size: 0.78rem; padding: 6px 12px; font-family: monospace; height: 34px; background: #0b1120; border-color: rgba(148, 163, 184, 0.3);" placeholder="ألصق رابط فيديو اليوتيوب هنا (مثال: https://youtu.be/...)" onkeydown="if(event.key === 'Enter') updateCustomYouTubeUrl()">
-                </div>
-                <button type="button" class="btn" onclick="updateCustomYouTubeUrl()" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-size: 0.78rem; font-weight: 700; padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);">
-                    تطبيق وتحديث الفيديو
-                </button>
-            </div>
-            <div id="youtube-update-feedback" style="display: none; margin-top: 8px; font-size: 0.76rem; color: #34d399; text-align: center; font-weight: 700;">
-                ✓ تم حفظ وتحديث رابط فيديو اليوتيوب بنجاح!
-            </div>
-
             <!-- أسفل النافذة -->
             <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
                 <button type="button" onclick="closeVideoTutorialModal()" class="btn btn-secondary" style="font-size: 0.8rem; padding: 7px 20px; border-radius: 8px;">
