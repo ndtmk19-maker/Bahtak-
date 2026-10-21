@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Bahtak — بحثك | منسق وتوليد البحوث الأكاديمية بالذكاء الاصطناعي والطباعة المباشرة</title>
     <script>
         (function() {
@@ -5613,40 +5614,118 @@ ${documentHtml}
         // تحميل المفتاح المحفوظ عند بدء التشغيل
         window.addEventListener('DOMContentLoaded', function() {
             loadSavedAiApiKey();
-
-            // رصد تعذر العثور على ملف الفيديو لعرض إرشاد مفيد
-            var tutorialVid = document.getElementById('app-tutorial-video');
-            if (tutorialVid) {
-                tutorialVid.addEventListener('error', function() {
-                    var alertBox = document.getElementById('video-file-missing-alert');
-                    if (alertBox) alertBox.style.display = 'block';
-                }, true);
-            }
         });
 
-        // فتح نافذة فيديو شرح التطبيق
+        // رابط فيديو يوتيوب الافتراضي لشرح التطبيق (فيديو الشورتس المعتمد)
+        var DEFAULT_YOUTUBE_TUTORIAL_URL = 'https://www.youtube.com/shorts/uXaSKzTdk1s';
+
+        // دالة استخراج رابط التضمين النظيف لأي رابط يوتيوب مهما كانت صيغته
+        function getYouTubeEmbedUrl(urlOrId) {
+            if (!urlOrId) return '';
+            var str = ('' + urlOrId).trim();
+            // رابط تضمين مباشر جاهز
+            if (str.indexOf('youtube.com/embed/') !== -1 || str.indexOf('youtube-nocookie.com/embed/') !== -1) {
+                var base = str.split('?')[0];
+                return base + '?autoplay=1&rel=0&enablejsapi=1';
+            }
+            // رابط شورتس youtube.com/shorts/ID
+            var shortsMatch = str.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+            if (shortsMatch && shortsMatch[1]) {
+                return 'https://www.youtube-nocookie.com/embed/' + shortsMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
+            }
+            // رابط قصير youtu.be/ID
+            var shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+            if (shortMatch && shortMatch[1]) {
+                return 'https://www.youtube-nocookie.com/embed/' + shortMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
+            }
+            // رابط كامل youtube.com/watch?v=ID
+            var fullMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+            if (fullMatch && fullMatch[1]) {
+                return 'https://www.youtube-nocookie.com/embed/' + fullMatch[1] + '?autoplay=1&rel=0&enablejsapi=1';
+            }
+            // معرف فيديو مباشر (11 حرف)
+            if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+                return 'https://www.youtube-nocookie.com/embed/' + str + '?autoplay=1&rel=0&enablejsapi=1';
+            }
+            return str;
+        }
+
+        // دالة استخراج رابط المشاهدة المباشر على يوتيوب (لفتحه مباشرة في تبويب جديد)
+        function getYouTubeWatchUrl(urlOrId) {
+            if (!urlOrId) return 'https://www.youtube.com/shorts/uXaSKzTdk1s';
+            var str = ('' + urlOrId).trim();
+            var shortsMatch = str.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+            if (shortsMatch && shortsMatch[1]) return 'https://www.youtube.com/shorts/' + shortsMatch[1];
+            var shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+            if (shortMatch && shortMatch[1]) return 'https://www.youtube.com/watch?v=' + shortMatch[1];
+            var fullMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+            if (fullMatch && fullMatch[1]) return 'https://www.youtube.com/watch?v=' + fullMatch[1];
+            var embedMatch = str.match(/embed\/([a-zA-Z0-9_-]{11})/);
+            if (embedMatch && embedMatch[1]) return 'https://www.youtube.com/watch?v=' + embedMatch[1];
+            if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return 'https://www.youtube.com/shorts/' + str;
+            return str;
+        }
+
+        // فتح نافذة فيديو شرح التطبيق (يوتيوب)
         function openVideoTutorialModal() {
             var modal = document.getElementById('video-tutorial-modal');
-            var video = document.getElementById('app-tutorial-video');
+            var frame = document.getElementById('app-tutorial-youtube-frame');
+            var input = document.getElementById('youtube-custom-url-input');
+            var directBtn = document.getElementById('youtube-direct-watch-link');
+            var fileAlert = document.getElementById('youtube-file-protocol-alert');
+            
+            var savedUrl = localStorage.getItem('bahtak_youtube_tutorial_url') || DEFAULT_YOUTUBE_TUTORIAL_URL;
+            if (input) input.value = savedUrl;
+            if (directBtn) directBtn.href = getYouTubeWatchUrl(savedUrl);
+
+            // كشف بروتوكول التشغيل: إذا كان محلياً file:// يُعرض تنبيه يشرح سبب قيود يوتيوب
+            if (fileAlert) {
+                if (window.location.protocol === 'file:') {
+                    fileAlert.style.display = 'block';
+                } else {
+                    fileAlert.style.display = 'none';
+                }
+            }
+
             if (modal) {
                 modal.style.display = 'flex';
-                if (video) {
-                    video.play().catch(function(e) {
-                        // يتم كتم الصوت أو منع التشغيل التلقائي حتى يتفاعل المستخدم وفق سياسة المتصفح
-                    });
+                if (frame) {
+                    frame.src = getYouTubeEmbedUrl(savedUrl);
                 }
             }
         }
 
-        // إغلاق نافذة فيديو شرح التطبيق وإيقاف الفيديو فوراً
+        // إغلاق نافذة فيديو شرح التطبيق وإيقاف تشغيل اليوتيوب والصوت فوراً
         function closeVideoTutorialModal() {
             var modal = document.getElementById('video-tutorial-modal');
-            var video = document.getElementById('app-tutorial-video');
-            if (video) {
-                video.pause();
+            var frame = document.getElementById('app-tutorial-youtube-frame');
+            if (frame) {
+                frame.src = ''; // إفراغ المصدر يوقف الصوت والفيديو فوراً
             }
             if (modal) {
                 modal.style.display = 'none';
+            }
+        }
+
+        // حفظ وتحديث رابط اليوتيوب بنقرة واحدة
+        function updateCustomYouTubeUrl() {
+            var input = document.getElementById('youtube-custom-url-input');
+            var frame = document.getElementById('app-tutorial-youtube-frame');
+            var directBtn = document.getElementById('youtube-direct-watch-link');
+            var feedback = document.getElementById('youtube-update-feedback');
+            if (input && input.value.trim()) {
+                var newUrl = input.value.trim();
+                localStorage.setItem('bahtak_youtube_tutorial_url', newUrl);
+                if (frame) {
+                    frame.src = getYouTubeEmbedUrl(newUrl);
+                }
+                if (directBtn) {
+                    directBtn.href = getYouTubeWatchUrl(newUrl);
+                }
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    setTimeout(function() { feedback.style.display = 'none'; }, 3000);
+                }
             }
         }
 
@@ -5734,39 +5813,58 @@ ${documentHtml}
 
     <!-- نافذة منبثقة تفاعلية لمشاهدة فيديو شرح التطبيق -->
     <div id="video-tutorial-modal" class="student-modal-overlay" onclick="if(event.target === this) closeVideoTutorialModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999999; align-items: center; justify-content: center; padding: 15px;">
-        <div class="video-modal-content" style="background: linear-gradient(180deg, #131d35 0%, #0a0f1d 100%); border: 1px solid rgba(139, 92, 246, 0.45); box-shadow: 0 25px 70px rgba(0,0,0,0.9), 0 0 35px rgba(139, 92, 246, 0.25); border-radius: 18px; max-width: 840px; width: 100%; padding: 22px; color: #f1f5f9; direction: rtl; text-align: right;">
+        <div class="video-modal-content" style="background: linear-gradient(180deg, #131d35 0%, #0a0f1d 100%); border: 1px solid rgba(139, 92, 246, 0.45); box-shadow: 0 25px 70px rgba(0,0,0,0.9), 0 0 35px rgba(139, 92, 246, 0.25); border-radius: 18px; max-width: 460px; width: 100%; padding: 18px; color: #f1f5f9; direction: rtl; text-align: right;">
             
             <!-- رأس النافذة -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 42px; height: 42px; border-radius: 11px; background: linear-gradient(135deg, #a855f7, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #a855f7, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);">
                         🎥
                     </div>
                     <div>
-                        <div style="font-weight: 800; font-size: 1.1rem; color: #f8fafc;">فيديو شرح طريقة استخدام وتنسيق البحوث في «بحثك»</div>
-                        <div style="font-size: 0.75rem; color: #a78bfa;">دليل مرئي سريع لكافة أدوات الذكاء الاصطناعي والتنسيق والطباعة</div>
+                        <div style="font-weight: 800; font-size: 1rem; color: #f8fafc;">شرح استخدام تطبيق «بحثك»</div>
+                        <div style="font-size: 0.72rem; color: #a78bfa;">شاهد خطوات التنسيق الذكي وتوليد الصفحات فوراً</div>
                     </div>
                 </div>
-                <button type="button" onclick="closeVideoTutorialModal()" style="background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.25); color: #cbd5e1; font-size: 1.2rem; cursor: pointer; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="إغلاق">✕</button>
+                <button type="button" onclick="closeVideoTutorialModal()" style="background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.25); color: #cbd5e1; font-size: 1.2rem; cursor: pointer; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="إغلاق">✕</button>
             </div>
 
-            <!-- مشغل الفيديو -->
-            <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);">
-                <video id="app-tutorial-video" controls playsinline preload="metadata" style="width: 100%; aspect-ratio: 16/9; display: block; object-fit: contain; background: #000;">
-                    <source src="tutorial.mp4" type="video/mp4">
-                    متصفحك لا يدعم تشغيل الفيديو المباشر.
-                </video>
+            <!-- مشغل فيديو يوتيوب شورتس -->
+            <div style="position: relative; width: 100%; max-width: 340px; aspect-ratio: 9/16; max-height: 62vh; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.85); border: 2px solid rgba(139, 92, 246, 0.4);">
+                <iframe id="app-tutorial-youtube-frame" 
+                        src="" 
+                        title="فيديو شرح طريقة استخدام وتنسيق البحوث في تطبيق بحثك" 
+                        style="width: 100%; height: 100%; border: none; display: block;" 
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowfullscreen>
+                </iframe>
             </div>
 
-            <!-- تنبيه لطيف للمستخدم -->
-            <div id="video-hint-bar" style="margin-top: 14px; padding: 10px 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; font-size: 0.78rem; color: #93c5fd; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <span>💡 <strong>ملاحظة:</strong> يقوم المشغل بتشغيل ملف <code>tutorial.mp4</code> الموجود في مجلد الموقع مباشرة.</span>
-                <span style="font-size: 0.72rem; color: #94a3b8;">يدعم التحكم في الصوت، السرعة، وتكبير الشاشة كاملة ⛶</span>
+            <!-- زر المشاهدة المباشرة على يوتيوب بنقرة واحدة -->
+            <a id="youtube-direct-watch-link" href="https://www.youtube.com/shorts/uXaSKzTdk1s" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 340px; margin: 12px auto 0 auto; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-weight: 800; font-size: 0.85rem; padding: 10px 16px; border-radius: 10px; text-decoration: none; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4); text-align: center; transition: transform 0.2s;">
+                <span>▶️</span>
+                <span>فتح وتشغيل الفيديو على YouTube مباشرة</span>
+            </a>
+
+            <!-- تنبيه لطيف يظهر تلقائياً فقط إذا فُتحت الصفحة كملف محلي file:// -->
+            <div id="youtube-file-protocol-alert" style="display: none; margin: 10px auto 0 auto; max-width: 340px; padding: 9px 12px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; font-size: 0.72rem; color: #fbbf24; line-height: 1.5; text-align: center;">
+                💡 <strong>ملاحظة (Erreur 153):</strong> يوتيوب يمنع تشغيل التضمين داخل الصفحات التي تُفتح مباشرة كملف محلي (file://). سيعمل الفيديو داخل الإطار تلقائياً بمجرد رفع الموقع على استضافة. يمكنك الآن فتحه فوراً بالزر الأحمر أعلاه!
             </div>
 
-            <!-- رسالة تنبيه تظهر فقط إذا لم يضع المستخدم ملف tutorial.mp4 بعد -->
-            <div id="video-file-missing-alert" style="display: none; margin-top: 10px; padding: 10px 14px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; font-size: 0.78rem; color: #fbbf24; line-height: 1.5;">
-                ⚠️ <strong>لم يتم العثور على ملف الفيديو <code>tutorial.mp4</code> بعد:</strong> يرجى التأكد من وضع ملف الفيديو المسمى <strong>tutorial.mp4</strong> داخل مجلد المشروع الرئيسي <code>D:\baht</code> ليعمل الفيديو بشكل فوري.
+            <!-- شريط تعديل أو تبديل رابط فيديو اليوتيوب بسهولة -->
+            <div style="margin-top: 14px; padding: 12px 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 260px;">
+                    <span style="font-size: 1.1rem; color: #ef4444;">▶️</span>
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; white-space: nowrap;">رابط فيديو YouTube:</span>
+                    <input type="text" id="youtube-custom-url-input" class="form-control" style="font-size: 0.78rem; padding: 6px 12px; font-family: monospace; height: 34px; background: #0b1120; border-color: rgba(148, 163, 184, 0.3);" placeholder="ألصق رابط فيديو اليوتيوب هنا (مثال: https://youtu.be/...)" onkeydown="if(event.key === 'Enter') updateCustomYouTubeUrl()">
+                </div>
+                <button type="button" class="btn" onclick="updateCustomYouTubeUrl()" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-size: 0.78rem; font-weight: 700; padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);">
+                    تطبيق وتحديث الفيديو
+                </button>
+            </div>
+            <div id="youtube-update-feedback" style="display: none; margin-top: 8px; font-size: 0.76rem; color: #34d399; text-align: center; font-weight: 700;">
+                ✓ تم حفظ وتحديث رابط فيديو اليوتيوب بنجاح!
             </div>
 
             <!-- أسفل النافذة -->
