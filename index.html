@@ -5666,22 +5666,10 @@ ${documentHtml}
         function openVideoTutorialModal() {
             var modal = document.getElementById('video-tutorial-modal');
             var frame = document.getElementById('app-tutorial-youtube-frame');
-            var input = document.getElementById('youtube-custom-url-input');
             var directBtn = document.getElementById('youtube-direct-watch-link');
-            var fileAlert = document.getElementById('youtube-file-protocol-alert');
             
             var savedUrl = localStorage.getItem('bahtak_youtube_tutorial_url') || DEFAULT_YOUTUBE_TUTORIAL_URL;
-            if (input) input.value = savedUrl;
             if (directBtn) directBtn.href = getYouTubeWatchUrl(savedUrl);
-
-            // كشف بروتوكول التشغيل: إذا كان محلياً file:// يُعرض تنبيه يشرح سبب قيود يوتيوب
-            if (fileAlert) {
-                if (window.location.protocol === 'file:') {
-                    fileAlert.style.display = 'block';
-                } else {
-                    fileAlert.style.display = 'none';
-                }
-            }
 
             if (modal) {
                 modal.style.display = 'flex';
@@ -5842,11 +5830,6 @@ ${documentHtml}
                 <span>▶️</span>
                 <span>فتح وتشغيل الفيديو على YouTube مباشرة</span>
             </a>
-
-            <!-- تنبيه لطيف يظهر تلقائياً فقط إذا فُتحت الصفحة كملف محلي file:// -->
-            <div id="youtube-file-protocol-alert" style="display: none; margin: 10px auto 0 auto; max-width: 340px; padding: 9px 12px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; font-size: 0.72rem; color: #fbbf24; line-height: 1.5; text-align: center;">
-                💡 <strong>ملاحظة (Erreur 153):</strong> يوتيوب يمنع تشغيل التضمين داخل الصفحات التي تُفتح مباشرة كملف محلي (file://). سيعمل الفيديو داخل الإطار تلقائياً بمجرد رفع الموقع على استضافة. يمكنك الآن فتحه فوراً بالزر الأحمر أعلاه!
-            </div>
 
             <!-- أسفل النافذة -->
             <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
