@@ -4,13 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
     <title>Bahtak — بحثك | منسق وتوليد البحوث الأكاديمية بالذكاء الاصطناعي والطباعة المباشرة</title>
-    
-    <!-- Vercel Web Analytics -->
-    <script>
-      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-    </script>
-    <script defer src="/_vercel/insights/script.js"></script>
-    
     <script>
         (function() {
             function updateMobileClass() {
@@ -182,6 +175,41 @@
             background: linear-gradient(135deg, #10b981, #059669) !important;
             transform: translateY(-1px);
             box-shadow: 0 5px 15px rgba(16, 185, 129, 0.5) !important;
+        }
+
+        .btn-video-tutorial {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+            color: #ffffff !important;
+            box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35) !important;
+            border: 1px solid rgba(167, 139, 250, 0.45) !important;
+            cursor: pointer;
+            text-decoration: none !important;
+        }
+        .btn-video-tutorial:hover {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.5) !important;
+        }
+
+        .video-tutorial-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.38);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 12px rgba(99, 102, 241, 0.1);
+        }
+        .video-tutorial-banner:hover {
+            transform: translateY(-2px);
+            border-color: rgba(167, 139, 250, 0.65);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(139, 92, 246, 0.15));
         }
 
         .btn-success {
@@ -1525,7 +1553,7 @@
             }
         }
         /* ==============================================================
-           إعدادات الطباعة الصارمة والنهائية لملف ال�� PDF الأكاديمي المعتمد
+           إعدادات الطباعة الصارمة والنهائية لملف الـ PDF الأكاديمي المعتمد
            تضمن طباعة صفحات البحث والغلاف والخطة فقط بدون أي أشرطة أو نوافذ تحكم نهائياً
            ============================================================== */
         @media print {
@@ -1859,6 +1887,10 @@
         </div>
 
         <div class="header-actions">
+            <button type="button" class="btn btn-video-tutorial" onclick="openVideoTutorialModal()" title="مشاهدة فيديو شرح كيفية استخدام التطبيق" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; transition: transform 0.2s, box-shadow 0.2s;">
+                <span>🎥</span>
+                <span>فيديو الشرح</span>
+            </button>
             <a href="Bahtak.apk" download="Bahtak.apk" class="btn btn-apk-download" title="تحميل تطبيق بحثك لهواتف أندرويد (APK)" style="background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border: 1px solid rgba(52, 211, 153, 0.45); box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35); border-radius: 6px; transition: transform 0.2s, box-shadow 0.2s;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993s-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993s-.4482.9997-.9993.9997m11.4045-6.02l1.996-3.4572c.1054-.1824.043-.4163-.1394-.5217-.1824-.1054-.4163-.043-.5217.1394l-2.0225 3.5031C15.5802 8.2114 13.8443 7.788 12 7.788c-1.8443 0-3.5802.4234-5.1939 1.197L4.7836 5.482c-.1054-.1824-.3393-.2448-.5217-.1394-.1824.1054-.2448.3393-.1394.5217l1.996 3.4572C2.6883 11.2338.3435 14.819 0 19h24c-.3435-4.181-2.6883-7.7662-6.1185-9.6786"/>
@@ -1874,7 +1906,7 @@
         </div>
     </header>
 
-    <!-- شريط التبديل الخاص بالهاتف (يظهر فقط في شاشات الهوا��ف والأجهزة اللوحية) -->
+    <!-- شريط التبديل الخاص بالهاتف (يظهر فقط في شاشات الهواتف والأجهزة اللوحية) -->
     <div class="mobile-view-toggle-bar" id="mobile-view-toggle-bar">
         <button class="mobile-toggle-btn active" id="btn-mobile-editor" onclick="setMobileView('editor')">
             <span>📝 لوحة التحكم والتحرير</span>
@@ -2108,7 +2140,7 @@
 
                     <!-- نماذج هيكلية جاهزة للاختيار السريع -->
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 0.6rem; font-size: 0.73rem; color: #94a3b8; flex-wrap: wrap;">
-                        <span>📋 ��ماذج جاهزة:</span>
+                        <span>📋 نماذج جاهزة:</span>
                         <div style="display: flex; gap: 4px;">
                             <button class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 7px;" onclick="loadPlanTemplate('standard')" title="خطة نموذجية: 3 مباحث وكل مبحث 3 مطالب">3 مباحث × 3 مطالب</button>
                             <button class="btn btn-secondary" style="font-size: 0.7rem; padding: 2px 7px;" onclick="loadPlanTemplate('twosections')" title="خطة قصيرة: مبحثين وكل مبحث مطلبين">مبحثين × مطلبين</button>
@@ -2166,6 +2198,22 @@
             <!-- تبويب 3: لصق وتحويل النص الخام تلقائياً -->
             <div id="paste-tab" class="tab-content active">
                 
+                <!-- لافتة فيديو شرح التطبيق السريع -->
+                <div class="video-tutorial-banner" onclick="openVideoTutorialModal()" role="button" tabindex="0" title="انقر لتشغيل فيديو شرح التطبيق" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 3px 10px rgba(139, 92, 246, 0.45); flex-shrink: 0;">
+                            ▶️
+                        </div>
+                        <div>
+                            <div style="font-weight: 800; font-size: 0.85rem; color: #f8fafc; letter-spacing: -0.2px;">شاهد فيديو الشرح: كيف تستخدم وتنسق بحثك؟</div>
+                            <div style="font-size: 0.72rem; color: #cbd5e1;">دقيقة واحدة تشرح لك كل خطوة من كتابة البحث إلى طباعته A4 كـ PDF</div>
+                        </div>
+                    </div>
+                    <span style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff; font-weight: 700; font-size: 0.75rem; padding: 5px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>🎥</span><span>تشغيل الفيديو</span>
+                    </span>
+                </div>
+
                 <!-- شريط التبديل العلوي الأنيق بين: لصق نص مسودة وبين: توليد بالذكاء الاصطناعي -->
                 <div class="converter-subtabs">
                     <button type="button" id="subtab-btn-paste" class="subtab-btn active" onclick="switchConverterSubTab('paste')">
@@ -2253,7 +2301,7 @@
                             <textarea id="ai-topic-input" class="form-control" style="height: 72px; font-size: 0.85rem; line-height: 1.5;" placeholder="اكتب هنا موضوع أو عنوان البحث كاملاً، مثال:&#10;«استراتيجيات إدارة الموارد البشرية وأثرها على الأداء المؤسسي في الشركات الجزائرية»"></textarea>
                         </div>
 
-                        <!-- أ��رار اقتراحات مواضيع سريعة للتجربة الفورية -->
+                        <!-- أزرار اقتراحات مواضيع سريعة للتجربة الفورية -->
                         <div style="margin-bottom: 0.85rem;">
                             <div style="font-size: 0.73rem; color: #94a3b8; margin-bottom: 5px;">أمثلة ومواضيع جاهزة للتجربة السريعة:</div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
@@ -2488,7 +2536,7 @@
                             <span id="live-preview-tag" style="font-size:0.72rem; background:rgba(56, 189, 248, 0.15); color:var(--cyan-accent); padding:2px 8px; border-radius:4px; font-weight:700;">Amiri | 12.3pt</span>
                         </div>
                         <div id="live-font-preview-text" style="font-family: 'Amiri', serif; font-size: 12.3pt; line-height: 1.62; color: #ffffff; text-align: justify; text-justify: inter-word; min-height: 50px;">
-                            «تعتبر تكنولوجيا المعلومات والاتصال من أهم الركائز التي تقوم عليها المجتمعات المعاصرة، حيث ساهمت في إحداث ثورة علمية وتقنية غير مسب��قة.»
+                            «تعتبر تكنولوجيا المعلومات والاتصال من أهم الركائز التي تقوم عليها المجتمعات المعاصرة، حيث ساهمت في إحداث ثورة علمية وتقنية غير مسبوقة.»
                         </div>
                     </div>
                 </div>
@@ -2921,7 +2969,7 @@
 المطلب الثاني: متطلبات وتحديات تطبيق التحول الرقمي
 يتطلب التحول الرقمي الفعال توفر بنية تحتية رقمية متطورة، بالإضافة إلى تأهيل الكوادر البشرية وتطوير التشريعات الأكاديمية المنظمة^4.
 
-1. البنية التحتية التكنولوجية: توفير شبكات اتصال سريعة ومنصات تعليمية رقمية مؤمن��.
+1. البنية التحتية التكنولوجية: توفير شبكات اتصال سريعة ومنصات تعليمية رقمية مؤمنة.
 2. التدريب والتأهيل المستمر: بناء قدرات أعضاء هيئة التدريس والطلبة على استخدام الأدوات الرقمية.
 3. إدارة التغيير: التغلب على مقاومة التغيير وغرس ثقافة الابتكار المؤسسي.
 
@@ -4091,7 +4139,7 @@
             }
 
             let titleLineToSkip = '';
-            const isStructuralHeading = /^(?:#+\s*|[-*•]\s*)?(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|الفرع|فر��|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
+            const isStructuralHeading = /^(?:#+\s*|[-*•]\s*)?(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
 
             if (!detectedTitle && rawLines.length > 0) {
                 const firstLine = rawLines[0].trim();
@@ -4252,7 +4300,7 @@
                 const cleanSym = text.replace(/^[-*•–—]\s*/, '').trim();
 
                 // 1. تعداد ترتيبي (أولاً، ثانياً...)
-                const ordMatch = text.match(/^(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خا��ساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*([:/\-–—.]?)\s*(.*)$/);
+                const ordMatch = text.match(/^(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*([:/\-–—.]?)\s*(.*)$/);
                 if (ordMatch) {
                     const colon = ordMatch[2] ? (ordMatch[2] === ':' ? ':' : ` ${ordMatch[2]}`) : ':';
                     return `<strong>${ordMatch[1]}${colon}</strong> ${ordMatch[3]}`;
@@ -5565,6 +5613,49 @@ ${documentHtml}
         // تحميل المفتاح المحفوظ عند بدء التشغيل
         window.addEventListener('DOMContentLoaded', function() {
             loadSavedAiApiKey();
+
+            // رصد تعذر العثور على ملف الفيديو لعرض إرشاد مفيد
+            var tutorialVid = document.getElementById('app-tutorial-video');
+            if (tutorialVid) {
+                tutorialVid.addEventListener('error', function() {
+                    var alertBox = document.getElementById('video-file-missing-alert');
+                    if (alertBox) alertBox.style.display = 'block';
+                }, true);
+            }
+        });
+
+        // فتح نافذة فيديو شرح التطبيق
+        function openVideoTutorialModal() {
+            var modal = document.getElementById('video-tutorial-modal');
+            var video = document.getElementById('app-tutorial-video');
+            if (modal) {
+                modal.style.display = 'flex';
+                if (video) {
+                    video.play().catch(function(e) {
+                        // يتم كتم الصوت أو منع التشغيل التلقائي حتى يتفاعل المستخدم وفق سياسة المتصفح
+                    });
+                }
+            }
+        }
+
+        // إغلاق نافذة فيديو شرح التطبيق وإيقاف الفيديو فوراً
+        function closeVideoTutorialModal() {
+            var modal = document.getElementById('video-tutorial-modal');
+            var video = document.getElementById('app-tutorial-video');
+            if (video) {
+                video.pause();
+            }
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // إغلاق النوافذ المنبثقة بزر Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                closeVideoTutorialModal();
+                closeStudentActivationModal();
+            }
         });
 
 </script>
@@ -5638,6 +5729,53 @@ ${documentHtml}
                     إغلاق النافذة
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة تفاعلية لمشاهدة فيديو شرح التطبيق -->
+    <div id="video-tutorial-modal" class="student-modal-overlay" onclick="if(event.target === this) closeVideoTutorialModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999999; align-items: center; justify-content: center; padding: 15px;">
+        <div class="video-modal-content" style="background: linear-gradient(180deg, #131d35 0%, #0a0f1d 100%); border: 1px solid rgba(139, 92, 246, 0.45); box-shadow: 0 25px 70px rgba(0,0,0,0.9), 0 0 35px rgba(139, 92, 246, 0.25); border-radius: 18px; max-width: 840px; width: 100%; padding: 22px; color: #f1f5f9; direction: rtl; text-align: right;">
+            
+            <!-- رأس النافذة -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 42px; height: 42px; border-radius: 11px; background: linear-gradient(135deg, #a855f7, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);">
+                        🎥
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; font-size: 1.1rem; color: #f8fafc;">فيديو شرح طريقة استخدام وتنسيق البحوث في «بحثك»</div>
+                        <div style="font-size: 0.75rem; color: #a78bfa;">دليل مرئي سريع لكافة أدوات الذكاء الاصطناعي والتنسيق والطباعة</div>
+                    </div>
+                </div>
+                <button type="button" onclick="closeVideoTutorialModal()" style="background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.25); color: #cbd5e1; font-size: 1.2rem; cursor: pointer; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="إغلاق">✕</button>
+            </div>
+
+            <!-- مشغل الفيديو -->
+            <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);">
+                <video id="app-tutorial-video" controls playsinline preload="metadata" style="width: 100%; aspect-ratio: 16/9; display: block; object-fit: contain; background: #000;">
+                    <source src="tutorial.mp4" type="video/mp4">
+                    متصفحك لا يدعم تشغيل الفيديو المباشر.
+                </video>
+            </div>
+
+            <!-- تنبيه لطيف للمستخدم -->
+            <div id="video-hint-bar" style="margin-top: 14px; padding: 10px 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; font-size: 0.78rem; color: #93c5fd; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>💡 <strong>ملاحظة:</strong> يقوم المشغل بتشغيل ملف <code>tutorial.mp4</code> الموجود في مجلد الموقع مباشرة.</span>
+                <span style="font-size: 0.72rem; color: #94a3b8;">يدعم التحكم في الصوت، السرعة، وتكبير الشاشة كاملة ⛶</span>
+            </div>
+
+            <!-- رسالة تنبيه تظهر فقط إذا لم يضع المستخدم ملف tutorial.mp4 بعد -->
+            <div id="video-file-missing-alert" style="display: none; margin-top: 10px; padding: 10px 14px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; font-size: 0.78rem; color: #fbbf24; line-height: 1.5;">
+                ⚠️ <strong>لم يتم العثور على ملف الفيديو <code>tutorial.mp4</code> بعد:</strong> يرجى التأكد من وضع ملف الفيديو المسمى <strong>tutorial.mp4</strong> داخل مجلد المشروع الرئيسي <code>D:\baht</code> ليعمل الفيديو بشكل فوري.
+            </div>
+
+            <!-- أسفل النافذة -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+                <button type="button" onclick="closeVideoTutorialModal()" class="btn btn-secondary" style="font-size: 0.8rem; padding: 7px 20px; border-radius: 8px;">
+                    إغلاق النافذة
+                </button>
+            </div>
+
         </div>
     </div>
 
