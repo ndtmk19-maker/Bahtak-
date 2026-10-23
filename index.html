@@ -958,10 +958,107 @@
         }
 
         .cover-header {
+            width: 100%;
+            margin-bottom: 2.5mm;
+        }
+
+        .cover-header-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            position: relative;
+        }
+
+        .cover-logo-box {
+            width: 38mm;
+            min-height: 38mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .cover-logo-right {
+            justify-content: flex-start;
+        }
+
+        .cover-logo-left {
+            justify-content: flex-end;
+        }
+
+        .cover-univ-logo {
+            max-width: 36mm;
+            max-height: 36mm;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            image-rendering: -webkit-optimize-contrast;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
+        }
+
+        .cover-logo-placeholder {
+            width: 38mm;
+            min-height: 38mm;
+            visibility: hidden;
+        }
+
+        /* أحجام الشعار المختلفة */
+        .cover-header-wrap.cover-logo-size-compact .cover-logo-box,
+        .cover-header-wrap.cover-logo-size-compact .cover-logo-placeholder { width: 26mm; min-height: 26mm; }
+        .cover-header-wrap.cover-logo-size-compact .cover-univ-logo { max-width: 25mm; max-height: 25mm; }
+
+        .cover-header-wrap.cover-logo-size-medium .cover-logo-box,
+        .cover-header-wrap.cover-logo-size-medium .cover-logo-placeholder { width: 32mm; min-height: 32mm; }
+        .cover-header-wrap.cover-logo-size-medium .cover-univ-logo { max-width: 30mm; max-height: 30mm; }
+
+        .cover-header-wrap.cover-logo-size-large .cover-logo-box,
+        .cover-header-wrap.cover-logo-size-large .cover-logo-placeholder { width: 38mm; min-height: 38mm; }
+        .cover-header-wrap.cover-logo-size-large .cover-univ-logo { max-width: 36mm; max-height: 36mm; }
+
+        .cover-header-wrap.cover-logo-size-xlarge .cover-logo-box,
+        .cover-header-wrap.cover-logo-size-xlarge .cover-logo-placeholder { width: 46mm; min-height: 46mm; }
+        .cover-header-wrap.cover-logo-size-xlarge .cover-univ-logo { max-width: 44mm; max-height: 44mm; }
+
+        .cover-header-center {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2mm;
+            text-align: center;
+            gap: 1.5mm;
+            padding: 0 2mm;
+        }
+
+        .cover-theme-black .cover-university-line {
+            font-family: 'Cairo', sans-serif;
+            font-size: 13pt;
+            font-weight: 700;
+            color: #000000;
+            margin-top: 1mm;
+        }
+
+        .cover-theme-black .cover-faculty-line {
+            font-family: 'Cairo', sans-serif;
+            font-size: 11pt;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .cover-theme-gold .cover-university-line {
+            font-family: 'Cairo', sans-serif;
+            font-size: 13pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 1mm;
+        }
+
+        .cover-theme-gold .cover-faculty-line {
+            font-family: 'Cairo', sans-serif;
+            font-size: 11pt;
+            font-weight: 600;
+            color: #334155;
         }
 
         /* نصوص الغلاف باللون الأسود الكامل */
@@ -2052,12 +2149,88 @@
                     </div>
                 </div>
 
-                <!-- بطاقة بيانات الهيئة والجامعة -->
+                <!-- بطاقة اختيار الولاية والجامعة وشعار الغلاف -->
                 <div class="section-card">
                     <div class="section-card-header">
                         <div class="section-card-title">
                             <span class="icon-pill">🏛️</span>
-                            <span>بيانات الهيئة والمؤسسة التعليمية</span>
+                            <span>شعار الجامعة ومؤسسة البحث (تلقائي)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="info-tip" style="margin-bottom: 12px;">
+                        <span class="info-tip-icon">✨</span>
+                        <span>اختر ولايتك ثم جامعتك وسيظهر الشعار الرسمي للجامعة مباشرة في أعلى صفحة الغلاف في مكانه المعتمد (يميناً ويساراً).</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">1. اختر الولاية:</label>
+                            <select id="cover-wilaya-select" class="form-control" onchange="onWilayaChange()">
+                                <option value="">— اختر الولاية —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">2. الجامعة / المدرسة العليا:</label>
+                            <select id="cover-univ-select" class="form-control" onchange="onUniversityChange()" disabled>
+                                <option value="">— اختر الولاية أولاً —</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- شريط حالة ومعاينة الشعار المختار -->
+                    <div id="cover-logo-status-box" style="display:none; background: rgba(15,23,42,0.7); border: 1px solid rgba(59,130,246,0.35); border-radius: 8px; padding: 10px 12px; margin-top: 6px; align-items: center; gap: 12px;">
+                        <div style="width: 44px; height: 44px; background: #ffffff; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 3px; flex-shrink: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.25);">
+                            <img id="cover-logo-thumb-img" src="" alt="شعار" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div id="cover-logo-univ-name" style="font-weight: 700; font-size: 0.84rem; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                            <div style="font-size: 0.74rem; color: #10b981; font-weight: 600;">✅ الشعار مفعل في ترويسة الغلاف الرسمية</div>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearUniversityLogo()" style="padding: 4px 10px; font-size: 0.75rem; border-color: rgba(239,68,68,0.4); color: #fca5a5;">
+                            إزالة الشعار
+                        </button>
+                    </div>
+
+                    <!-- موضع ومقاس الشعار في الغلاف -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 8px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">موضع الشعار في الغلاف:</label>
+                            <select id="cover-logo-position" class="form-control" onchange="updateCoverSettings()">
+                                <option value="both" selected>على الجانبين معاً (متناظر)</option>
+                                <option value="right">على اليمين فقط</option>
+                                <option value="left">على اليسار فقط</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">📐 حجم ومقاس الشعار:</label>
+                            <select id="cover-logo-size" class="form-control" onchange="updateCoverSettings()">
+                                <option value="large" selected>كبير وبارز (38mm - موصى به)</option>
+                                <option value="xlarge">عريض وواضح جداً (46mm)</option>
+                                <option value="medium">قياسي متناسق (32mm)</option>
+                                <option value="compact">مدمج صغير (26mm)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- خيار رفع شعار مخصص إذا أراد الطالب -->
+                    <div style="margin-top: 10px; border-top: 1px dashed rgba(148,163,184,0.2); padding-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; color: #94a3b8;">شعار كليتك مخصص أو غير مدرج؟</span>
+                            <input type="file" id="cover-custom-logo-input" accept="image/*" style="display:none;" onchange="handleCustomLogoUpload(event)">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('cover-custom-logo-input').click()" style="padding: 4px 10px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 5px;">
+                                <span>📁</span><span>رفع شعار من جهازك</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- بطاقة بيانات الهيئة والجامعة -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <span class="icon-pill">📝</span>
+                            <span>بيانات الهيئة والكلية المكتوبة</span>
                         </div>
                     </div>
                     <div class="form-group">
@@ -2065,8 +2238,16 @@
                         <input type="text" id="cover-country" class="form-control" value="الجمهورية الجزائرية الديمقراطية الشعبية" oninput="updateCoverSettings()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">الوزارة والجامعة والكلية:</label>
+                        <label class="form-label">الوزارة الوصية:</label>
                         <input type="text" id="cover-ministry" class="form-control" value="وزارة التعليم العالي والبحث العلمي" oninput="updateCoverSettings()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">اسم الجامعة (يتم تحديثه تلقائياً عند اختيار الجامعة):</label>
+                        <input type="text" id="cover-university-name" class="form-control" value="" placeholder="مثال: جامعة الجزائر 1 - بن يوسف بن خدة" oninput="updateCoverSettings()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الكلية / المعهد / القسم (اختياري):</label>
+                        <input type="text" id="cover-faculty-name" class="form-control" value="" placeholder="مثال: كلية الحقوق والعلوم السياسية - قسم القانون العام" oninput="updateCoverSettings()">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="form-label">نوع العمل الأكاديمي:</label>
@@ -2793,6 +2974,14 @@
                 theme: 'black', // 'black' or 'gold'
                 country: 'الجمهورية الجزائرية الديمقراطية الشعبية',
                 ministry: 'وزارة التعليم العالي والبحث العلمي',
+                selectedWilaya: '',
+                selectedUnivId: '',
+                universityName: '',
+                facultyName: '',
+                logoUrl: '',
+                logoBase64: '',
+                logoPosition: 'both',
+                logoSize: 'large',
                 workType: 'بحث أكاديمي حول',
                 title: '[عنوان البحث هنا]',
                 subtitle: '',
@@ -3078,6 +3267,979 @@
             }
         }
 
+        // =========================================================================
+        // قاعدة بيانات ولايات وجامعات الجزائر وشعاراتها الرسمية
+        // =========================================================================
+        const ALGERIAN_WILAYAS_DATA = [
+        {
+                "id": "adrar",
+                "name": "01. أدرار",
+                "universities": [
+                        {
+                                "id": "univ-adrar",
+                                "name": "جامعة أحمد درايعية - أدرار",
+                                "logo": "assets/univ_logos/Univ-Adrar.png"
+                        }
+                ]
+        },
+        {
+                "id": "chlef",
+                "name": "02. الشلف",
+                "universities": [
+                        {
+                                "id": "univ-chlef",
+                                "name": "جامعة حسيبة بن بوعلي - الشلف",
+                                "logo": "assets/univ_logos/Univ-Chlef.png"
+                        }
+                ]
+        },
+        {
+                "id": "laghouat",
+                "name": "03. الأغواط",
+                "universities": [
+                        {
+                                "id": "univ-laghouat",
+                                "name": "جامعة عمار ثليجي - الأغواط",
+                                "logo": "assets/univ_logos/Univ-Laghouat.png"
+                        },
+                        {
+                                "id": "ens-laghouat",
+                                "name": "المدرسة العليا للأساتذة - الأغواط",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "oum-el-bouaghi",
+                "name": "04. أم البواقي",
+                "universities": [
+                        {
+                                "id": "univ-oeb",
+                                "name": "جامعة العربي بن مهيدي - أم البواقي",
+                                "logo": "assets/univ_logos/Univ-OEB.png"
+                        }
+                ]
+        },
+        {
+                "id": "batna",
+                "name": "05. باتنة",
+                "universities": [
+                        {
+                                "id": "univ-batna1",
+                                "name": "جامعة باتنة 1 - الحاج لخضر",
+                                "logo": "assets/univ_logos/Univ-Batna1.png"
+                        },
+                        {
+                                "id": "univ-batna2",
+                                "name": "جامعة باتنة 2 - مصطفى بن بولعيد",
+                                "logo": "assets/univ_logos/Univ-Batna2.png"
+                        }
+                ]
+        },
+        {
+                "id": "bejaia",
+                "name": "06. بجاية",
+                "universities": [
+                        {
+                                "id": "univ-bejaia",
+                                "name": "جامعة عبد الرحمن ميرة - بجاية",
+                                "logo": "assets/univ_logos/Univ-Bejaia.png"
+                        }
+                ]
+        },
+        {
+                "id": "biskra",
+                "name": "07. بسكرة",
+                "universities": [
+                        {
+                                "id": "univ-biskra",
+                                "name": "جامعة محمد خيضر - بسكرة",
+                                "logo": "assets/univ_logos/Univ-Biskra.png"
+                        }
+                ]
+        },
+        {
+                "id": "bechar",
+                "name": "08. بشار",
+                "universities": [
+                        {
+                                "id": "univ-bechar",
+                                "name": "جامعة طاهري محمد - بشار",
+                                "logo": "assets/univ_logos/Univ-Bechar.png"
+                        },
+                        {
+                                "id": "ens-bechar",
+                                "name": "المدرسة العليا للأساتذة - بشار",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "blida",
+                "name": "09. البليدة",
+                "universities": [
+                        {
+                                "id": "univ-blida1",
+                                "name": "جامعة البليدة 1 - سعد دحلب",
+                                "logo": "assets/univ_logos/Univ-Blida1.png"
+                        },
+                        {
+                                "id": "univ-blida2",
+                                "name": "جامعة البليدة 2 - علي لونيسي",
+                                "logo": "assets/univ_logos/Univ-Blida2.png"
+                        }
+                ]
+        },
+        {
+                "id": "bouira",
+                "name": "10. البويرة",
+                "universities": [
+                        {
+                                "id": "univ-bouira",
+                                "name": "جامعة أكلي محند أولحاج - البويرة",
+                                "logo": "assets/univ_logos/Univ-Bouira.svg"
+                        }
+                ]
+        },
+        {
+                "id": "tamanrasset",
+                "name": "11. تمنراست",
+                "universities": [
+                        {
+                                "id": "cu-tamanrasset",
+                                "name": "المركز الجامعي أمين العقال الحاج موسى أق أخموك - تمنراست",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "tebessa",
+                "name": "12. تبسة",
+                "universities": [
+                        {
+                                "id": "univ-tebessa",
+                                "name": "جامعة الشيخ العربي التبسي - تبسة",
+                                "logo": "assets/univ_logos/Univ-Tebessa.png"
+                        }
+                ]
+        },
+        {
+                "id": "tlemcen",
+                "name": "13. تلمسان",
+                "universities": [
+                        {
+                                "id": "univ-tlemcen",
+                                "name": "جامعة أبي بكر بلقايد - تلمسان",
+                                "logo": "assets/univ_logos/Univ-Tlemcen.png"
+                        },
+                        {
+                                "id": "essat-tlemcen",
+                                "name": "المدرسة العليا في العلوم التطبيقية - تلمسان",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "tiaret",
+                "name": "14. تيارت",
+                "universities": [
+                        {
+                                "id": "univ-tiaret",
+                                "name": "جامعة ابن خلدون - تيارت",
+                                "logo": "assets/univ_logos/Univ-Tiaret.png"
+                        }
+                ]
+        },
+        {
+                "id": "tizi-ouzou",
+                "name": "15. تيزي وزو",
+                "universities": [
+                        {
+                                "id": "univ-tizi",
+                                "name": "جامعة مولود معمري - تيزي وزو",
+                                "logo": "assets/univ_logos/Univ-Tizi-Ouzou.png"
+                        }
+                ]
+        },
+        {
+                "id": "alger",
+                "name": "16. الجزائر العاصمة",
+                "universities": [
+                        {
+                                "id": "usthb",
+                                "name": "جامعة العلوم والتكنولوجيا هواري بومدين (USTHB - باب الزوار)",
+                                "logo": "assets/univ_logos/USTHB.png"
+                        },
+                        {
+                                "id": "univ-alger1",
+                                "name": "جامعة الجزائر 1 - بن يوسف بن خدة",
+                                "logo": "assets/univ_logos/Univ-Alger1.png"
+                        },
+                        {
+                                "id": "univ-alger2",
+                                "name": "جامعة الجزائر 2 - أبو القاسم سعد الله (بوزريعة)",
+                                "logo": "assets/univ_logos/Univ-Alger2.png"
+                        },
+                        {
+                                "id": "univ-alger3",
+                                "name": "جامعة الجزائر 3 - إبراهيم سلطان شيبوط",
+                                "logo": "assets/univ_logos/Univ-Alger3.png"
+                        },
+                        {
+                                "id": "enp-alger",
+                                "name": "المدرسة الوطنية المتعددة التقنيات (ENP - الحراش)",
+                                "logo": "assets/univ_logos/ENP-Alger.png"
+                        },
+                        {
+                                "id": "esi-alger",
+                                "name": "المدرسة الوطنية العليا للإعلام الآلي (ESI - واد السمار)",
+                                "logo": "assets/univ_logos/ESI-Alger.png"
+                        },
+                        {
+                                "id": "epau-alger",
+                                "name": "المدرسة المتعددة التقنيات للهندسة المعمارية والعمران (EPAU)",
+                                "logo": "assets/univ_logos/EPAU.png"
+                        },
+                        {
+                                "id": "enst-alger",
+                                "name": "المدرسة الوطنية العليا للتكنولوجيا (ENST)",
+                                "logo": "assets/univ_logos/ENST.png"
+                        },
+                        {
+                                "id": "ensv-alger",
+                                "name": "المدرسة الوطنية العليا للبيطرة (ENSV)",
+                                "logo": "assets/univ_logos/ENSV.png"
+                        },
+                        {
+                                "id": "enssmal-alger",
+                                "name": "المدرسة الوطنية العليا لعلوم البحار وتهيئة الساحل (ENSSMAL)",
+                                "logo": "assets/univ_logos/ENSSMAL.png"
+                        },
+                        {
+                                "id": "ehec-alger",
+                                "name": "المدرسة العليا للتجارة (EHEC)",
+                                "logo": "assets/univ_logos/EHEC.png"
+                        },
+                        {
+                                "id": "ufc-alger",
+                                "name": "جامعة التكوين المتواصل (UFC)",
+                                "logo": "assets/univ_logos/UFC.png"
+                        },
+                        {
+                                "id": "esss-alger",
+                                "name": "المدرسة العليا للضمان الاجتماعي (ESSS)",
+                                "logo": "assets/univ_logos/ESSS.png"
+                        },
+                        {
+                                "id": "esm-alger",
+                                "name": "المدرسة العليا للقضاء (ESM)",
+                                "logo": "assets/univ_logos/ESM-Magistrature.png"
+                        }
+                ]
+        },
+        {
+                "id": "djelfa",
+                "name": "17. الجلفة",
+                "universities": [
+                        {
+                                "id": "univ-djelfa",
+                                "name": "جامعة زيان عاشور - الجلفة",
+                                "logo": "assets/univ_logos/Univ-Djelfa.png"
+                        }
+                ]
+        },
+        {
+                "id": "jijel",
+                "name": "18. جيجل",
+                "universities": [
+                        {
+                                "id": "univ-jijel",
+                                "name": "جامعة محمد الصديق بن يحيى - جيجل",
+                                "logo": "assets/univ_logos/Univ-Jijel.png"
+                        }
+                ]
+        },
+        {
+                "id": "setif",
+                "name": "19. سطيف",
+                "universities": [
+                        {
+                                "id": "univ-setif1",
+                                "name": "جامعة سطيف 1 - فرحات عباس (الباز)",
+                                "logo": "assets/univ_logos/Univ-Setif1.png"
+                        },
+                        {
+                                "id": "univ-setif2",
+                                "name": "جامعة سطيف 2 - محمد لمين دباغين (الهضاب)",
+                                "logo": "assets/univ_logos/Univ-Setif2.png"
+                        },
+                        {
+                                "id": "ens-setif",
+                                "name": "المدرسة العليا للأساتذة - سطيف",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "saida",
+                "name": "20. سعيدة",
+                "universities": [
+                        {
+                                "id": "univ-saida",
+                                "name": "جامعة الدكتور مولاي الطاهر - سعيدة",
+                                "logo": "assets/univ_logos/Univ-Saida.png"
+                        }
+                ]
+        },
+        {
+                "id": "skikda",
+                "name": "21. سكيكدة",
+                "universities": [
+                        {
+                                "id": "univ-skikda",
+                                "name": "جامعة 20 أوت 1955 - سكيكدة",
+                                "logo": "assets/univ_logos/Univ-Skikda.png"
+                        }
+                ]
+        },
+        {
+                "id": "sidi-bel-abbes",
+                "name": "22. سيدي بلعباس",
+                "universities": [
+                        {
+                                "id": "univ-sba",
+                                "name": "جامعة الجيلالي اليابس - سيدي بلعباس",
+                                "logo": "assets/univ_logos/Univ-Sidi-Bel-Abbes.png"
+                        },
+                        {
+                                "id": "esi-sba",
+                                "name": "المدرسة الوطنية العليا للإعلام الآلي - سيدي بلعباس (ESI-SBA)",
+                                "logo": "assets/univ_logos/ESI-SBA.png"
+                        }
+                ]
+        },
+        {
+                "id": "annaba",
+                "name": "23. عنابة",
+                "universities": [
+                        {
+                                "id": "univ-annaba",
+                                "name": "جامعة باجي مختار - عنابة",
+                                "logo": "assets/univ_logos/Univ-Annaba.png"
+                        },
+                        {
+                                "id": "ensmm-annaba",
+                                "name": "المدرسة الوطنية العليا للمناجم والمعادن - عنابة",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "guelma",
+                "name": "24. قالمة",
+                "universities": [
+                        {
+                                "id": "univ-guelma",
+                                "name": "جامعة 08 ماي 1945 - قالمة",
+                                "logo": "assets/univ_logos/Univ-Guelma.svg"
+                        }
+                ]
+        },
+        {
+                "id": "constantine",
+                "name": "25. قسنطينة",
+                "universities": [
+                        {
+                                "id": "univ-constantine1",
+                                "name": "جامعة قسنطينة 1 - الإخوة منتوري",
+                                "logo": "assets/univ_logos/Univ-Constantine1.png"
+                        },
+                        {
+                                "id": "univ-constantine2",
+                                "name": "جامعة قسنطينة 2 - عبد الحميد مهري",
+                                "logo": "assets/univ_logos/Univ-Constantine2.png"
+                        },
+                        {
+                                "id": "univ-constantine3",
+                                "name": "جامعة قسنطينة 3 - صالح بوبنيدر",
+                                "logo": "assets/univ_logos/Univ-Constantine3.png"
+                        },
+                        {
+                                "id": "univ-emir",
+                                "name": "جامعة الأمير عبد القادر للعلوم الإسلامية - قسنطينة",
+                                "logo": "assets/univ_logos/Univ-Emir.png"
+                        },
+                        {
+                                "id": "enp-constantine",
+                                "name": "المدرسة الوطنية المتعددة التقنيات - قسنطينة",
+                                "logo": "assets/univ_logos/ENP-Constantine.png"
+                        },
+                        {
+                                "id": "ens-constantine",
+                                "name": "المدرسة العليا للأساتذة - قسنطينة",
+                                "logo": "assets/univ_logos/ENS-Constantine.png"
+                        },
+                        {
+                                "id": "escf-constantine",
+                                "name": "المدرسة العليا للمحاسبة والمالية - قسنطينة",
+                                "logo": "assets/univ_logos/ESCF-Constantine.png"
+                        }
+                ]
+        },
+        {
+                "id": "medea",
+                "name": "26. المدية",
+                "universities": [
+                        {
+                                "id": "univ-medea",
+                                "name": "جامعة يحيى فارس - المدية",
+                                "logo": "assets/univ_logos/Univ-Medea.png"
+                        }
+                ]
+        },
+        {
+                "id": "mostaganem",
+                "name": "27. مستغانم",
+                "universities": [
+                        {
+                                "id": "univ-mosta",
+                                "name": "جامعة عبد الحميد بن باديس - مستغانم",
+                                "logo": "assets/univ_logos/Univ-Mostaganem.png"
+                        },
+                        {
+                                "id": "ens-mosta",
+                                "name": "المدرسة العليا للأساتذة - مستغانم",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "msila",
+                "name": "28. المسيلة",
+                "universities": [
+                        {
+                                "id": "univ-msila",
+                                "name": "جامعة محمد بوضياف - المسيلة",
+                                "logo": "assets/univ_logos/Univ-Msila.png"
+                        }
+                ]
+        },
+        {
+                "id": "mascara",
+                "name": "29. معسكر",
+                "universities": [
+                        {
+                                "id": "univ-mascara",
+                                "name": "جامعة مصطفى اسطمبولي - معسكر",
+                                "logo": "assets/univ_logos/Univ-Mascara.png"
+                        }
+                ]
+        },
+        {
+                "id": "ouargla",
+                "name": "30. ورقلة",
+                "universities": [
+                        {
+                                "id": "univ-ouargla",
+                                "name": "جامعة قاصدي مرباح - ورقلة",
+                                "logo": "assets/univ_logos/Univ-Ouargla.jpg"
+                        },
+                        {
+                                "id": "ens-ouargla",
+                                "name": "المدرسة العليا للأساتذة - ورقلة",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "oran",
+                "name": "31. وهران",
+                "universities": [
+                        {
+                                "id": "univ-oran1",
+                                "name": "جامعة وهران 1 - أحمد بن بلة (السانيا)",
+                                "logo": "assets/univ_logos/Univ-Oran1.png"
+                        },
+                        {
+                                "id": "univ-oran2",
+                                "name": "جامعة وهران 2 - محمد بن أحمد (بلقايد)",
+                                "logo": "assets/univ_logos/Univ-Oran2.png"
+                        },
+                        {
+                                "id": "usto",
+                                "name": "جامعة العلوم والتكنولوجيا وهران - محمد بوضياف (USTO-MB)",
+                                "logo": "assets/univ_logos/USTO.png"
+                        },
+                        {
+                                "id": "enpo-oran",
+                                "name": "المدرسة الوطنية المتعددة التقنيات بوهران - موريس أودان",
+                                "logo": "assets/univ_logos/ENPO-Oran.png"
+                        },
+                        {
+                                "id": "esgee-oran",
+                                "name": "المدرسة العليا في الهندسة الكهربائية والطاقوية - وهران",
+                                "logo": "assets/univ_logos/ESGEE-Oran.png"
+                        },
+                        {
+                                "id": "ens-oran",
+                                "name": "المدرسة العليا للأساتذة - وهران",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "el-bayadh",
+                "name": "32. البيض",
+                "universities": [
+                        {
+                                "id": "cu-bayadh",
+                                "name": "المركز الجامعي نور البشير - البيض",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "illizi",
+                "name": "33. إليزي",
+                "universities": [
+                        {
+                                "id": "cu-illizi",
+                                "name": "المركز الجامعي إليزي",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "bba",
+                "name": "34. برج بوعريريج",
+                "universities": [
+                        {
+                                "id": "univ-bba",
+                                "name": "جامعة محمد البشير الإبراهيمي - برج بوعريريج",
+                                "logo": "assets/univ_logos/Univ-BBA.png"
+                        }
+                ]
+        },
+        {
+                "id": "boumerdes",
+                "name": "35. بومرداس",
+                "universities": [
+                        {
+                                "id": "univ-boumerdes",
+                                "name": "جامعة امحمد بوقرة - بومرداس",
+                                "logo": "assets/univ_logos/Univ-Boumerdes.png"
+                        }
+                ]
+        },
+        {
+                "id": "el-tarf",
+                "name": "36. الطارف",
+                "universities": [
+                        {
+                                "id": "univ-eltarf",
+                                "name": "جامعة الشاذلي بن جديد - الطارف",
+                                "logo": "assets/univ_logos/Univ-ElTarf.jpg"
+                        }
+                ]
+        },
+        {
+                "id": "tindouf",
+                "name": "37. تندوف",
+                "universities": [
+                        {
+                                "id": "cu-tindouf",
+                                "name": "المركز الجامعي علي كافي - تندوف",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "tissemsilt",
+                "name": "38. تسمسيلت",
+                "universities": [
+                        {
+                                "id": "univ-tissemsilt",
+                                "name": "جامعة أحمد بن يحيى الونشريسي - تسمسيلت",
+                                "logo": "assets/univ_logos/Univ-Tissemsilt.png"
+                        }
+                ]
+        },
+        {
+                "id": "el-oued",
+                "name": "39. الوادي",
+                "universities": [
+                        {
+                                "id": "univ-eloued",
+                                "name": "جامعة حمة لخضر - الوادي",
+                                "logo": "assets/univ_logos/Univ-ElOued.png"
+                        }
+                ]
+        },
+        {
+                "id": "khenchela",
+                "name": "40. خنشلة",
+                "universities": [
+                        {
+                                "id": "univ-khenchela",
+                                "name": "جامعة عباس لغرور - خنشلة",
+                                "logo": "assets/univ_logos/Univ-Khenchela.png"
+                        }
+                ]
+        },
+        {
+                "id": "souk-ahras",
+                "name": "41. سوق أهراس",
+                "universities": [
+                        {
+                                "id": "univ-soukahras",
+                                "name": "جامعة محمد الشريف مساعدية - سوق أهراس",
+                                "logo": "assets/univ_logos/Univ-Souk-Ahras.png"
+                        }
+                ]
+        },
+        {
+                "id": "tipaza",
+                "name": "42. تيبازة",
+                "universities": [
+                        {
+                                "id": "cu-tipaza",
+                                "name": "المركز الجامعي مرسلي عبد الله - تيبازة",
+                                "logo": "assets/univ_logos/CU-Tipaza.png"
+                        },
+                        {
+                                "id": "ensm-kolea",
+                                "name": "المدرسة الوطنية العليا للمناجمنت - القليعة",
+                                "logo": "assets/univ_logos/ENSM-Kolea.png"
+                        },
+                        {
+                                "id": "ehec-kolea",
+                                "name": "المدرسة العليا للتجارة - القليعة",
+                                "logo": "assets/univ_logos/EHEC.png"
+                        }
+                ]
+        },
+        {
+                "id": "mila",
+                "name": "43. ميلة",
+                "universities": [
+                        {
+                                "id": "univ-mila",
+                                "name": "المركز الجامعي عبد الحفيظ بوالصوف - ميلة",
+                                "logo": "assets/univ_logos/Univ-Mila.png"
+                        }
+                ]
+        },
+        {
+                "id": "ain-defla",
+                "name": "44. عين الدفلى",
+                "universities": [
+                        {
+                                "id": "univ-aindefla",
+                                "name": "جامعة جيلالي بونعامة - خميس مليانة",
+                                "logo": "assets/univ_logos/Univ-AinDefla.jpg"
+                        }
+                ]
+        },
+        {
+                "id": "naama",
+                "name": "45. النعامة",
+                "universities": [
+                        {
+                                "id": "cu-naama",
+                                "name": "المركز الجامعي صالحي أحمد - النعامة",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "ain-temouchent",
+                "name": "46. عين تموشنت",
+                "universities": [
+                        {
+                                "id": "univ-aintemouchent",
+                                "name": "جامعة بلحاج بوشعيب - عين تموشنت",
+                                "logo": "assets/univ_logos/Univ-AinTemouchent.png"
+                        }
+                ]
+        },
+        {
+                "id": "ghardaia",
+                "name": "47. غرداية",
+                "universities": [
+                        {
+                                "id": "univ-ghardaia",
+                                "name": "جامعة غرداية",
+                                "logo": "assets/univ_logos/Univ-Ghardaia.png"
+                        }
+                ]
+        },
+        {
+                "id": "relizane",
+                "name": "48. غليزان",
+                "universities": [
+                        {
+                                "id": "univ-relizane",
+                                "name": "جامعة أحمد زبانة - غليزان",
+                                "logo": "assets/univ_logos/Univ-Relizane.png"
+                        }
+                ]
+        },
+        {
+                "id": "timimoun",
+                "name": "49. تيميمون",
+                "universities": [
+                        {
+                                "id": "cu-timimoun",
+                                "name": "المركز الجامعي تيميمون",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "in-salah",
+                "name": "53. عين صالح",
+                "universities": [
+                        {
+                                "id": "cu-insalah",
+                                "name": "المركز الجامعي عين صالح",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "touggourt",
+                "name": "55. تقرت",
+                "universities": [
+                        {
+                                "id": "cu-touggourt",
+                                "name": "المركز الجامعي تقرت",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        },
+        {
+                "id": "el-menia",
+                "name": "58. المنيعة",
+                "universities": [
+                        {
+                                "id": "cu-elmenia",
+                                "name": "المركز الجامعي المنيعة",
+                                "logo": "assets/univ_logos/MESRS.png"
+                        }
+                ]
+        }
+];
+
+        // تحويل صورة إلى Base64 لتضمينها ذاتياً في تصدير Word
+        function convertImgToBase64(url, callback) {
+            if (!url) { callback(''); return; }
+            if (url.startsWith('data:')) { callback(url); return; }
+
+            // محاولة أولى عبر fetch + FileReader (تدعم SVG و PNG و JPG بشكل مباشر وموثوق)
+            try {
+                fetch(url)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const reader = new FileReader();
+                        reader.onloadend = function() {
+                            callback(reader.result || url);
+                        };
+                        reader.onerror = function() {
+                            fallbackCanvas();
+                        };
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(() => fallbackCanvas());
+            } catch(e) {
+                fallbackCanvas();
+            }
+
+            function fallbackCanvas() {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        try {
+                            const dataURL = canvas.toDataURL('image/png');
+                            callback(dataURL);
+                        } catch(e) {
+                            callback(url);
+                        }
+                    };
+                    img.onerror = function() { callback(url); };
+                    img.src = url;
+                } catch(e) {
+                    callback(url);
+                }
+            }
+        }
+
+        // ملء قائمة الولايات الجامعية
+        function populateWilayasDropdown() {
+            const wilayaSelect = document.getElementById('cover-wilaya-select');
+            if (!wilayaSelect || wilayaSelect.options.length > 1) return;
+
+            ALGERIAN_WILAYAS_DATA.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.id;
+                opt.textContent = w.name;
+                wilayaSelect.appendChild(opt);
+            });
+        }
+
+        // عند تغيير الولاية
+        function onWilayaChange() {
+            const wilayaSelect = document.getElementById('cover-wilaya-select');
+            const univSelect = document.getElementById('cover-univ-select');
+            if (!wilayaSelect || !univSelect) return;
+
+            const selectedWilayaId = wilayaSelect.value;
+            documentState.coverState.selectedWilaya = selectedWilayaId;
+
+            univSelect.innerHTML = '';
+            
+            if (!selectedWilayaId) {
+                univSelect.disabled = true;
+                univSelect.innerHTML = '<option value="">— اختر الولاية أولاً —</option>';
+                clearUniversityLogo(true);
+                return;
+            }
+
+            const wilayaObj = ALGERIAN_WILAYAS_DATA.find(w => w.id === selectedWilayaId);
+            if (!wilayaObj) return;
+
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = '— اختر الجامعة أو المركز الجامعي —';
+            univSelect.appendChild(defaultOpt);
+
+            wilayaObj.universities.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                const isMinistry = u.logo && u.logo.includes('MESRS.png');
+                opt.textContent = u.name + (isMinistry ? ' 🏛️ (شعار الوزارة الرسمي)' : ' 🏛️ (شعار معتمد)');
+                univSelect.appendChild(opt);
+            });
+
+            univSelect.disabled = false;
+            univSelect.value = '';
+
+            // تصفير الجامعة والشعار عند الانتقال لولاية جديدة
+            clearUniversityLogo(true);
+        }
+
+        // عند تغيير الجامعة
+        function onUniversityChange() {
+            const wilayaSelect = document.getElementById('cover-wilaya-select');
+            const univSelect = document.getElementById('cover-univ-select');
+            if (!wilayaSelect || !univSelect) return;
+
+            const selectedWilayaId = wilayaSelect.value;
+            const selectedUnivId = univSelect.value;
+
+            if (!selectedUnivId) {
+                clearUniversityLogo(true);
+                return;
+            }
+
+            const wilayaObj = ALGERIAN_WILAYAS_DATA.find(w => w.id === selectedWilayaId);
+            if (!wilayaObj) return;
+
+            const univObj = wilayaObj.universities.find(u => u.id === selectedUnivId);
+            if (!univObj) return;
+
+            documentState.coverState.selectedWilaya = selectedWilayaId;
+            documentState.coverState.selectedUnivId = selectedUnivId;
+            documentState.coverState.universityName = univObj.name;
+
+            const univInput = document.getElementById('cover-university-name');
+            if (univInput) univInput.value = univObj.name;
+
+            // مسح أي Base64 قديم فوراً لمنع ظهور الشعار السابق نهائياً
+            documentState.coverState.logoBase64 = '';
+
+            if (univObj.logo) {
+                // تعيين مسار الشعار الجديد مباشرة ليكون المصدر الفوري للمعاينة
+                documentState.coverState.logoUrl = univObj.logo;
+                updateLogoStatusBox(univObj.logo, univObj.name);
+                
+                // تحويل لـ Base64 في الخلفية فقط لدعم تصدير Word دون تعطيل الواجهة
+                const currentUnivId = selectedUnivId;
+                convertImgToBase64(univObj.logo, function(b64) {
+                    // التأكد من أن المستخدم لم يقم بتغيير الجامعة أثناء التحويل
+                    if (documentState.coverState.selectedUnivId === currentUnivId) {
+                        documentState.coverState.logoBase64 = b64;
+                    }
+                });
+            } else {
+                documentState.coverState.logoUrl = '';
+                documentState.coverState.logoBase64 = '';
+                const statusBox = document.getElementById('cover-logo-status-box');
+                if (statusBox) statusBox.style.display = 'none';
+                if (typeof showToast === 'function') {
+                    showToast('تم اختيار الجامعة! يمكنك رفع شعار كليتك أو جامعتك يدوياً عبر زر "رفع شعار".');
+                }
+            }
+
+            // تحديث المستند والمعاينة فوراً بالشعار الجديد المختار
+            renderDocument();
+        }
+
+        // تحديث صندوق حالة الشعار
+        function updateLogoStatusBox(url, name) {
+            const statusBox = document.getElementById('cover-logo-status-box');
+            const thumbImg = document.getElementById('cover-logo-thumb-img');
+            const univNameDiv = document.getElementById('cover-logo-univ-name');
+            if (!statusBox || !thumbImg || !univNameDiv) return;
+
+            if (url) {
+                thumbImg.src = url;
+                univNameDiv.textContent = name || 'شعار الجامعة';
+                statusBox.style.display = 'flex';
+            } else {
+                statusBox.style.display = 'none';
+            }
+        }
+
+        // مسح وإلغاء الشعار
+        function clearUniversityLogo(triggerRender = true) {
+            documentState.coverState.logoUrl = '';
+            documentState.coverState.logoBase64 = '';
+            documentState.coverState.selectedUnivId = '';
+            const statusBox = document.getElementById('cover-logo-status-box');
+            if (statusBox) statusBox.style.display = 'none';
+            const univSelect = document.getElementById('cover-univ-select');
+            if (univSelect) univSelect.value = '';
+
+            if (triggerRender) renderDocument();
+        }
+
+        // رفع شعار مخصص من الجهاز
+        function handleCustomLogoUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                documentState.coverState.logoUrl = dataUrl;
+                documentState.coverState.logoBase64 = dataUrl;
+                documentState.coverState.selectedUnivId = 'custom';
+                updateLogoStatusBox(dataUrl, 'شعار مخصص: ' + file.name);
+                renderDocument();
+                if (typeof showToast === 'function') {
+                    showToast('تم تحميل وتفعيل الشعار المخصص بنجاح ✅');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+
         // تهيئة واجهة صفحة الغلاف
         function initCoverUI() {
             document.getElementById('cover-enable-toggle').checked = documentState.coverState.enabled;
@@ -3086,6 +4248,35 @@
             }
             document.getElementById('cover-country').value = documentState.coverState.country;
             document.getElementById('cover-ministry').value = documentState.coverState.ministry;
+            
+            if (document.getElementById('cover-university-name')) {
+                document.getElementById('cover-university-name').value = documentState.coverState.universityName || '';
+            }
+            if (document.getElementById('cover-faculty-name')) {
+                document.getElementById('cover-faculty-name').value = documentState.coverState.facultyName || '';
+            }
+
+            // تهيئة قوائم الولايات والجامعات
+            populateWilayasDropdown();
+            if (documentState.coverState.selectedWilaya && document.getElementById('cover-wilaya-select')) {
+                document.getElementById('cover-wilaya-select').value = documentState.coverState.selectedWilaya;
+                onWilayaChange();
+                if (documentState.coverState.selectedUnivId && document.getElementById('cover-univ-select')) {
+                    document.getElementById('cover-univ-select').value = documentState.coverState.selectedUnivId;
+                }
+            }
+
+            if (document.getElementById('cover-logo-position')) {
+                document.getElementById('cover-logo-position').value = documentState.coverState.logoPosition || 'both';
+            }
+            if (document.getElementById('cover-logo-size')) {
+                document.getElementById('cover-logo-size').value = documentState.coverState.logoSize || 'large';
+            }
+
+            if (documentState.coverState.logoUrl) {
+                updateLogoStatusBox(documentState.coverState.logoUrl, documentState.coverState.universityName || 'شعار الجامعة');
+            }
+
             document.getElementById('cover-work-type').value = documentState.coverState.workType;
             document.getElementById('cover-title').value = documentState.coverState.title;
             document.getElementById('cover-subtitle').value = documentState.coverState.subtitle;
@@ -3103,6 +4294,20 @@
             }
             documentState.coverState.country = document.getElementById('cover-country').value;
             documentState.coverState.ministry = document.getElementById('cover-ministry').value;
+            
+            if (document.getElementById('cover-university-name')) {
+                documentState.coverState.universityName = document.getElementById('cover-university-name').value;
+            }
+            if (document.getElementById('cover-faculty-name')) {
+                documentState.coverState.facultyName = document.getElementById('cover-faculty-name').value;
+            }
+            if (document.getElementById('cover-logo-position')) {
+                documentState.coverState.logoPosition = document.getElementById('cover-logo-position').value;
+            }
+            if (document.getElementById('cover-logo-size')) {
+                documentState.coverState.logoSize = document.getElementById('cover-logo-size').value;
+            }
+
             documentState.coverState.workType = document.getElementById('cover-work-type').value;
             documentState.coverState.title = document.getElementById('cover-title').value;
             documentState.coverState.subtitle = document.getElementById('cover-subtitle').value;
@@ -3791,7 +4996,22 @@
         function generateCoverPageHtml() {
             if (!documentState.coverState.enabled) return '';
 
-            const theme = documentState.coverState.theme || 'black';
+            const cs = documentState.coverState;
+            const theme = cs.theme || 'black';
+            const logoUrl = cs.logoUrl || cs.logoBase64 || '';
+            const logoPos = cs.logoPosition || 'both';
+            const logoSizeClass = `cover-logo-size-${cs.logoSize || 'large'}`;
+
+            const showRightLogo = !!(logoUrl && (logoPos === 'both' || logoPos === 'right'));
+            const showLeftLogo = !!(logoUrl && (logoPos === 'both' || logoPos === 'left'));
+
+            const logoRightHtml = showRightLogo 
+                ? `<img src="${logoUrl}" alt="شعار الجامعة" class="cover-univ-logo" onerror="if(this.src && !this.src.includes('MESRS.png')){this.src='assets/univ_logos/MESRS.png';}">` 
+                : `<div class="cover-logo-placeholder"></div>`;
+
+            const logoLeftHtml = showLeftLogo 
+                ? `<img src="${logoUrl}" alt="شعار الجامعة" class="cover-univ-logo" onerror="if(this.src && !this.src.includes('MESRS.png')){this.src='assets/univ_logos/MESRS.png';}">` 
+                : `<div class="cover-logo-placeholder"></div>`;
             const studentsList = documentState.coverState.studentsText.split('\n').filter(s => s.trim() !== '');
             const studentsHtml = studentsList.map(s => `<span>${escapeHtml(s.trim())}</span>`).join('');
 
@@ -3805,11 +5025,28 @@
                             
                             <div class="cover-page-container">
                                 
-                                <!-- رأس الغلاف (الدولة والوزارة) -->
+                                <!-- رأس الغلاف (الدولة والوزارة وشعارات الجامعة) -->
                                 <div class="cover-header">
-                                    <div class="cover-country">${escapeHtml(documentState.coverState.country)}</div>
-                                    <div class="cover-ministry">${escapeHtml(documentState.coverState.ministry)}</div>
-                                    <div class="cover-top-line"></div>
+                                    <div class="cover-header-wrap ${logoSizeClass}">
+                                        <!-- الدائرة اليمنى: شعار الجامعة -->
+                                        <div class="cover-logo-box cover-logo-right">
+                                            ${logoRightHtml}
+                                        </div>
+
+                                        <!-- ترويسة الوسط الرسمية -->
+                                        <div class="cover-header-center">
+                                            <div class="cover-country">${escapeHtml(cs.country)}</div>
+                                            <div class="cover-ministry">${escapeHtml(cs.ministry)}</div>
+                                            ${cs.universityName ? `<div class="cover-university-line">${escapeHtml(cs.universityName)}</div>` : ''}
+                                            ${cs.facultyName ? `<div class="cover-faculty-line">${escapeHtml(cs.facultyName)}</div>` : ''}
+                                            <div class="cover-top-line"></div>
+                                        </div>
+
+                                        <!-- الدائرة اليسرى: شعار الجامعة -->
+                                        <div class="cover-logo-box cover-logo-left">
+                                            ${logoLeftHtml}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- وسط الغلاف (العنوان والنوع) -->
@@ -4870,7 +6107,26 @@
         .cover-black-inner-border { border: 2px solid #000000 !important; padding: 10mm 12mm 8mm 12mm !important; }
         .cover-gold-border { border: 1px solid var(--gold) !important; padding: 2.5px; }
         .cover-gold-inner-border { border: 1.5px solid var(--gold) !important; padding: 10mm 12mm 8mm 12mm !important; }
-        .cover-header { display: flex; flex-direction: column; align-items: center; gap: 2mm; }
+        .cover-header { width: 100%; margin-bottom: 2.5mm; }
+        .cover-header-wrap { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .cover-logo-box { width: 38mm; min-height: 38mm; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cover-logo-right { justify-content: flex-start; }
+        .cover-logo-left { justify-content: flex-end; }
+        .cover-univ-logo { max-width: 36mm; max-height: 36mm; width: auto; height: auto; object-fit: contain; display: block; image-rendering: -webkit-optimize-contrast; }
+        .cover-logo-placeholder { width: 38mm; min-height: 38mm; visibility: hidden; }
+        .cover-header-wrap.cover-logo-size-compact .cover-logo-box, .cover-header-wrap.cover-logo-size-compact .cover-logo-placeholder { width: 26mm; min-height: 26mm; }
+        .cover-header-wrap.cover-logo-size-compact .cover-univ-logo { max-width: 25mm; max-height: 25mm; }
+        .cover-header-wrap.cover-logo-size-medium .cover-logo-box, .cover-header-wrap.cover-logo-size-medium .cover-logo-placeholder { width: 32mm; min-height: 32mm; }
+        .cover-header-wrap.cover-logo-size-medium .cover-univ-logo { max-width: 30mm; max-height: 30mm; }
+        .cover-header-wrap.cover-logo-size-large .cover-logo-box, .cover-header-wrap.cover-logo-size-large .cover-logo-placeholder { width: 38mm; min-height: 38mm; }
+        .cover-header-wrap.cover-logo-size-large .cover-univ-logo { max-width: 36mm; max-height: 36mm; }
+        .cover-header-wrap.cover-logo-size-xlarge .cover-logo-box, .cover-header-wrap.cover-logo-size-xlarge .cover-logo-placeholder { width: 46mm; min-height: 46mm; }
+        .cover-header-wrap.cover-logo-size-xlarge .cover-univ-logo { max-width: 44mm; max-height: 44mm; }
+        .cover-header-center { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5mm; padding: 0 2mm; }
+        .cover-theme-black .cover-university-line { font-family: 'Cairo', sans-serif; font-size: 13pt; font-weight: 700; color: #000000; margin-top: 1mm; }
+        .cover-theme-black .cover-faculty-line { font-family: 'Cairo', sans-serif; font-size: 11pt; font-weight: 600; color: #1e293b; }
+        .cover-theme-gold .cover-university-line { font-family: 'Cairo', sans-serif; font-size: 13pt; font-weight: 700; color: #0f172a; margin-top: 1mm; }
+        .cover-theme-gold .cover-faculty-line { font-family: 'Cairo', sans-serif; font-size: 11pt; font-weight: 600; color: #334155; }
         
         /* نمط الغلاف الأسود */
         .cover-theme-black .cover-country { font-family: 'Cairo', sans-serif; font-size: 15.5pt; font-weight: 800; color: #000000; letter-spacing: 0.5px; }
@@ -4985,9 +6241,23 @@ ${documentHtml}
                     bodyHtml += `
                     <!-- صفحة الغلاف الأكاديمي -->
                     <div class="word-cover-page" style="text-align: center; margin-bottom: 20pt;">
-                        <div style="font-size: 13.5pt; font-weight: bold; margin-bottom: 4pt;">${escapeHtml(cs.country || 'الجمهورية الجزائرية الديمقراطية الشعبية')}</div>
-                        <div style="font-size: 12.5pt; font-weight: bold; margin-bottom: 12pt;">${escapeHtml(cs.ministry || 'وزارة التعليم العالي والبحث العلمي')}</div>
-                        <hr style="width: 55%; border: none; border-top: 1.5px solid #000; margin: 0 auto 35pt auto;">
+                        <table dir="rtl" style="width: 100%; border-collapse: collapse; margin-bottom: 10pt;">
+                            <tr>
+                                <td style="width: 25%; text-align: right; vertical-align: middle;">
+                                    ${(cs.logoBase64 || cs.logoUrl) && (cs.logoPosition === 'both' || cs.logoPosition === 'right') ? `<img src="${cs.logoBase64 || cs.logoUrl}" width="80" height="80" style="object-fit: contain;">` : ''}
+                                </td>
+                                <td style="width: 50%; text-align: center; vertical-align: middle;">
+                                    <div style="font-size: 13.5pt; font-weight: bold; margin-bottom: 4pt;">${escapeHtml(cs.country || 'الجمهورية الجزائرية الديمقراطية الشعبية')}</div>
+                                    <div style="font-size: 12pt; font-weight: bold; margin-bottom: 4pt;">${escapeHtml(cs.ministry || 'وزارة التعليم العالي والبحث العلمي')}</div>
+                                    ${cs.universityName ? `<div style="font-size: 12.5pt; font-weight: bold; margin-bottom: 3pt;">${escapeHtml(cs.universityName)}</div>` : ''}
+                                    ${cs.facultyName ? `<div style="font-size: 11pt; margin-bottom: 3pt;">${escapeHtml(cs.facultyName)}</div>` : ''}
+                                </td>
+                                <td style="width: 25%; text-align: left; vertical-align: middle;">
+                                    ${(cs.logoBase64 || cs.logoUrl) && (cs.logoPosition === 'both' || cs.logoPosition === 'left') ? `<img src="${cs.logoBase64 || cs.logoUrl}" width="80" height="80" style="object-fit: contain;">` : ''}
+                                </td>
+                            </tr>
+                        </table>
+                        <hr style="width: 55%; border: none; border-top: 1.5px solid #000; margin: 15pt auto 30pt auto;">
 
                         <div style="margin: 40pt auto 30pt auto;">
                             <div style="font-size: 13pt; color: #334155; margin-bottom: 12pt; font-weight: bold;">${escapeHtml(cs.workType || 'بحث أكاديمي حول')}</div>
@@ -5347,7 +6617,26 @@ ${documentHtml}
         .cover-black-inner-border { border: 2px solid #000000 !important; padding: 10mm 12mm 8mm 12mm !important; }
         .cover-gold-border { border: 1px solid var(--gold) !important; padding: 2.5px; }
         .cover-gold-inner-border { border: 1.5px solid var(--gold) !important; padding: 10mm 12mm 8mm 12mm !important; }
-        .cover-header { display: flex; flex-direction: column; align-items: center; gap: 2mm; }
+        .cover-header { width: 100%; margin-bottom: 2.5mm; }
+        .cover-header-wrap { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .cover-logo-box { width: 38mm; min-height: 38mm; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cover-logo-right { justify-content: flex-start; }
+        .cover-logo-left { justify-content: flex-end; }
+        .cover-univ-logo { max-width: 36mm; max-height: 36mm; width: auto; height: auto; object-fit: contain; display: block; image-rendering: -webkit-optimize-contrast; }
+        .cover-logo-placeholder { width: 38mm; min-height: 38mm; visibility: hidden; }
+        .cover-header-wrap.cover-logo-size-compact .cover-logo-box, .cover-header-wrap.cover-logo-size-compact .cover-logo-placeholder { width: 26mm; min-height: 26mm; }
+        .cover-header-wrap.cover-logo-size-compact .cover-univ-logo { max-width: 25mm; max-height: 25mm; }
+        .cover-header-wrap.cover-logo-size-medium .cover-logo-box, .cover-header-wrap.cover-logo-size-medium .cover-logo-placeholder { width: 32mm; min-height: 32mm; }
+        .cover-header-wrap.cover-logo-size-medium .cover-univ-logo { max-width: 30mm; max-height: 30mm; }
+        .cover-header-wrap.cover-logo-size-large .cover-logo-box, .cover-header-wrap.cover-logo-size-large .cover-logo-placeholder { width: 38mm; min-height: 38mm; }
+        .cover-header-wrap.cover-logo-size-large .cover-univ-logo { max-width: 36mm; max-height: 36mm; }
+        .cover-header-wrap.cover-logo-size-xlarge .cover-logo-box, .cover-header-wrap.cover-logo-size-xlarge .cover-logo-placeholder { width: 46mm; min-height: 46mm; }
+        .cover-header-wrap.cover-logo-size-xlarge .cover-univ-logo { max-width: 44mm; max-height: 44mm; }
+        .cover-header-center { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5mm; padding: 0 2mm; }
+        .cover-theme-black .cover-university-line { font-family: 'Cairo', sans-serif; font-size: 13pt; font-weight: 700; color: #000000; margin-top: 1mm; }
+        .cover-theme-black .cover-faculty-line { font-family: 'Cairo', sans-serif; font-size: 11pt; font-weight: 600; color: #1e293b; }
+        .cover-theme-gold .cover-university-line { font-family: 'Cairo', sans-serif; font-size: 13pt; font-weight: 700; color: #0f172a; margin-top: 1mm; }
+        .cover-theme-gold .cover-faculty-line { font-family: 'Cairo', sans-serif; font-size: 11pt; font-weight: 600; color: #334155; }
         
         .cover-theme-black .cover-country { font-family: 'Cairo', sans-serif; font-size: 15.5pt; font-weight: 800; color: #000000; letter-spacing: 0.5px; }
         .cover-theme-black .cover-ministry { font-family: 'Cairo', sans-serif; font-size: 11.5pt; font-weight: 700; color: #000000; }
