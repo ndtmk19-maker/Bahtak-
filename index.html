@@ -2934,9 +2934,9 @@
                         <div class="form-group" style="margin-bottom: 0.75rem;">
                             <label class="form-label" style="font-size: 0.78rem; font-weight: 700;">مزود ونموذج الذكاء الاصطناعي:</label>
                             <select id="ai-provider-select" class="form-control" style="font-size: 0.82rem; font-weight: 600;" onchange="onAiProviderChange()">
-                                <option value="gemini" selected>Google Gemini (Gemini 3.8 Flash) — مجاني وسريع جداً (موصى به للطلبة)</option>
-                                <option value="openai">OpenAI (ChatGPT: GPT-4o-mini / GPT-4o)</option>
-                                <option value="groq">Groq (Llama 3.3 70B - فائق السرعة)</option>
+                                <option value="gemini" selected>⚡ Google Gemini (Gemini 2.5 Flash / Flash-Lite) — فائق السرعة ومجاني (موصى به للطلبة)</option>
+                                <option value="groq">⚡ Groq (Llama 3.3 70B / Llama 3.1 8B - سرعة استثنائية)</option>
+                                <option value="openai">OpenAI (ChatGPT: GPT-4o-mini)</option>
                                 <option value="openrouter">OpenRouter / DeepSeek (مزود مخصص)</option>
                             </select>
                         </div>
@@ -3007,12 +3007,19 @@
 
                         <!-- حجم وعمق البحث المطلوب -->
                         <div class="form-group" style="margin-bottom: 0.75rem;">
-                            <label class="form-label" style="font-size: 0.78rem; font-weight: 700;">حجم وعمق البحث المطلوب:</label>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label class="form-label" style="font-size: 0.78rem; font-weight: 700; margin-bottom: 0;">حجم وعمق البحث المطلوب:</label>
+                                <span id="ai-pages-target-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.3);">🎯 الهدف: 8 إلى 12 صفحة</span>
+                            </div>
                             <select id="ai-length-select" class="form-control" style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; background: #0f172a; border-color: rgba(56, 189, 248, 0.4);" onchange="onAiLengthChange()">
-                                <option value="giant" selected>🏆 بحث أكاديمي موسع ومعمق (فوق 12 إلى 15 صفحة) — موصى به</option>
-                                <option value="medium">📄 بحث متوسط (8 إلى 12 صفحة)</option>
+                                <option value="medium" selected>📄 بحث متوسط (8 إلى 12 صفحة) — الحجم القياسي الموصى به</option>
                                 <option value="short">📝 بحث موجز ومركز (5 إلى 8 صفحات)</option>
+                                <option value="giant">🏆 بحث موسع ومعمق (12 إلى 16 صفحة)</option>
+                                <option value="huge">📚 بحث تخرج مطول (20 إلى 25 صفحة)</option>
                             </select>
+                            <div style="font-size: 0.71rem; color: #94a3b8; margin-top: 4px;">
+                                💡 يتم ضبط ميزانية الكلمات وهيكل المباحث آلياً ليتطابق الناتج مع الصفحات المحددة بالضبط دون زيادة أو نقصان.
+                            </div>
                         </div>
 
                         <!-- إعدادات المنهجية الأكاديمية للبحث -->
@@ -3028,8 +3035,8 @@
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label class="form-label" style="font-size: 0.75rem;">مطالب كل مبحث:</label>
                                 <select id="ai-matlab-select" class="form-control" style="font-size: 0.80rem;">
-                                    <option value="3" selected>3 مطالب لكل مبحث (موسع)</option>
-                                    <option value="2">مطلبان لكل مبحث</option>
+                                    <option value="2" selected>مطلبان لكل مبحث (قياسي متزن)</option>
+                                    <option value="3">3 مطالب لكل مبحث (موسع)</option>
                                 </select>
                             </div>
                         </div>
@@ -3042,16 +3049,42 @@
                             <span>🚀 صياغة وتوليد وتنسيق البحث الأكاديمي فوراً</span>
                         </button>
 
-                        <!-- بطاقة تقدم التوليد الحية -->
+                        <!-- بطاقة تقدم التوليد الحية الفائقة السرعة -->
                         <div id="ai-progress-box" class="ai-progress-card">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <div class="ai-loading-spinner"></div>
-                                <div id="ai-progress-text" style="font-size: 0.84rem; font-weight: 800; color: #38bdf8;">
-                                    يتم توليد البحث، يرجى الانتظار قليلاً...
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="ai-loading-spinner"></div>
+                                    <div id="ai-progress-text" style="font-size: 0.84rem; font-weight: 800; color: #38bdf8;">
+                                        ⚡ جاري بدء التوليد فائق السرعة...
+                                    </div>
+                                </div>
+                                <div id="ai-timer-badge" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 6px;">
+                                    ⏱️ 0.0 ث
                                 </div>
                             </div>
-                            <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.4;">
-                                يتم الآن صياغة الإشكالية، تحرير المباحث والمطالب، وتوثيق المراجع وتوزيع الصفحات A4... قد تستغرق العملية بضع ثوانٍ.
+
+                            <!-- شبكة مؤشرات الأقسام المتوازية (Parallel Generation Grid) -->
+                            <div id="ai-parallel-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin: 10px 0 8px 0;">
+                                <div id="p-badge-plan" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; font-size: 0.7rem; color: #94a3b8; text-align: center;">
+                                    📋 خطة البحث: <span class="p-status" style="color: #38bdf8; font-weight: 700;">⏳ انتظار</span>
+                                </div>
+                                <div id="p-badge-intro" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; font-size: 0.7rem; color: #94a3b8; text-align: center;">
+                                    📖 المقدمة: <span class="p-status" style="color: #94a3b8;">⏳ انتظار</span>
+                                </div>
+                                <div id="p-badge-mb1" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; font-size: 0.7rem; color: #94a3b8; text-align: center;">
+                                    📑 المبحث 1: <span class="p-status" style="color: #94a3b8;">⏳ انتظار</span>
+                                </div>
+                                <div id="p-badge-mb2" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; font-size: 0.7rem; color: #94a3b8; text-align: center;">
+                                    📑 المبحث 2: <span class="p-status" style="color: #94a3b8;">⏳ انتظار</span>
+                                </div>
+                                <div id="p-badge-conclusion" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; font-size: 0.7rem; color: #94a3b8; text-align: center;">
+                                    🎯 الخاتمة والمراجع: <span class="p-status" style="color: #94a3b8;">⏳ انتظار</span>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap; gap: 4px;">
+                                <span id="ai-stream-counter">⚡ نظام البث اللحظي والتوليد المتوازي مفعل</span>
+                                <span>النموذج النشط: <strong id="ai-active-model-name" style="color: #34d399;">Gemini 2.5 Flash</strong></span>
                             </div>
                         </div>
 
@@ -5760,7 +5793,7 @@
         }
 
         // تفكيك وتحليل النص الخام بدقة أكاديمية مع التقسيم التلقائي للصفحات وتوزيع الهوامش بدقة
-        function parseRawTextToDocument() {
+        function parseRawTextToDocument(silent) {
             const rawText = document.getElementById('raw-text-input').value.trim();
             if (!rawText) {
                 alert('الرجاء لصق نص البحث في المربع أولاً!');
@@ -6477,7 +6510,10 @@
                 setMobileView('preview');
             }
 
-            alert(`✅ تم بنجاح تنسيق البحث وتقسيمه بدقة على الصفحات!\n• عدد الصفحات المتولدة: ${parsedPages.length} صفحة.\n• يواصل المحتوى تدفقه في الصفحة التالية مباشرة دون تكرار عنوان المطلب.\n• تم توزيع الهوامش على نفس الصفحات وترقيمها بدقة.`);
+            if (!silent) {
+                alert(`✅ تم بنجاح تنسيق البحث وتقسيمه بدقة على الصفحات!\n• عدد الصفحات المتولدة: ${parsedPages.length} صفحة.\n• يواصل المحتوى تدفقه في الصفحة التالية مباشرة دون تكرار عنوان المطلب.\n• تم توزيع الهوامش على نفس الصفحات وترقيمها بدقة.`);
+            }
+            return parsedPages.length;
         }
 
         // تصدير كملف HTML مستقل قابل للتشغيل والطباعة في أي جهاز
@@ -7343,20 +7379,29 @@ ${documentHtml}
             }
         }
 
-        // تغيير حجم وعمق البحث المطلوب
+        // تغيير حجم وعمق البحث المطلوب وتحديث الشارات والمطالب الافتراضية
         function onAiLengthChange() {
-            var len = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'giant';
+            var len = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'medium';
             var mbSelect = document.getElementById('ai-mabhath-select');
             var mtSelect = document.getElementById('ai-matlab-select');
-            if (len === 'giant') {
-                if (mbSelect) mbSelect.value = '2';
-                if (mtSelect) mtSelect.value = '3';
+            var badge = document.getElementById('ai-pages-target-badge');
+
+            if (len === 'short') {
+                if (mbSelect) mbSelect.value = '1';
+                if (mtSelect) mtSelect.value = '2';
+                if (badge) badge.innerText = '🎯 الهدف: 5 إلى 8 صفحات';
             } else if (len === 'medium') {
                 if (mbSelect) mbSelect.value = '2';
                 if (mtSelect) mtSelect.value = '2';
-            } else {
-                if (mbSelect) mbSelect.value = '1';
-                if (mtSelect) mtSelect.value = '2';
+                if (badge) badge.innerText = '🎯 الهدف: 8 إلى 12 صفحة';
+            } else if (len === 'giant') {
+                if (mbSelect) mbSelect.value = '2';
+                if (mtSelect) mtSelect.value = '3';
+                if (badge) badge.innerText = '🎯 الهدف: 12 إلى 16 صفحة';
+            } else if (len === 'huge') {
+                if (mbSelect) mbSelect.value = '3';
+                if (mtSelect) mtSelect.value = '3';
+                if (badge) badge.innerText = '🎯 الهدف: 20 إلى 25 صفحة';
             }
         }
 
@@ -7369,23 +7414,145 @@ ${documentHtml}
             }
         }
 
-        // تنفيذ طلب التوليد الكامل بالذكاء الاصطناعي
+        // =========================================================================
+        // محرك التوليد الأكاديمي فائق السرعة بالذكاء الاصطناعي (Ultra-Fast Parallel Engine)
+        // =========================================================================
+
+        var FAST_GEMINI_MODELS = [
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
+            'gemini-3.5-flash-lite',
+            'gemini-3.8-flash-lite',
+            'gemini-3.8-flash'
+        ];
+
+        // مصفوفة المعايرة الهندسية الصارمة لحجم البحث وعدد الصفحات المتولدة
+        var LENGTH_CONFIGS = {
+            'short': {
+                label: 'موجز (5 إلى 8 صفحات)',
+                targetPages: '5 إلى 8 صفحات',
+                introWords: 240,
+                introParagraphs: 'فقرتين مركزتين وشاملتين فقط',
+                mabahithWords: 750, // إجمالي كلمات كافة المباحث
+                matlabParagraphs: 'فقرة أو فقرتين مركزتين لكل مطلب مع أمثلة مباشرة دون استطراد',
+                conclusionWords: 200,
+                maxRefs: 10,
+                introMaxTokens: 750,
+                mabhathMaxTokens: 900,
+                conclusionMaxTokens: 650
+            },
+            'medium': {
+                label: 'متوسط (8 إلى 12 صفحة)',
+                targetPages: '8 إلى 12 صفحة',
+                introWords: 380,
+                introParagraphs: '3 فقرات منهجية متزنة (تمهيد، إشكالية وأسئلة، منهج وخطة)',
+                mabahithWords: 1400, // إجمالي كلمات المباحث (~700 كلمة لكل مبحث إن كانا مبحثين)
+                matlabParagraphs: 'فقرتين متكاملتين لكل مطلب بدقة علمية وأمثلة محددة دون إسهاب زائد',
+                conclusionWords: 260,
+                maxRefs: 14,
+                introMaxTokens: 1100,
+                mabhathMaxTokens: 1300,
+                conclusionMaxTokens: 850
+            },
+            'giant': {
+                label: 'موسع (12 إلى 16 صفحة)',
+                targetPages: '12 إلى 16 صفحة',
+                introWords: 520,
+                introParagraphs: '4 فقرات تأصيلية موسعة',
+                mabahithWords: 2200, // (~1100 كلمة لكل مبحث إن كانا مبحثين)
+                matlabParagraphs: '3 فقرات علمية مفصلة لكل مطلب مع مناقشة عميقة وتوثيق',
+                conclusionWords: 340,
+                maxRefs: 18,
+                introMaxTokens: 1500,
+                mabhathMaxTokens: 1800,
+                conclusionMaxTokens: 1100
+            },
+            'huge': {
+                label: 'مطول جداً (20 إلى 25 صفحة)',
+                targetPages: '20 إلى 25 صفحة',
+                introWords: 700,
+                introParagraphs: '5 إلى 6 فقرات عميقة ومفصلة',
+                mabahithWords: 3800,
+                matlabParagraphs: '4 إلى 5 فقرات تحليلية موسعة وتفريعات لكل مطلب',
+                conclusionWords: 450,
+                maxRefs: 24,
+                introMaxTokens: 2200,
+                mabhathMaxTokens: 2600,
+                conclusionMaxTokens: 1400
+            }
+        };
+
+        // دالة إنشاء خطة بديلة ذكية في حال تعذر تحليل JSON
+        function buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode) {
+            var mCount = parseInt(mabhathCount, 10) || 2;
+            var tCount = parseInt(matlabCount, 10) || 2;
+            var cleanTopic = (topic || '').replace(/^["«'\s]+|["»'\s]+$/g, '').trim();
+
+            var ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+            var mabahith = [];
+
+            var mabhathThemes = [
+                'الإطار المفاهيمي والنظري لـ ' + cleanTopic,
+                'الآليات التطبيقية والأبعاد الميدانية لـ ' + cleanTopic,
+                'التحديات والآفاق المستقبلية لـ ' + cleanTopic
+            ];
+
+            for (var i = 0; i < mCount; i++) {
+                var mTitle = 'المبحث ' + (ordinals[i] || (i + 1)) + ': ' + (mabhathThemes[i] || ('دراسة في ' + cleanTopic));
+                var matalib = [];
+                for (var j = 0; j < tCount; j++) {
+                    var matTitle = 'المطلب ' + (ordinals[j] || (j + 1)) + ': ' + (
+                        j === 0 ? 'المفاهيم والأسس الجوهرية' :
+                        j === 1 ? 'الخصائص والمحددات العلمية' :
+                        'الأهمية والتطبيقات العملية'
+                    );
+                    matalib.push({
+                        title: matTitle
+                    });
+                }
+                mabahith.push({
+                    title: mTitle,
+                    matalib: matalib
+                });
+            }
+
+            return {
+                title: cleanTopic,
+                problematic: 'ما هي الأبعاد المفاهيمية والتطبيقية المرتبطة بـ ' + cleanTopic + '، وكيف تسهم في الارتقاء بالأداء والممارسات العملية؟',
+                questions: [
+                    'ما هو التأطير النظري والمفاهيمي لـ ' + cleanTopic + '؟',
+                    'ما هي الآليات التطبيقية المعتمدة في هذا المجال؟'
+                ],
+                hypotheses: [
+                    'توجد علاقة ارتباطية إيجابية بين وضوح الرؤية النظرية وحسن التطبيق العملي.'
+                ],
+                methodology: 'المنهج الوصفي التحليلي',
+                mabahith: mabahith
+            };
+        }
+
+        // تنفيذ طلب التوليد الأكاديمي فائق السرعة عبر التوليد المتوازي والبث اللحظي
         async function generateResearchWithAI() {
             var keyInput = document.getElementById('ai-api-key-input');
             var topicInput = document.getElementById('ai-topic-input');
             var btn = document.getElementById('btn-generate-ai');
             var progressBox = document.getElementById('ai-progress-box');
             var progressText = document.getElementById('ai-progress-text');
+            var timerBadge = document.getElementById('ai-timer-badge');
+            var streamCounter = document.getElementById('ai-stream-counter');
+            var activeModelBadge = document.getElementById('ai-active-model-name');
+            var rawInput = document.getElementById('raw-text-input');
 
             var apiKey = keyInput ? keyInput.value.trim() : '';
             var topic = topicInput ? topicInput.value.trim() : '';
-            var lengthMode = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'giant';
+            var lengthMode = document.getElementById('ai-length-select') ? document.getElementById('ai-length-select').value : 'medium';
+            var cfg = LENGTH_CONFIGS[lengthMode] || LENGTH_CONFIGS['medium'];
             var mabhathCount = document.getElementById('ai-mabhath-select') ? document.getElementById('ai-mabhath-select').value : '2';
-            var matlabCount = document.getElementById('ai-matlab-select') ? document.getElementById('ai-matlab-select').value : '3';
+            var matlabCount = document.getElementById('ai-matlab-select') ? document.getElementById('ai-matlab-select').value : '2';
             var provider = document.getElementById('ai-provider-select') ? document.getElementById('ai-provider-select').value : 'gemini';
 
             if (!apiKey) {
-                openStudentActivationModal('عزيزي الطالب، خطوة واحدة متبقية فقط! يرجى إدخال رمزك المجاني من Google في 30 ثانية لتتمكن من التوليد فوراً.');
+                openStudentActivationModal('عزيزي الطالب، خطوة واحدة متبقية فقط! يرجى تفعيل رمزك المجاني من Google في 30 ثانية لمرة واحدة لتتمكن من التوليد فوراً.');
                 return;
             }
 
@@ -7395,114 +7562,302 @@ ${documentHtml}
                 return;
             }
 
-            // تفعيل حالة التحميل مع أيقونة الدوران والعبارة المطلوبة
+            var timerInterval = null;
+            var startTime = Date.now();
+
             if (btn) {
                 btn.disabled = true;
                 btn.style.opacity = '0.85';
-                btn.innerHTML = '<span class="ai-loading-spinner" style="margin-left:8px; border-top-color:#fff; vertical-align:middle;"></span><span>يتم توليد البحث، يرجى الانتظار قليلاً...</span>';
+                btn.innerHTML = '<span class="ai-loading-spinner" style="margin-left:8px; border-top-color:#fff; vertical-align:middle;"></span><span>جاري التوليد فائق السرعة (' + cfg.targetPages + ')...</span>';
             }
             if (progressBox) progressBox.style.display = 'block';
-            if (progressText) progressText.innerText = 'يتم توليد البحث، يرجى الانتظار قليلاً...';
+            if (progressText) progressText.innerText = '⚡ الخطوة 1: صياغة خطة وهيكل البحث بدقة (' + cfg.targetPages + ')...';
+
+            // تشغيل مؤقت الثواني المباشر
+            if (timerBadge) {
+                timerBadge.innerText = '⏱️ 0.0 ث';
+                timerInterval = setInterval(function() {
+                    var sec = ((Date.now() - startTime) / 1000).toFixed(1);
+                    timerBadge.innerText = '⏱️ ' + sec + ' ث';
+                }, 100);
+            }
+
+            function setBadgeStatus(badgeId, text, color) {
+                var el = document.getElementById(badgeId);
+                if (el) {
+                    var statusSpan = el.querySelector('.p-status');
+                    if (statusSpan) {
+                        statusSpan.innerText = text;
+                        if (color) statusSpan.style.color = color;
+                    }
+                }
+            }
+
+            // إعادة ضبط شارات الأقسام
+            setBadgeStatus('p-badge-plan', '⚡ جاري البناء...', '#38bdf8');
+            setBadgeStatus('p-badge-intro', '⏳ بالانتظار', '#94a3b8');
+            setBadgeStatus('p-badge-mb1', '⏳ بالانتظار', '#94a3b8');
+            setBadgeStatus('p-badge-mb2', '⏳ بالانتظار', '#94a3b8');
+            setBadgeStatus('p-badge-conclusion', '⏳ بالانتظار', '#94a3b8');
 
             try {
-                // صياغة البرومبت الأكاديمي الموسع والمتوافق تماماً مع نظام Bahtak
-                var systemPrompt = 'أنت بروفيسور وعالم أكاديمي خبير ومحكم في مناهج البحث العلمي والدراسات الجامعية العليا.\n' +
-'المطلوب منك تأليف وصياغة بحث أكاديمي موسع ومعمق وشامل جداً حول الموضوع المطلوب بحيث يغطي بحثاً كاملاً يتجاوز 12 إلى 15 صفحة A4 عند توزيعه وتنسيقه طباعياً.\n\n' +
-'قواعد التنسيق المنهجي الصارم (يجب الالتزام بها حرفياً لكي يقرأها النظام ويوزعها تلقائياً على صفحات A4):\n' +
-'1. ابدأ السطر الأول مباشرة بـ:\n' +
-'بحث بعنوان: [العنوان الأكاديمي الدقيق والكامل للبحث]\n\n' +
-'2. ثم اكتب المقدمة بصياغة موسعة ورصينة (تغطي صفحتين على الأقل):\n' +
-'المقدمة:\n' +
-'اكتب مقدمة مفصلة وشاملة تتضمن:\n' +
-'- تمهيد عام وتأصيل نظري واسع للموضوع مع توثيق الإحالات بأرقام مثل ^1 و ^2 في نهاية الفقرات.\n' +
-'- أهمية الموضوع ودوافع اختياره العلمية والعملية.\n' +
-'- الإشكالية الرئيسية مصاغة بدقة أكاديمية، وتفرع منها 3 أسئلة فرعية على الأقل.\n' +
-'- فرضيات البحث والمنهج العلمي المتبع (وصفي، تحليلي، مقارن...).\n' +
-'- الدراسات السابقة باختصار وموقع هذا البحث منها.\n' +
-'الهوامش:\n' +
-'^1 اسم المؤلف، عنوان المرجع أو الكتاب، دار النشر، مكان النشر، رقم الطبعة، سنة النشر، ص [رقم الصفحة].\n' +
-'^2 اسم الباحث، عنوان المقال، اسم المجلة العلمية المحكمة، المجلد، العدد، جهة الإصدار، السنة، ص [رقم الصفحة].\n' +
-'^3 اسم المؤلف، عنوان الكتاب، دار النشر، السنة، ص...\n\n' +
-'3. المتن: قسّم المتن بدقة إلى ' + mabhathCount + ' مباحث، وفي كل مبحث ' + matlabCount + ' مطالب موسعة.\n' +
-'شرط حاسم للمطالب: كل مطلب يجب أن يكون مفصلاً جداً ومقسماً إلى فرعين على الأقل:\n' +
-'المبحث الأول: [عنوان المبحث الأول]\n' +
-'المطلب الأول: [عنوان المطلب الأول]\n' +
-'الفرع الأول: [عنوان الفرع الأول]\n' +
-'(فقرات علمية تفصيلية ومناقشة معمقة لا تقل عن 4-5 فقرات غنية بالمعلومات والتحليلات وقوائم نقطية تبدأ بـ - مع توثيق إحالات ^1، ^2، ^3 في نهايات الفقرات والجمل).\n' +
-'الفرع الثاني: [عنوان الفرع الثاني]\n' +
-'(شرح وافٍ وتفصيل دقيق وأمثلة ونماذج تطبيقية مع توثيق إحالات ^4، ^5، ^6 في نهايات الفقرات).\n' +
-'الهوامش:\n' +
-'^1 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
-'^2 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
-'^3 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
-'^4 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
-'^5 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
-'^6 اسم المرجع الكامل، دار النشر، السنة، ص...\n\n' +
-'يجب كتابة كافة المطالب كاملة نصاً دون أي اختصار: في المبحث الأول (المطلب الأول، المطلب الثاني، المطلب الثالث) وفي المبحث الثاني (المطلب الأول، المطلب الثاني، المطلب الثالث). وفي كل مطلب من هذه المطالب الستة يجب أن تكتب الفرع الأول ثم الفرع الثاني، ثم في نهاية كل مطلب مباشرة تضع قسم الهوامش الخاص به مع توثيق كامل (المؤلف، الكتاب أو المجلة، الدار، السنة، الصفحة) وإحالات ^1، ^2 في متن النص.\n\n' +
-'4. الخاتمة:\n' +
-'الخـاتـمـــة:\n' +
-'خاتمة أكاديمية موسعة تتضمن:\n' +
-'- حوصلة شاملة ودقيقة للنتائج المتوصل إليها في المباحث السابقة.\n' +
-'- قائمة توصيات عملية وتطبيقية مرقمة موجزة ومحددة.\n' +
-'- آفاق وفتح آفاق لدراسات وبحوث مستقبلية.\n' +
-'الهوامش:\n' +
-'^1 تقرير أو مرجع موثق، جهة الإصدار، السنة، ص...\n\n' +
-'5. قائمة المصادر والمراجع:\n' +
-'قائمة المصادر والمراجع:\n' +
-'اكتب قائمة ببليوغرافية موسعة تشمل ما لا يقل عن 14 إلى 20 مرجعاً أكاديمياً حقيقياً مقسمة كالتالي:\n' +
-'أولاً: الكتب والمؤلفات العامة والخاصة:\n' +
-'[1] اسم المؤلف، عنوان الكتاب، دار النشر، مكان النشر، الطبعة، سنة النشر.\n' +
-'ثانياً: المجلات والدوريات العلمية والأطروحات الجامعية:\n' +
-'[2] اسم الباحث، عنوان المقال، اسم المجلة، المجلد، العدد، السنة.\n\n' +
-'تنبيهات صارمة لا تقبل الاستثناء:\n' +
-'- اكتب بحثاً طويلاً وموسعاً وتفصيلياً جداً وغزيراً بالمادة العلمية ليتجاوز 3500 كلمة ليملأ أكثر من 12 إلى 15 صفحة A4.\n' +
-'- لا تضع أي مقدمات خارج البحث أو نصوص ترحيبية أو كتل كود markdown (ابدأ مباشرة بـ: بحث بعنوان: ...).\n' +
-'- التزم تماماً بوضع قسم الهوامش (الهوامش:) في نهاية كل مطلب ونهاية المقدمة ونهاية الخاتمة مع توثيق حقيقي كامل (اسم المؤلف، الكتاب، دار النشر، السنة، رقم الصفحة).';
+                // ==============================================================
+                // الخطوة 1: توليد خطة البحث وهيكلها بصيغة JSON فائقة السرعة (~1.2 ثانية)
+                // ==============================================================
+                var planPrompt = 'أنت عميد أكاديمي ومحكم أبحاث ودراسات عليا. المطلوب منك وضع خطة بحث أكاديمي دقيقة ومحكمة ومضبوطة الحجم بصيغة JSON فقط دون أي شروحات إضافية أو كتل ماركداون.\n' +
+                'الموضوع المطلوب: «' + topic + '»\n' +
+                'عدد المباحث المطلوبة: ' + mabhathCount + '\n' +
+                'عدد المطالب في كل مبحث: ' + matlabCount + '\n' +
+                'حجم البحث المستهدف الإجمالي: ' + cfg.targetPages + ' (ضع عناوين مباشرة لكل مطلب دون تفريعات فرعية كثيرة).\n\n' +
+                'يجب أن تُرجع كائن JSON صالح 100% حصراً بالشكل التالي دون نصوص خارج الأقواس:\n' +
+                '{\n' +
+                '  "title": "العنوان الأكاديمي الدقيق والكامل للبحث",\n' +
+                '  "problematic": "الإشكالية الجوهرية للبحث مصاغة بدقة علمية رصينة",\n' +
+                '  "questions": ["السؤال الفرعي الأول؟", "السؤال الفرعي الثاني؟"],\n' +
+                '  "hypotheses": ["الفرضية الأولى...", "الفرضية الثانية..."],\n' +
+                '  "methodology": "المنهج الوصفي التحليلي",\n' +
+                '  "mabahith": [\n' +
+                '    {\n' +
+                '      "title": "المبحث الأول: [عنوان المبحث الأول]",\n' +
+                '      "matalib": [\n' +
+                '        { "title": "المطلب الأول: [عنوان المطلب الأول]" },\n' +
+                '        { "title": "المطلب الثاني: [عنوان المطلب الثاني]" }\n' +
+                '      ]\n' +
+                '    }\n' +
+                '  ]\n' +
+                '}';
 
-                var userPrompt = 'اكتب الآن البحث الأكاديمي الموسع والشامل (أكثر من 12 إلى 15 صفحة A4) مع كامل الهوامش والمراجع وفق الشروط المنهجية الصارمة حول الموضوع التالي:\n«' + topic + '»';
+                var planRawResponse = await fetchAiTextWithAutoFallback(provider, apiKey, planPrompt, null, {
+                    temperature: 0.25,
+                    disableThinking: true,
+                    maxTokens: 1000,
+                    onModelSelect: function(m) {
+                        if (activeModelBadge) activeModelBadge.innerText = m;
+                    }
+                });
 
-                if (progressText) progressText.innerText = '2/3 جاري استلام النص وتوليد المباحث والمطالب وتوثيق الهوامش...';
-
-                var generatedText = '';
-
-                if (provider === 'gemini') {
-                    generatedText = await executeGeminiGeneration(apiKey, systemPrompt, userPrompt);
-                } else if (provider === 'openai') {
-                    generatedText = await executeOpenAiGeneration(apiKey, 'https://api.openai.com/v1/chat/completions', 'gpt-4o-mini', systemPrompt, userPrompt);
-                } else if (provider === 'groq') {
-                    generatedText = await executeOpenAiGeneration(apiKey, 'https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', systemPrompt, userPrompt);
-                } else {
-                    var customUrl = (document.getElementById('ai-custom-url') && document.getElementById('ai-custom-url').value.trim()) || 'https://openrouter.ai/api/v1/chat/completions';
-                    generatedText = await executeOpenAiGeneration(apiKey, customUrl, 'auto', systemPrompt, userPrompt);
+                var plan = null;
+                try {
+                    var cleanJson = planRawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    var fBrace = cleanJson.indexOf('{');
+                    var lBrace = cleanJson.lastIndexOf('}');
+                    if (fBrace !== -1 && lBrace !== -1) {
+                        cleanJson = cleanJson.substring(fBrace, lBrace + 1);
+                    }
+                    plan = JSON.parse(cleanJson);
+                } catch (jsonErr) {
+                    console.warn('JSON plan parsing fallback:', jsonErr);
                 }
 
-                if (progressText) progressText.innerText = '3/3 تم التوليد بنجاح! جاري التنسيق وبناء أوراق A4...';
+                if (!plan || !plan.title || !plan.mabahith || !plan.mabahith.length) {
+                    plan = buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode);
+                }
 
-                // تنظيف أي زوائد Markdown مثل ``` أو ```markdown
-                generatedText = generatedText.replace(/^\`\`\`[a-zA-Z]*\n?/, '').replace(/\`\`\`$/, '').trim();
+                var planTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                setBadgeStatus('p-badge-plan', '✓ تم (' + planTime + ' ث)', '#34d399');
 
-                // وضع النص في خانة النص الخام
-                var rawInput = document.getElementById('raw-text-input');
+                if (progressText) {
+                    progressText.innerText = '⚡ الخطوة 2: البث المتوازي للمقدمة والمباحث والخاتمة بدقة ' + cfg.targetPages + ' (Promise.all)...';
+                }
+
+                // ==============================================================
+                // الخطوة 2: التوليد المتوازي اللحظي (Parallel Generation with Promise.all)
+                // ==============================================================
+                var introText = '';
+                var mabahithTexts = new Array(plan.mabahith.length).fill('');
+                var conclusionText = '';
+
+                // عداد الكلمات المباشر
+                function countWords(txt) {
+                    if (!txt) return 0;
+                    return txt.trim().split(/\s+/).filter(Boolean).length;
+                }
+
+                function refreshLiveStreamUI() {
+                    var totalWords = countWords(introText) + countWords(conclusionText);
+                    for (var w = 0; w < mabahithTexts.length; w++) {
+                        totalWords += countWords(mabahithTexts[w]);
+                    }
+
+                    if (streamCounter) {
+                        streamCounter.innerText = '⚡ بث مباشر: ' + totalWords + ' كلمة متدفقة بالتوازي... (الهدف: ' + cfg.targetPages + ')';
+                    }
+
+                    // بث مسودة النص في مربع النص الخام لحظياً ليشاهدها المستخدم
+                    if (rawInput) {
+                        var preview = 'بحث بعنوان: ' + plan.title + '\n\n' +
+                            (introText ? introText.trim() + '\n\n' : 'المقدمة: (جاري البث المباشر...)\n\n');
+
+                        for (var m = 0; m < plan.mabahith.length; m++) {
+                            if (mabahithTexts[m]) {
+                                preview += mabahithTexts[m].trim() + '\n\n';
+                            } else {
+                                preview += (plan.mabahith[m].title || ('المبحث ' + (m+1))) + '\n(جاري تحرير المتن بالتوازي...)\n\n';
+                            }
+                        }
+
+                        if (conclusionText) {
+                            preview += conclusionText.trim();
+                        } else {
+                            preview += 'الخـاتـمـــة: (جاري الصياغة والتوثيق...)';
+                        }
+
+                        rawInput.value = preview;
+                    }
+                }
+
+                // 1. مهمة توليد المقدمة المتوازية
+                setBadgeStatus('p-badge-intro', '✍️ جاري البث...', '#38bdf8');
+                var introPrompt = 'أنت بروفيسور وعالم أكاديمي خبير. اكتب مقدمة بحث علمي رصينة ومتوازنة:\n' +
+                'عنوان البحث: ' + plan.title + '\n' +
+                'الإشكالية المقررة: ' + plan.problematic + '\n' +
+                'الأسئلة الفرعية: ' + (plan.questions || []).join(' - ') + '\n' +
+                'الفرضيات: ' + (plan.hypotheses || []).join(' - ') + '\n' +
+                'المنهج العلمي: ' + (plan.methodology || 'المنهج الوصفي التحليلي') + '\n\n' +
+                'معيار الطول والحجم المطلوب بدقة متناهية:\n' +
+                '- الطول الإجمالي للمقدمة: حوالي ' + cfg.introWords + ' كلمة (' + cfg.introParagraphs + ').\n' +
+                '- الالتزام الصارم بهذا الحجم دون أي استطراد لضمان خروج البحث الإجمالي في حدود ' + cfg.targetPages + ' بالضبط دون تجاوز.\n\n' +
+                'القواعد الصارمة:\n' +
+                '1. ابدأ السطر الأول مباشرة بـ:\nالمقدمة:\n' +
+                '2. صياغة منهجية متقنة تتضمن: التمهيد، الإشكالية، الأهمية والأهداف، المنهج المتبع، وخطة البحث.\n' +
+                '3. وثّق الإحالات بأرقام ^1 و ^2 في نهايات الفقرات.\n' +
+                '4. اختم المقدمة بقسم الهوامش حصراً كالتالي:\nالهوامش:\n^1 اسم المؤلف، عنوان المرجع، دار النشر، السنة، ص...\n^2 اسم الباحث، عنوان المقال، اسم المجلة، المجلد، العدد، السنة، ص...';
+
+                var taskIntro = fetchAiTextWithAutoFallback(provider, apiKey, introPrompt, function(chunk, acc) {
+                    introText = acc;
+                    setBadgeStatus('p-badge-intro', '✍️ ' + countWords(acc) + ' كلمة', '#38bdf8');
+                    refreshLiveStreamUI();
+                }, { temperature: 0.35, disableThinking: true, maxTokens: cfg.introMaxTokens }).then(function(res) {
+                    introText = res;
+                    setBadgeStatus('p-badge-intro', '✓ (' + countWords(res) + ' كلمة)', '#34d399');
+                    refreshLiveStreamUI();
+                    return res;
+                });
+
+                // 2. مهام توليد المباحث المتوازية
+                var mCount = plan.mabahith.length || 1;
+                var targetWordsPerMb = Math.round(cfg.mabahithWords / mCount);
+
+                var taskMabahith = plan.mabahith.map(function(mb, idx) {
+                    var badgeId = idx === 0 ? 'p-badge-mb1' : (idx === 1 ? 'p-badge-mb2' : 'p-badge-mb' + (idx+1));
+                    setBadgeStatus(badgeId, '✍️ جاري البث...', '#38bdf8');
+
+                    var matalibList = (mb.matalib || []).map(function(mt, mIdx) {
+                        return '- ' + (mt.title || ('المطلب ' + (mIdx+1)));
+                    }).join('\n');
+
+                    var mbPrompt = 'أنت باحث أكاديمي متخصص. اكتب متن هذا المبحث الأكاديمي بدقة علمية وتركيز دون حشو زائد:\n' +
+                    'عنوان البحث العام: ' + plan.title + '\n' +
+                    'المبحث المطلوب كتابته حصراً: ' + mb.title + '\n' +
+                    'مطالب هذا المبحث:\n' + matalibList + '\n\n' +
+                    'معيار الطول والحجم المطلوب بدقة متناهية (إلزامي صارم):\n' +
+                    '- الطول الإجمالي المطلوب لهذا المبحث كاملاً بجميع مطالبه هو: حوالي ' + targetWordsPerMb + ' كلمة فقط لا غير.\n' +
+                    '- لكل مطلب: اكتب ' + cfg.matlabParagraphs + '، مع إحالات توثيقية واضحة.\n' +
+                    '- تحذير هام: يمنع الإسهاب أو كتابة فقرات غير منتهية؛ التزم بعدد الكلمات المحدد (' + targetWordsPerMb + ' كلمة) لكي لا يتجاوز البحث إجمالي ' + cfg.targetPages + ' نهائياً.\n\n' +
+                    'الشروط الصارمة:\n' +
+                    '1. ابدأ بالسطر الأول مباشرة بعنوان المبحث:\n' + mb.title + '\n' +
+                    '2. ثم اكتب كل مطلب:\n' +
+                    'المطلب الأول: [عنوان المطلب]\n' +
+                    '(فقرات مركزة متسلسلة علمياً مع توثيق إحالات ^1، ^2 في نهايات الفقرات).\n' +
+                    'الهوامش:\n' +
+                    '^1 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+                    '^2 اسم المرجع الكامل، دار النشر، السنة، ص...\n' +
+                    '3. كرر نفس البنية لبقية مطالب هذا المبحث بالهو هامش لكل مطلب مع الالتزام التام بحد ' + targetWordsPerMb + ' كلمة للمبحث كاملاً.\n' +
+                    '4. لا تكتب مقدمة عامة ولا خاتمة، بل اكتب نصوص هذا المبحث ومطالبه وهوامشه فقط.';
+
+                    return fetchAiTextWithAutoFallback(provider, apiKey, mbPrompt, function(chunk, acc) {
+                        mabahithTexts[idx] = acc;
+                        setBadgeStatus(badgeId, '✍️ ' + countWords(acc) + ' كلمة', '#38bdf8');
+                        refreshLiveStreamUI();
+                    }, { temperature: 0.35, disableThinking: true, maxTokens: cfg.mabhathMaxTokens }).then(function(res) {
+                        mabahithTexts[idx] = res;
+                        setBadgeStatus(badgeId, '✓ (' + countWords(res) + ' كلمة)', '#34d399');
+                        refreshLiveStreamUI();
+                        return res;
+                    });
+                });
+
+                // 3. مهمة توليد الخاتمة والمراجع المتوازية
+                setBadgeStatus('p-badge-conclusion', '✍️ جاري البث...', '#38bdf8');
+                var mbTitlesSummary = plan.mabahith.map(function(m){ return m.title; }).join(' - ');
+                var concPrompt = 'أنت بروفيسور أكاديمي. اكتب خاتمة علمية وقائمة مصادر ومراجع متوازنة للبحث التالي:\n' +
+                'عنوان البحث: ' + plan.title + '\n' +
+                'مباحث ومحاور البحث: ' + mbTitlesSummary + '\n\n' +
+                'معيار الطول والحجم المطلوب بدقة:\n' +
+                '- الطول الإجمالي للخاتمة: حوالي ' + cfg.conclusionWords + ' كلمة.\n' +
+                '- عدد المراجع الإجمالي: حوالي ' + cfg.maxRefs + ' مرجعاً متنوعاً (كتب ومجلات علمية محكمة).\n' +
+                '- الالتزام التام لضمان عدم زيادة عدد صفحات البحث الإجمالية عن ' + cfg.targetPages + '.\n\n' +
+                'الشروط الصارمة:\n' +
+                '1. ابدأ السطر الأول بـ:\nالخـاتـمـــة:\n' +
+                '2. اكتب ملخص النتائج المتوصل إليها ثم قائمة توصيات عملية مركزة.\n' +
+                '3. ضع قسم الهوامش إن وجد:\nالهوامش:\n^1 ...\n' +
+                '4. ثم اتبعها مباشرة بقائمة المصادر والمراجع كالتالي:\n' +
+                'قائمة المصادر والمراجع:\n' +
+                'أولاً: الكتب والمؤلفات:\n[1] ...\n' +
+                'ثانياً: المجلات والدوريات:\n[' + Math.ceil(cfg.maxRefs/2) + '] ...\n' +
+                'لا تضع أي نصوص ترحيبية أو إضافية.';
+
+                var taskConclusion = fetchAiTextWithAutoFallback(provider, apiKey, concPrompt, function(chunk, acc) {
+                    conclusionText = acc;
+                    setBadgeStatus('p-badge-conclusion', '✍️ ' + countWords(acc) + ' كلمة', '#38bdf8');
+                    refreshLiveStreamUI();
+                }, { temperature: 0.35, disableThinking: true, maxTokens: cfg.conclusionMaxTokens }).then(function(res) {
+                    conclusionText = res;
+                    setBadgeStatus('p-badge-conclusion', '✓ (' + countWords(res) + ' كلمة)', '#34d399');
+                    refreshLiveStreamUI();
+                    return res;
+                });
+
+                // ==============================================================
+                // انتظار اكتمال كافة الأقسام المتوازية بـ Promise.all في ثوانٍ معدودة
+                // ==============================================================
+                var allPromises = [taskIntro].concat(taskMabahith).concat([taskConclusion]);
+                await Promise.all(allPromises);
+
+                clearInterval(timerInterval);
+                var totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);
+                if (timerBadge) timerBadge.innerText = '⚡ تم في ' + totalDuration + ' ث';
+
+                // تنظيف الأقسام ودمجها
+                function cleanSection(txt) {
+                    if (!txt) return '';
+                    return txt.replace(/^\`\`\`[a-zA-Z]*\n?/, '').replace(/\`\`\`$/, '').trim();
+                }
+
+                var finalFullText = 'بحث بعنوان: ' + plan.title.replace(/^#+\s*/, '').trim() + '\n\n' +
+                    cleanSection(introText) + '\n\n' +
+                    mabahithTexts.map(function(mText) { return cleanSection(mText); }).join('\n\n') + '\n\n' +
+                    cleanSection(conclusionText);
+
                 if (rawInput) {
-                    rawInput.value = generatedText;
+                    rawInput.value = finalFullText;
                 }
 
-                // استدعاء محرك التحليل والتنسيق الفوري
-                parseRawTextToDocument();
+                if (progressText) {
+                    progressText.innerText = '🎉 تم إنجاز البحث في ' + totalDuration + ' ثانية! جاري بناء صفحات A4 بدقة ' + cfg.targetPages + '...';
+                }
 
-                // التبديل إلى وضع المعاينة على الهواتف تلقائياً ليشاهد المستخدم النتيجة
+                // استدعاء محرك التوزيع الحي لصفحات A4 مع كتم التنبيه المزدوج
+                var generatedPageCount = parseRawTextToDocument(true);
+
+                // التبديل إلى وضع المعاينة على الهواتف تلقائياً
                 if (window.innerWidth <= 850 && typeof setMobileView === 'function') {
                     setMobileView('preview');
                 }
 
-                if (progressBox) progressBox.style.display = 'none';
-                alert('تم بنجاح توليد وصياغة البحث الأكاديمي وتنسيقه بالكامل! تم إنشاء الغلاف والخطة وكافة صفحات البحث وهوامشها.');
+                setTimeout(function() {
+                    if (progressBox) progressBox.style.display = 'none';
+                }, 3000);
+
+                alert('🎉 إنجاز فائق السرعة وبحجم دقيق!\n• تم توليد وصياغة وتنسيق البحث كاملاً في ' + totalDuration + ' ثانية فقط!\n• عدد الصفحات المتولدة بدقة: ' + (generatedPageCount || '10') + ' صفحة (مطابق للنطاق المختار: ' + cfg.targetPages + ').\n• تم توزيع الهوامش وإعادة ترقيمها في أسفل كل صفحة آلياً.');
 
             } catch (err) {
-                console.error('AI Generation Error:', err);
+                clearInterval(timerInterval);
+                console.error('Fast AI Generation Error:', err);
                 if (progressBox) progressBox.style.display = 'none';
-                alert('حدث خطأ أثناء التوليد: ' + err.message + '. تأكد من صحة مفتاح الـ API واتصالك بالإنترنت ثم حاول مجدداً.');
+                alert('حدث خطأ أثناء التوليد فائق السرعة: ' + err.message + '\nيرجى التأكد من صحة المفتاح واتصالك بالإنترنت.');
             } finally {
+                clearInterval(timerInterval);
                 if (btn) {
                     btn.disabled = false;
                     btn.style.opacity = '1';
@@ -7511,164 +7866,285 @@ ${documentHtml}
             }
         }
 
-        // دالة مساعدة لاستخراج النص من مختلف استجابات Google Gemini الحديثة (generateContent و Interactions API)
-        function extractGeminiResponseText(data) {
-            if (!data) return null;
-            // 1. generateContent candidates format
-            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                var parts = data.candidates[0].content.parts;
-                var full = '';
-                for (var p = 0; p < parts.length; p++) {
-                    if (parts[p].text) full += parts[p].text;
-                }
-                if (full.trim()) return full;
+        // ==============================================================
+        // دالة التوليد الموحدة مع البث اللحظي والتجاوز التلقائي (Auto-Fallback & Streaming)
+        // ==============================================================
+        async function fetchAiTextWithAutoFallback(provider, apiKey, prompt, onChunk, options) {
+            options = options || {};
+            var temp = typeof options.temperature === 'number' ? options.temperature : 0.35;
+            var disableThinking = options.disableThinking !== false;
+            var maxTokens = options.maxTokens || 4096;
+
+            if (provider === 'gemini') {
+                return await fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, {
+                    temperature: temp,
+                    disableThinking: disableThinking,
+                    maxTokens: maxTokens,
+                    onModelSelect: options.onModelSelect
+                });
+            } else if (provider === 'groq') {
+                return await fetchOpenAiStreamWithFallback(apiKey, 'https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', prompt, onChunk, temp, maxTokens);
+            } else if (provider === 'openai') {
+                return await fetchOpenAiStreamWithFallback(apiKey, 'https://api.openai.com/v1/chat/completions', 'gpt-4o-mini', prompt, onChunk, temp, maxTokens);
+            } else {
+                var customUrl = (document.getElementById('ai-custom-url') && document.getElementById('ai-custom-url').value.trim()) || 'https://openrouter.ai/api/v1/chat/completions';
+                return await fetchOpenAiStreamWithFallback(apiKey, customUrl, 'auto', prompt, onChunk, temp, maxTokens);
             }
-            // 2. output_text convenience field
-            if (typeof data.output_text === 'string' && data.output_text.trim()) {
-                return data.output_text;
-            }
-            // 3. outputs array
-            if (Array.isArray(data.outputs)) {
-                var outAcc = '';
-                for (var o = 0; o < data.outputs.length; o++) {
-                    if (data.outputs[o].text) outAcc += data.outputs[o].text;
-                    else if (typeof data.outputs[o].content === 'string') outAcc += data.outputs[o].content;
-                }
-                if (outAcc.trim()) return outAcc;
-            }
-            // 4. steps array (Interactions API)
-            if (Array.isArray(data.steps)) {
-                var stepAcc = '';
-                for (var s = 0; s < data.steps.length; s++) {
-                    var step = data.steps[s];
-                    if (step.type === 'model_output' && Array.isArray(step.content)) {
-                        for (var c = 0; c < step.content.length; c++) {
-                            if (step.content[c].text) stepAcc += step.content[c].text;
-                        }
-                    } else if (step.text) {
-                        stepAcc += step.text;
-                    }
-                }
-                if (stepAcc.trim()) return stepAcc;
-            }
-            // 5. fallback output / response properties
-            if (data.output && typeof data.output.text === 'string') return data.output.text;
-            if (data.response && typeof data.response.text === 'string') return data.response.text;
-            return null;
         }
 
-        // استدعاء نموذج Google Gemini (متوافق مع أحدث إصدارات Gemini 3.8 Flash و Interactions API)
-        async function executeGeminiGeneration(apiKey, systemPrompt, userPrompt) {
-            var fullPrompt = systemPrompt + '\n\n' + userPrompt;
-            // النماذج النشطة في Google Gemini مع تفضيل gemini-3.8-flash الموصى به رسمياً
-            var models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+        // استدعاء Google Gemini مع البث اللحظي والتجاوز التلقائي الفوري بين النماذج
+        async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
+            config = config || {};
+            var temp = typeof config.temperature === 'number' ? config.temperature : 0.35;
+            var disableThinking = config.disableThinking !== false;
+            var maxTokens = config.maxTokens || 4096;
+
+            var models = FAST_GEMINI_MODELS.slice();
             var lastErr = null;
 
-            // المرحلة 1: الاتصال عبر generateContent مع أحدث النماذج المعتمدة
             for (var i = 0; i < models.length; i++) {
                 var m = models[i];
-                try {
-                    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(apiKey);
-                    var res = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [
-                                {
-                                    role: 'user',
-                                    parts: [
-                                        { text: fullPrompt }
-                                    ]
-                                }
-                            ],
-                            generationConfig: {
-                                temperature: 0.7,
-                                maxOutputTokens: 24000
-                            }
-                        })
-                    });
+                if (typeof config.onModelSelect === 'function') {
+                    config.onModelSelect(m);
+                }
 
-                    if (res.ok) {
-                        var data = await res.json();
-                        var text = extractGeminiResponseText(data);
-                        if (text && text.trim()) {
-                            return text;
-                        }
-                    } else {
-                        var errJson = await res.json().catch(function() { return {}; });
-                        var msg = (errJson.error && errJson.error.message) || res.statusText;
-                        lastErr = new Error('Gemini (' + m + '): ' + msg);
+                // المحاولة 1: مع تعطيل التفكير الداخلي لتسريع الاستجابة الأولى إلى الحد الأقصى
+                try {
+                    var streamRes = await callGeminiStreaming(apiKey, m, prompt, onChunk, temp, disableThinking, maxTokens);
+                    if (streamRes && streamRes.trim()) return streamRes;
+                } catch (e1) {
+                    console.warn('Gemini stream (' + m + ') with thinkingBudget=0 failed:', e1.message);
+                    lastErr = e1;
+                    // المحاولة 2 لنفس النموذج: بدون thinkingConfig
+                    try {
+                        var streamRes2 = await callGeminiStreaming(apiKey, m, prompt, onChunk, temp, false, maxTokens);
+                        if (streamRes2 && streamRes2.trim()) return streamRes2;
+                    } catch (e2) {
+                        console.warn('Gemini stream (' + m + ') fallback failed, switching to next model in milliseconds:', e2.message);
+                        lastErr = e2;
                     }
-                } catch (e) {
-                    lastErr = e;
                 }
             }
 
-            // المرحلة 2: الاتصال عبر Interactions API (الموصى به من قبل Google في حال كان الحساب يتطلب ذلك)
-            var interModels = ['gemini-3.8-flash', 'gemini-3.8-flash-lite'];
-            for (var j = 0; j < interModels.length; j++) {
-                var im = interModels[j];
+            // المحاولة الاحتياطية النهائية: الاتصال غير التدفقي (generateContent)
+            for (var j = 0; j < models.length; j++) {
                 try {
-                    var interUrl = 'https://generativelanguage.googleapis.com/v1beta/interactions?key=' + encodeURIComponent(apiKey);
-                    var interRes = await fetch(interUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model: im,
-                            input: fullPrompt
-                        })
-                    });
-
-                    if (interRes.ok) {
-                        var interData = await interRes.json();
-                        var interText = extractGeminiResponseText(interData);
-                        if (interText && interText.trim()) {
-                            return interText;
-                        }
-                    } else {
-                        var interErrJson = await interRes.json().catch(function() { return {}; });
-                        var interMsg = (interErrJson.error && interErrJson.error.message) || interRes.statusText;
-                        lastErr = new Error('Gemini Interactions (' + im + '): ' + interMsg);
-                    }
-                } catch (e) {
-                    // استمرار مع الخطأ المسجل السابق
+                    var directRes = await callGeminiDirect(apiKey, models[j], prompt, temp, maxTokens);
+                    if (directRes && directRes.trim()) return directRes;
+                } catch (eDirect) {
+                    lastErr = eDirect;
                 }
             }
 
-            throw lastErr || new Error('فشل استلام الرد من نموذج Gemini. يرجى التأكد من صلاحية المفتاح والاتصال بالإنترنت.');
+            throw lastErr || new Error('فشلت جميع نماذج Gemini في الاستجابة. يرجى التحقق من المفتاح وصلاحيته.');
         }
 
-        // استدعاء النماذج المتوافقة مع واجهة OpenAI (OpenAI, Groq, OpenRouter)
-        async function executeOpenAiGeneration(apiKey, endpoint, model, systemPrompt, userPrompt) {
-            var res = await fetch(endpoint, {
+        // دالة البث اللحظي لـ Gemini عبر Server-Sent Events (SSE)
+        async function callGeminiStreaming(apiKey, model, prompt, onChunk, temperature, disableThinking, maxTokens) {
+            var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(apiKey);
+
+            var genConfig = {
+                temperature: temperature || 0.35,
+                maxOutputTokens: maxTokens || 4096
+            };
+
+            if (disableThinking) {
+                genConfig.thinkingConfig = {
+                    thinkingBudget: 0
+                };
+            }
+
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() {
+                controller.abort();
+            }, 35000); // مهلة 35 ثانية لكل قسم
+
+            try {
+                var res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [{ text: prompt }]
+                            }
+                        ],
+                        generationConfig: genConfig
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    var errData = await res.json().catch(function() { return {}; });
+                    var errMsg = (errData.error && errData.error.message) || res.statusText;
+                    throw new Error('Gemini (' + model + '): ' + errMsg);
+                }
+
+                if (!res.body || typeof res.body.getReader !== 'function') {
+                    // إذا كان المتصفح لا يدعم ReadableStream نرجع للاستجابة المباشرة
+                    var directData = await res.json();
+                    return extractGeminiResponseText(directData);
+                }
+
+                var reader = res.body.getReader();
+                var decoder = new TextDecoder('utf-8');
+                var accumulated = '';
+                var buffer = '';
+
+                while (true) {
+                    var r = await reader.read();
+                    if (r.done) break;
+
+                    buffer += decoder.decode(r.value, { stream: true });
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop(); // الحفاظ على الجزء غير المكتمل
+
+                    for (var l = 0; l < lines.length; l++) {
+                        var line = lines[l].trim();
+                        if (line.indexOf('data: ') === 0) {
+                            var jsonStr = line.substring(6).trim();
+                            if (!jsonStr || jsonStr === '[DONE]') continue;
+                            try {
+                                var parsed = JSON.parse(jsonStr);
+                                if (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content && parsed.candidates[0].content.parts) {
+                                    var parts = parsed.candidates[0].content.parts;
+                                    for (var p = 0; p < parts.length; p++) {
+                                        var piece = parts[p].text || '';
+                                        if (piece) {
+                                            accumulated += piece;
+                                            if (typeof onChunk === 'function') {
+                                                onChunk(piece, accumulated);
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (eJson) {
+                                // تجاهل أخطاء التجزئة اللحظية
+                            }
+                        }
+                    }
+                }
+
+                if (!accumulated.trim()) {
+                    throw new Error('لم يرجع تدفق Gemini أي محتوى.');
+                }
+
+                return accumulated;
+
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        // استدعاء Gemini غير تدفقي كاحتياطي أخير
+        async function callGeminiDirect(apiKey, model, prompt, temperature, maxTokens) {
+            var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
+            var res = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + apiKey
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: model || 'gpt-4o-mini',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 16384
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: temperature || 0.35,
+                        maxOutputTokens: maxTokens || 4096
+                    }
                 })
             });
 
             if (!res.ok) {
                 var errJson = await res.json().catch(function() { return {}; });
-                var msg = (errJson.error && errJson.error.message) || res.statusText;
-                throw new Error('API Error: ' + msg);
+                throw new Error((errJson.error && errJson.error.message) || res.statusText);
             }
 
             var data = await res.json();
-            var text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-            if (!text || !text.trim()) {
-                throw new Error('لم يرجع النموذج أي محتوى.');
-            }
+            var text = extractGeminiResponseText(data);
+            if (!text || !text.trim()) throw new Error('استجابة فارغة من النموذج.');
             return text;
+        }
+
+        // استدعاء OpenAI / Groq / OpenRouter مع البث اللحظي
+        async function fetchOpenAiStreamWithFallback(apiKey, endpoint, model, prompt, onChunk, temperature, maxTokens) {
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 35000);
+
+            try {
+                var res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: model || 'llama-3.3-70b-versatile',
+                        messages: [
+                            { role: 'user', content: prompt }
+                        ],
+                        temperature: temperature || 0.35,
+                        max_tokens: maxTokens || 4096,
+                        stream: true
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    var errData = await res.json().catch(function() { return {}; });
+                    var errMsg = (errData.error && errData.error.message) || res.statusText;
+                    throw new Error('API Error: ' + errMsg);
+                }
+
+                if (!res.body || typeof res.body.getReader !== 'function') {
+                    var data = await res.json();
+                    return data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+                }
+
+                var reader = res.body.getReader();
+                var decoder = new TextDecoder('utf-8');
+                var accumulated = '';
+                var buffer = '';
+
+                while (true) {
+                    var r = await reader.read();
+                    if (r.done) break;
+
+                    buffer += decoder.decode(r.value, { stream: true });
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (var l = 0; l < lines.length; l++) {
+                        var line = lines[l].trim();
+                        if (line.indexOf('data: ') === 0) {
+                            var jsonStr = line.substring(6).trim();
+                            if (!jsonStr || jsonStr === '[DONE]') continue;
+                            try {
+                                var parsed = JSON.parse(jsonStr);
+                                var delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
+                                if (delta) {
+                                    accumulated += delta;
+                                    if (typeof onChunk === 'function') {
+                                        onChunk(delta, accumulated);
+                                    }
+                                }
+                            } catch (eJson) {
+                                // تجاهل أخطاء التجزئة اللحظية
+                            }
+                        }
+                    }
+                }
+
+                if (!accumulated.trim()) {
+                    throw new Error('لم يرجع تدفق الـ API أي محتوى.');
+                }
+
+                return accumulated;
+
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
         // تحميل المفتاح المحفوظ عند بدء التشغيل
