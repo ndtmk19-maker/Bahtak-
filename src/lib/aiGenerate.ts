@@ -174,16 +174,20 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     },
   });
 
-  // مهمة المقدمة
+  // مهلة مساعدة لتفادي التزاحم الفجائي على الـ API في نفس المللي ثانية
+  const waitMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // مهمة المقدمة (تبدأ فوراً)
   const tIntro = track('intro', (v) => (intro = v));
   const taskIntro = call(buildIntroPrompt(p, cfg), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
 
-  // مهام المباحث المتوازية
+  // مهام المباحث بالتوازي مع إرجاء زمني خفيف (350ms) بين المباحث لتفادي حظر التردد اللحظي (Rate-limit)
   const perMb = Math.round(cfg.mabahithWords / (p.mabahith.length || 1));
-  const taskMbs = p.mabahith.map((mb, idx) => {
+  const taskMbs = p.mabahith.map(async (mb, idx) => {
+    await waitMs(350 * (idx + 1));
     const t = track(`mb${idx}`, (v) => (mbTexts[idx] = v));
     return call(buildMabhathPrompt(p, mb, perMb, cfg), t.onChunk, {
       temperature: 0.35,
@@ -191,12 +195,15 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     }).then(t.done, t.fail);
   });
 
-  // مهمة الخاتمة والمراجع
+  // مهمة الخاتمة والمراجع مع إرجاء زمني خفيف
   const tConc = track('conclusion', (v) => (conclusion = v));
-  const taskConc = call(buildConclusionPrompt(p, cfg), tConc.onChunk, {
-    temperature: 0.35,
-    maxTokens: cfg.conclusionMaxTokens,
-  }).then(tConc.done, tConc.fail);
+  const taskConc = (async () => {
+    await waitMs(350 * (p.mabahith.length + 1));
+    return call(buildConclusionPrompt(p, cfg), tConc.onChunk, {
+      temperature: 0.35,
+      maxTokens: cfg.conclusionMaxTokens,
+    }).then(tConc.done, tConc.fail);
+  })();
 
   // تنفيذ جميع الأقسام بالتوازي التام
   await Promise.all([taskIntro, ...taskMbs, taskConc]);

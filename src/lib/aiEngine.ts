@@ -2,11 +2,11 @@
 // محرك التوليد الأكاديمي بالذكاء الاصطناعي — الإعدادات والتعليمات (Prompts) وعملاء البث اللحظي
 // الاتصال يتم مباشرة من متصفح المستخدم إلى مزود الخدمة باستخدام مفتاحه الشخصي دون أي خادم وسيط.
 
-// النماذج الرسمية الحقيقية فائقة السرعة والمتاحة حالياً على Google Gemini API
+// النماذج الرسمية المعتمدة المستقرة وفائقة السرعة في Google Gemini API
 var FAST_GEMINI_MODELS = [
-    'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-8b'
+    'gemini-2.0-flash',
+    'gemini-1.5-pro'
 ];
 
 // مصفوفة المعايرة الهندسية لحجم البحث وعدد الصفحات المتولدة
@@ -120,7 +120,7 @@ function extractGeminiResponseText(data) {
     return parts.map(function(p) { return p.text || ''; }).join('');
 }
 
-// استدعاء Google Gemini مع البث اللحظي والتجاوز التلقائي الفوري بين النماذج
+// استدعاء Google Gemini مع البث اللحظي والتجاوز التلقائي الذكي عند الضغط
 async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
     config = config || {};
     var temp = typeof config.temperature === 'number' ? config.temperature : 0.35;
@@ -143,11 +143,18 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
         } catch (err) {
             console.warn('⚠️ تعذر النموذج (' + m + ')، التحويل التلقائي للبديل:', err.message);
             lastErr = err;
+            var msg = (err.message || '').toLowerCase();
+
             // إذا كان المفتاح غير صالح إطلاقاً، نتوقف فوراً
-            if (err.message && (err.message.includes('API key not valid') || err.message.includes('API_KEY_INVALID'))) {
+            if (msg.includes('api key not valid') || msg.includes('api_key_invalid')) {
                 throw new Error('رمز الـ API الخاص بـ Google Gemini غير صالح. يرجى التأكد من نسخه بشكل صحيح.');
             }
-            // في غير ذلك نقفز فوراً للنموذج التالي (gemini-1.5-flash / gemini-1.5-flash-8b)
+
+            // إذا كان خطأ تجاوز الحصة المؤقت (429)، ننتظر ثانية ونصف قبل تجربة النموذج التالي
+            if (msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted')) {
+                await new Promise(function(resolve) { setTimeout(resolve, 1400); });
+            }
+
             continue;
         }
     }
@@ -165,7 +172,7 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
     throw lastErr || new Error('فشلت نماذج Gemini في الاستجابة. يرجى التحقق من المفتاح واتصالك بالإنترنت.');
 }
 
-// دالة البث اللحظي لـ Gemini عبر Server-Sent Events (SSE)
+// دالة البث اللحظي لـ Gemini عبر Server-Sent Events (SSE) مع محلل متين
 async function callGeminiStreaming(apiKey, model, prompt, onChunk, temperature, maxTokens) {
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(apiKey);
 
@@ -177,7 +184,7 @@ async function callGeminiStreaming(apiKey, model, prompt, onChunk, temperature, 
     var controller = new AbortController();
     var timeoutId = setTimeout(function() {
         controller.abort();
-    }, 55000); // مهلة كافية 55 ثانية
+    }, 60000); // مهلة كافية 60 ثانية
 
     try {
         var res = await fetch(url, {
@@ -186,7 +193,6 @@ async function callGeminiStreaming(apiKey, model, prompt, onChunk, temperature, 
             body: JSON.stringify({
                 contents: [
                     {
-                        role: 'user',
                         parts: [{ text: prompt }]
                     }
                 ],
@@ -220,37 +226,71 @@ async function callGeminiStreaming(apiKey, model, prompt, onChunk, temperature, 
             if (r.done) break;
 
             buffer += decoder.decode(r.value, { stream: true });
-            var lines = buffer.split('\n');
-            buffer = lines.pop(); // الحفاظ على الجزء غير المكتمل
+            
+            // أحداث SSE تفصل بينها أسطر فارغة مزدوجة \n\n
+            var events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop() || ''; // الحفاظ على الجزء غير المكتمل في النهاية
 
-            for (var l = 0; l < lines.length; l++) {
-                var line = lines[l].trim();
-                if (line.indexOf('data: ') === 0) {
-                    var jsonStr = line.substring(6).trim();
-                    if (!jsonStr || jsonStr === '[DONE]') continue;
-                    try {
-                        var parsed = JSON.parse(jsonStr);
-                        if (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content && parsed.candidates[0].content.parts) {
-                            var parts = parsed.candidates[0].content.parts;
-                            for (var p = 0; p < parts.length; p++) {
-                                var piece = parts[p].text || '';
-                                if (piece) {
-                                    accumulated += piece;
-                                    if (typeof onChunk === 'function') {
-                                        onChunk(piece, accumulated);
-                                    }
+            for (var i = 0; i < events.length; i++) {
+                var eventText = events[i].trim();
+                if (!eventText) continue;
+
+                // تجميع كافة أسطر data: في هذا الحدث
+                var jsonStr = eventText
+                    .split(/\r?\n/)
+                    .map(function(l) { return l.trim(); })
+                    .filter(function(l) { return l.indexOf('data:') === 0; })
+                    .map(function(l) { return l.replace(/^data:\s*/, ''); })
+                    .join('\n')
+                    .trim();
+
+                if (!jsonStr || jsonStr === '[DONE]') continue;
+
+                try {
+                    var parsed = JSON.parse(jsonStr);
+                    var candidates = parsed.candidates;
+                    if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
+                        var parts = candidates[0].content.parts;
+                        for (var p = 0; p < parts.length; p++) {
+                            var piece = parts[p].text || '';
+                            if (piece) {
+                                accumulated += piece;
+                                if (typeof onChunk === 'function') {
+                                    onChunk(piece, accumulated);
                                 }
                             }
                         }
-                    } catch (eJson) {
-                        // تجاهل التجزئة الجزئية أثناء التدفق
                     }
+                } catch (eJson) {
+                    // تجاهل أي جزء غير مكتمل بعد
                 }
             }
         }
 
+        // فحص البقايا إن وجدت
+        if (buffer.trim()) {
+            var trailingJson = buffer
+                .split(/\r?\n/)
+                .map(function(l) { return l.trim(); })
+                .filter(function(l) { return l.indexOf('data:') === 0; })
+                .map(function(l) { return l.replace(/^data:\s*/, ''); })
+                .join('\n')
+                .trim();
+            if (trailingJson && trailingJson !== '[DONE]') {
+                try {
+                    var pEnd = JSON.parse(trailingJson);
+                    var cEnd = pEnd.candidates && pEnd.candidates[0] && pEnd.candidates[0].content && pEnd.candidates[0].content.parts && pEnd.candidates[0].content.parts[0] && pEnd.candidates[0].content.parts[0].text;
+                    if (cEnd) {
+                        accumulated += cEnd;
+                        if (typeof onChunk === 'function') onChunk(cEnd, accumulated);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // إذا تعذر البث بالكامل لأي سبب، نطلب النص عبر generateContent المباشر
         if (!accumulated.trim()) {
-            throw new Error('لم يرجع تدفق Gemini أي محتوى.');
+            return await callGeminiDirect(apiKey, model, prompt, temperature, maxTokens);
         }
 
         return accumulated;
@@ -269,14 +309,14 @@ async function callGeminiDirect(apiKey, model, prompt, temperature, maxTokens) {
     };
 
     var controller = new AbortController();
-    var timer = setTimeout(function() { controller.abort(); }, 30000);
+    var timer = setTimeout(function() { controller.abort(); }, 35000);
 
     try {
         var res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: genConfig
             }),
             signal: controller.signal
@@ -284,7 +324,8 @@ async function callGeminiDirect(apiKey, model, prompt, temperature, maxTokens) {
 
         if (!res.ok) {
             var errJson = await res.json().catch(function() { return {}; });
-            throw new Error((errJson.error && errJson.error.message) || res.statusText);
+            var errMsg = (errJson.error && errJson.error.message) || res.statusText;
+            throw new Error('Gemini (' + model + ') [' + res.status + ']: ' + errMsg);
         }
 
         var data = await res.json();
