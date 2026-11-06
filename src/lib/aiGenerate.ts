@@ -15,7 +15,7 @@ export type AiLength = 'short' | 'medium' | 'giant' | 'huge';
 export const AI_PROVIDERS: Record<AiProvider, { label: string; hint: string; keyUrl?: string; keyLabel?: string; placeholder: string }> = {
   gemini: {
     label: 'Google Gemini',
-    hint: 'Gemini 2.0 Flash / 1.5 Flash — فائق السرعة ومجاني (موصى به للطلبة)',
+    hint: 'Gemini 3.5 Flash-Lite & 3.5 Flash — فائق السرعة ومجاني (موصى به للطلبة)',
     keyUrl: 'https://aistudio.google.com/app/apikey',
     keyLabel: 'احصل على مفتاح Gemini مجاني في 30 ثانية',
     placeholder: 'ألصق مفتاح Gemini هنا (يبدأ بـ AIzaSy...)',
