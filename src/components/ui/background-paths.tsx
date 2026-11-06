@@ -12,7 +12,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "./Button";
 import { AndroidIcon, InstagramIcon } from "./BrandIcons";
 import { LINKS } from "@/data/defaults";
 
