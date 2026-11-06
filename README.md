@@ -1,5 +1,12 @@
-# 🎓 Bahtak — بَحْثُك
-### المنصة الأكاديمية الأولى لإعداد وتنسيق وتوليد البحوث الجامعية الجزائرية وفق المعايير الرسمية (A4)
+<p align="center">
+  <img src="public/app_icon.png" width="128" height="128" alt="Bahtak Logo" style="border-radius: 28px;" />
+</p>
+
+<h1 align="center">🎓 Bahtak — بَحْثُك</h1>
+
+<p align="center">
+  <strong>المنصة الأكاديمية الأولى لإعداد وتنسيق وتوليد البحوث الجامعية الجزائرية وفق المعايير الرسمية (A4)</strong>
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react" alt="React 19" />
