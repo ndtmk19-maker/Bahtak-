@@ -1,0 +1,10 @@
+{
+  "description": "منصة عربية للطلاب والباحثين لإنشاء البحوث وتنسيقها وتحويل النصوص إلى أدوات قراءة، مع خدمات أكاديمية سهلة الاستخدام.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

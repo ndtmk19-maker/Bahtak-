@@ -1,0 +1,244 @@
+import { useEffect, useRef, useState } from 'react';
+import { Check, CloudUpload, Compass, Download, FileDown, Home, LayoutGrid, Loader2, MoreVertical, Printer, RotateCcw } from 'lucide-react';
+import { Button } from './ui/Button';
+import { AndroidIcon } from './ui/BrandIcons';
+import { useDocument } from '../state/DocumentContext';
+import { useUI } from '../state/UIContext';
+import { useResetApp } from '../state/useResetApp';
+import { downloadWordDocument } from '../lib/wordExport';
+import { imageToDataUrl } from '../lib/image';
+import { LINKS } from '../data/defaults';
+import { SectionNav, useMediaQuery } from './Navigation';
+
+export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
+  const isWide = useMediaQuery('(min-width: 1280px)');
+  const { doc, saveStatus } = useDocument();
+  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen } = useUI();
+  const resetApp = useResetApp();
+  const [exporting, setExporting] = useState(false);
+
+  const exportWord = async () => {
+    setExporting(true);
+    try {
+      let d = doc;
+      const cs = doc.coverState;
+      if (cs.enabled && cs.logoUrl && !cs.logoBase64) {
+        d = { ...doc, coverState: { ...cs, logoBase64: await imageToDataUrl(cs.logoUrl) } };
+      }
+      downloadWordDocument(d);
+      toast('تم تصدير ملف Word', { description: 'افتح الملف في Microsoft Word واحفظه بصيغة .docx إذا رغبت.' });
+      setTimeout(() => setFeedbackOpen(true), 1200);
+    } catch (err) {
+      toast('حدث خطأ أثناء تصدير ملف Word', { tone: 'error', description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const print = () => {
+    setMobileView('preview');
+    // مهلة قصيرة لضمان رسم المعاينة قبل فتح نافذة الطباعة
+    setTimeout(() => window.print(), 80);
+  };
+
+  return (
+    <header className="no-print relative z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 bg-white/85 dark:bg-neutral-950/85 backdrop-blur-md px-3 sm:px-5 lg:h-[68px]">
+      <button
+        type="button"
+        onClick={() => setShowLanding(true)}
+        className="flex min-w-0 shrink-0 items-center gap-3 text-right cursor-pointer transition hover:opacity-85"
+        aria-label="العودة لصفحة البداية والتعريف"
+        title="الصفحة الرئيسية والتعريف"
+      >
+        <img
+          src="/app_icon.png"
+          alt="Bahtak Logo"
+          width={38}
+          height={38}
+          className="size-[38px] shrink-0 rounded-xl object-contain shadow-xs border border-black/10 dark:border-white/10"
+        />
+        <div className="min-w-0 leading-tight">
+          <div className="flex items-baseline gap-1.5 text-[1.02rem] font-bold text-zinc-900 dark:text-white">
+            <span className="max-sm:hidden">Bahtak</span> <span className="text-zinc-400 max-sm:hidden">—</span> <span className="font-serif text-[1.2rem]">بحثك</span>
+          </div>
+          <div className="hidden truncate text-[0.72rem] text-zinc-500 md:block lg:hidden">منسّق وتوليد البحوث الأكاديمية والطباعة المباشرة</div>
+        </div>
+      </button>
+
+      <div className="flex min-w-0 flex-1 justify-center">
+        {isDesktop &&
+          (viewMode === 'classic' ? (
+            <div className="flex items-center gap-2">
+              <SectionNav compact={!isWide} />
+              <button
+                type="button"
+                onClick={() => setViewMode('wizard')}
+                className="flex h-9 items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 px-3.5 text-[0.78rem] font-semibold text-zinc-800 dark:text-zinc-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                title="إعادة فتح معالج إعداد البحث خطوة بخطوة"
+              >
+                <Compass className="size-4 text-zinc-700 dark:text-zinc-300" />
+                <span>🧭 إعادة فتح المعالج</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-1 text-[0.78rem] font-bold text-neutral-800 dark:text-neutral-200 shadow-xs backdrop-blur-md">
+                <Compass className="size-4 text-neutral-700 dark:text-neutral-300" />
+                <span>معالج إعداد وتنسيق البحث (4 خطوات)</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('classic');
+                  setSection('content');
+                }}
+                className="flex h-8 items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-800/80 px-3 text-[0.76rem] font-semibold text-neutral-800 dark:text-neutral-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+              >
+                <span>المحرر الكامل ➔</span>
+              </button>
+            </div>
+          ))}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <SaveIndicator status={saveStatus} />
+
+        <a
+          href={LINKS.charihatek}
+          target="_blank"
+          rel="noopener"
+          title="منصة شريحتك لتوليد عروض PowerPoint بالذكاء الاصطناعي"
+          className="hidden h-9 items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 py-1 ps-1.5 pe-3 text-[0.78rem] font-semibold text-zinc-800 dark:text-zinc-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 2xl:inline-flex"
+        >
+          <img src="/charihatek_logo.png" alt="" width={22} height={22} className="size-[22px] rounded-full grayscale opacity-80" />
+          شريحتك <span className="text-zinc-400">PowerPoint</span>
+          <span className="rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[0.62rem] font-bold text-zinc-700 dark:text-zinc-300">جديد</span>
+        </a>
+        <span className="mx-1 hidden h-6 w-px bg-black/10 dark:bg-white/10 lg:block" />
+
+        <Button variant="secondary" icon={<FileDown className="size-4" />} loading={exporting} onClick={exportWord} title="تصدير البحث بصيغة Word (.doc)" className="max-sm:px-3">
+          <span className="max-sm:hidden">Word</span>
+        </Button>
+        <Button variant="primary" icon={<Printer className="size-4" />} onClick={print} title="طباعة أو حفظ البحث كملف PDF" className="max-sm:px-3">
+          <span className="max-sm:hidden">طباعة / PDF</span>
+          <span className="sm:hidden">PDF</span>
+        </Button>
+
+        <MoreMenu
+          onReset={resetApp}
+          viewMode={viewMode}
+          onToggleView={() => setViewMode(viewMode === 'wizard' ? 'classic' : 'wizard')}
+          onOpenLanding={() => setShowLanding(true)}
+        />
+      </div>
+    </header>
+  );
+}
+
+function SaveIndicator({ status }: { status: 'idle' | 'saving' | 'saved' }) {
+  if (status === 'idle') return null;
+  return (
+    <span className="ml-2 hidden items-center gap-1.5 text-[0.72rem] font-medium text-zinc-500 dark:text-zinc-400 md:inline-flex lg:hidden xl:inline-flex" aria-live="polite">
+      {status === 'saving' ? <Loader2 className="size-3.5 animate-spin text-zinc-700 dark:text-zinc-300" /> : <Check className="size-3.5 text-zinc-900 dark:text-white" />}
+      {status === 'saving' ? 'جارٍ الحفظ' : 'محفوظ تلقائياً'}
+    </span>
+  );
+}
+
+function MoreMenu({
+  onReset,
+  viewMode,
+  onToggleView,
+  onOpenLanding,
+}: {
+  onReset: () => void;
+  viewMode: 'wizard' | 'classic';
+  onToggleView: () => void;
+  onOpenLanding: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const item = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.84rem] font-semibold text-zinc-800 dark:text-zinc-200 transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer';
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" aria-label="المزيد" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="grid size-10 place-items-center rounded-xl text-zinc-800 dark:text-zinc-200 transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer">
+        <MoreVertical className="size-5" />
+      </button>
+      {open && (
+        <div className="absolute top-12 left-0 z-40 w-64 animate-rise rounded-2xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-xl" role="menu">
+          <button
+            type="button"
+            className={`${item} font-bold text-zinc-950 dark:text-white`}
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onToggleView();
+            }}
+          >
+            {viewMode === 'wizard' ? (
+              <>
+                <LayoutGrid className="size-5 text-zinc-800 dark:text-zinc-200" />
+                الانتقال للمحرر الكامل
+              </>
+            ) : (
+              <>
+                <Compass className="size-5 text-zinc-800 dark:text-zinc-200" />
+                🧭 إعادة فتح المعالج
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            className={item}
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onOpenLanding();
+            }}
+          >
+            <Home className="size-5 text-zinc-700 dark:text-zinc-300" />
+            صفحة البداية والتعريف
+          </button>
+          <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
+          <a href={LINKS.charihatek} target="_blank" rel="noopener" className={`${item} 2xl:hidden`} role="menuitem" onClick={() => setOpen(false)}>
+            <img src="/charihatek_logo.png" alt="" className="size-5 rounded-full grayscale opacity-80" />
+            منصة شريحتك (PowerPoint)
+            <span className="mr-auto rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[0.62rem] font-bold text-zinc-700 dark:text-zinc-300">جديد</span>
+          </a>
+          <a href={LINKS.apk} download="Bahtak.apk" className={item} role="menuitem" onClick={() => setOpen(false)}>
+            <AndroidIcon className="size-5 text-zinc-800 dark:text-zinc-200" />
+            تطبيق أندرويد (APK)
+            <Download className="mr-auto size-4 text-zinc-400" />
+          </a>
+          <button
+            type="button"
+            className={`${item} text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onReset();
+            }}
+          >
+            <RotateCcw className="size-5" />
+            إعادة تعيين وبدء بحث جديد
+          </button>
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 text-[0.7rem] text-zinc-500 dark:text-zinc-400">
+            <CloudUpload className="size-3.5" /> يُحفظ بحثك تلقائياً في هذا المتصفح
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

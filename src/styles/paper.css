@@ -1,0 +1,566 @@
+/* أنماط صفحات A4 الأكاديمية — منقولة من المشروع الأصلي للحفاظ على مطابقة الطباعة.
+   لا تُعدَّل هذه القياسات (بالمليمتر) لأن خوارزمية التقسيم تعتمد عليها. */
+:root {
+  --gold: #c5a059;
+}
+
+@page {
+    size: A4 portrait;
+    margin: 0mm;
+}
+
+.a4-page {
+    background-color: #ffffff;
+    color: #111111;
+    width: 210mm;
+    height: 296mm;
+    max-height: 296mm;
+    min-height: 296mm;
+    padding: 8mm;
+    box-sizing: border-box;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    font-family: 'Amiri', serif;
+}
+
+.page-border {
+    border: 1px solid #222222;
+    padding: 2px;
+    height: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.page-inner-border {
+    border: 2px solid #222222;
+    padding: 6.5mm 10mm 4mm 10mm;
+    height: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.page-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    text-align: justify;
+}
+
+/* ==============================================================
+   أنماط صفحة الغلاف الأكاديمية (Academic Cover Page)
+   ============================================================== */
+.cover-page-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    text-align: center;
+    padding: 2mm 5mm;
+}
+
+/* أنماط إطار الغلاف الأسود (الافتراضي الرسمي) */
+.cover-black-border {
+    border: 1px solid #000000 !important;
+    padding: 2.5px;
+}
+
+.cover-black-inner-border {
+    border: 2px solid #000000 !important;
+    padding: 10mm 12mm 8mm 12mm !important;
+}
+
+/* أنماط إطار الغلاف الذهبي (اختياري) */
+.cover-gold-border {
+    border: 1px solid var(--gold) !important;
+    padding: 2.5px;
+}
+
+.cover-gold-inner-border {
+    border: 1.5px solid var(--gold) !important;
+    padding: 10mm 12mm 8mm 12mm !important;
+}
+
+.cover-header {
+    width: 100%;
+    margin-bottom: 2.5mm;
+}
+
+.cover-header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    position: relative;
+}
+
+.cover-logo-box {
+    width: 38mm;
+    min-height: 38mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cover-logo-right {
+    justify-content: flex-start;
+}
+
+.cover-logo-left {
+    justify-content: flex-end;
+}
+
+.cover-univ-logo {
+    max-width: 36mm;
+    max-height: 36mm;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
+}
+
+.cover-logo-placeholder {
+    width: 38mm;
+    min-height: 38mm;
+    visibility: hidden;
+}
+
+/* أحجام الشعار المختلفة */
+.cover-header-wrap.cover-logo-size-compact .cover-logo-box,
+.cover-header-wrap.cover-logo-size-compact .cover-logo-placeholder { width: 26mm; min-height: 26mm; }
+.cover-header-wrap.cover-logo-size-compact .cover-univ-logo { max-width: 25mm; max-height: 25mm; }
+
+.cover-header-wrap.cover-logo-size-medium .cover-logo-box,
+.cover-header-wrap.cover-logo-size-medium .cover-logo-placeholder { width: 32mm; min-height: 32mm; }
+.cover-header-wrap.cover-logo-size-medium .cover-univ-logo { max-width: 30mm; max-height: 30mm; }
+
+.cover-header-wrap.cover-logo-size-large .cover-logo-box,
+.cover-header-wrap.cover-logo-size-large .cover-logo-placeholder { width: 38mm; min-height: 38mm; }
+.cover-header-wrap.cover-logo-size-large .cover-univ-logo { max-width: 36mm; max-height: 36mm; }
+
+.cover-header-wrap.cover-logo-size-xlarge .cover-logo-box,
+.cover-header-wrap.cover-logo-size-xlarge .cover-logo-placeholder { width: 46mm; min-height: 46mm; }
+.cover-header-wrap.cover-logo-size-xlarge .cover-univ-logo { max-width: 44mm; max-height: 44mm; }
+
+.cover-header-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5mm;
+    padding: 0 2mm;
+}
+
+.cover-theme-black .cover-university-line {
+    font-family: 'Cairo', sans-serif;
+    font-size: 13pt;
+    font-weight: 700;
+    color: #000000;
+    margin-top: 1mm;
+}
+
+.cover-theme-black .cover-faculty-line {
+    font-family: 'Cairo', sans-serif;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.cover-theme-gold .cover-university-line {
+    font-family: 'Cairo', sans-serif;
+    font-size: 13pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 1mm;
+}
+
+.cover-theme-gold .cover-faculty-line {
+    font-family: 'Cairo', sans-serif;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #334155;
+}
+
+/* نصوص الغلاف باللون الأسود الكامل */
+.cover-theme-black .cover-country {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15.5pt;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: 0.5px;
+}
+
+.cover-theme-black .cover-ministry {
+    font-family: 'Cairo', sans-serif;
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: #000000;
+}
+
+.cover-theme-black .cover-top-line {
+    width: 120px;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, #000000, transparent);
+    margin: 3mm auto 0 auto;
+}
+
+.cover-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: auto 0;
+    padding: 5mm 0;
+}
+
+.cover-theme-black .cover-type-label {
+    font-family: 'Cairo', sans-serif;
+    font-size: 13pt;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 5mm;
+    letter-spacing: 0.5px;
+}
+
+.cover-theme-black .cover-main-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 24pt;
+    font-weight: 900;
+    color: #000000;
+    line-height: 1.35;
+    margin-bottom: 3.5mm;
+    max-width: 95%;
+}
+
+.cover-theme-black .cover-subtitle {
+    font-family: 'Amiri', serif;
+    font-size: 15pt;
+    font-style: italic;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 6mm;
+    max-width: 90%;
+}
+
+.cover-theme-black .cover-diamond-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    gap: 8px;
+    margin: 0 auto;
+}
+
+.cover-theme-black .cover-diamond-line {
+    flex-grow: 1;
+    height: 1.5px;
+    background-color: #000000;
+}
+
+.cover-theme-black .cover-diamond-icon {
+    color: #000000;
+    font-size: 11pt;
+}
+
+.cover-footer {
+    width: 100%;
+    margin-top: auto;
+}
+
+.cover-info-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    text-align: right;
+    margin-bottom: 8mm;
+    padding: 0 4mm;
+}
+
+.cover-info-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.cover-theme-black .cover-info-heading {
+    font-family: 'Cairo', sans-serif;
+    font-size: 12.5pt;
+    font-weight: 800;
+    color: #000000;
+    margin-bottom: 3mm;
+}
+
+.cover-theme-black .cover-info-names {
+    display: flex;
+    flex-direction: column;
+    gap: 1.8mm;
+    font-family: 'Cairo', sans-serif;
+    font-size: 10.8pt;
+    color: #000000;
+    font-weight: 700;
+}
+
+.cover-theme-black .cover-academic-year {
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-size: 12.5pt;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: 0.5px;
+    padding-top: 3.5mm;
+    border-top: 1.5px solid #000000;
+}
+
+/* نصوص الغلاف الذهبي (في حال اختياره) */
+.cover-theme-gold .cover-country { font-family: 'Cairo', sans-serif; font-size: 15pt; font-weight: 800; color: #0f172a; }
+.cover-theme-gold .cover-ministry { font-family: 'Cairo', sans-serif; font-size: 11.5pt; font-weight: 600; color: #475569; }
+.cover-theme-gold .cover-top-line { width: 100px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 3mm auto 0 auto; }
+.cover-theme-gold .cover-type-label { font-family: 'Cairo', sans-serif; font-size: 12pt; font-weight: 600; color: #b48c36; margin-bottom: 5mm; }
+.cover-theme-gold .cover-main-title { font-family: 'Cairo', sans-serif; font-size: 24pt; font-weight: 900; color: #0f2952; line-height: 1.35; margin-bottom: 3.5mm; }
+.cover-theme-gold .cover-subtitle { font-family: 'Amiri', serif; font-size: 15pt; font-style: italic; color: #334155; margin-bottom: 6mm; }
+.cover-theme-gold .cover-diamond-divider { display: flex; align-items: center; justify-content: center; width: 160px; gap: 8px; margin: 0 auto; }
+.cover-theme-gold .cover-diamond-line { flex-grow: 1; height: 1px; background-color: var(--gold); }
+.cover-theme-gold .cover-diamond-icon { color: var(--gold); font-size: 10pt; }
+.cover-theme-gold .cover-info-heading { font-family: 'Cairo', sans-serif; font-size: 12pt; font-weight: 800; color: #0f172a; margin-bottom: 3mm; }
+.cover-theme-gold .cover-info-names { display: flex; flex-direction: column; gap: 1.8mm; font-family: 'Cairo', sans-serif; font-size: 10.5pt; color: #334155; font-weight: 600; }
+.cover-theme-gold .cover-academic-year { text-align: center; font-family: 'Cairo', sans-serif; font-size: 12.5pt; font-weight: 800; color: #0f2952; padding-top: 3mm; border-top: 1px solid #e2e8f0; }
+
+/* أنماط العناوين داخل الورقة */
+.doc-mabhath-title {
+    font-family: inherit;
+    font-size: 15.5pt;
+    font-weight: 800;
+    text-align: center;
+    margin: 0 0 4mm 0;
+    padding-bottom: 2mm;
+    border-bottom: 2px solid #222;
+    color: #000;
+}
+
+.doc-matlab-title {
+    font-family: inherit;
+    font-size: 13.5pt;
+    font-weight: 700;
+    margin: 3mm 0 2.5mm 0;
+    padding-right: 3mm;
+    border-right: 4px solid #222;
+    color: #000;
+    text-decoration: underline;
+    text-underline-offset: 4.5px;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: #000;
+}
+
+.doc-subtitle {
+    font-family: inherit;
+    font-size: 11.8pt;
+    font-weight: 700;
+    margin: 2mm 0 1.2mm 0;
+    color: #111;
+    overflow-wrap: break-word;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: #111;
+}
+
+.doc-paragraph {
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+    margin: 0 0 2.2mm 0;
+    text-indent: 8mm;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.doc-ul {
+    margin: 1.5mm 0 2.5mm 0;
+    padding-right: 6.5mm;
+    padding-left: 0;
+    list-style-type: disc !important;
+    list-style-position: outside;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+}
+
+.doc-ul li, .doc-li {
+    list-style-type: disc !important;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+    margin-bottom: 1.8mm;
+    text-align: justify;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.doc-ul li::marker, .doc-li::marker {
+    color: #1e293b;
+    font-size: 1.15em;
+}
+
+.doc-li strong {
+    font-weight: 700;
+    color: #111;
+}
+
+/* شريط معلومات الطالب */
+.doc-student-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5mm;
+    font-family: 'Cairo', sans-serif;
+    font-size: 10pt;
+    font-weight: 700;
+    border-bottom: 1px solid #bbb;
+    padding-bottom: 1.2mm;
+    flex-shrink: 0;
+}
+
+/* الهوامش السفلية في أسفل الصفحة */
+.doc-footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: 1.5mm;
+}
+
+.doc-separator {
+    width: 38%;
+    border: 0;
+    border-top: 1px solid #333;
+    margin: 0 0 1.5mm 0;
+}
+
+.doc-footnotes {
+    font-size: 9pt;
+    line-height: 1.42;
+    font-family: 'Amiri', serif;
+    color: #222;
+}
+
+.doc-footnotes p {
+    font-size: 9pt;
+    line-height: 1.42;
+    margin: 0 0 0.8mm 0;
+    text-indent: 0;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.doc-page-number {
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-size: 10pt;
+    font-weight: 700;
+    margin-top: 1.5mm;
+    color: #333;
+}
+
+/* ==============================================================
+   أنماط صفحة خطة البحث / الفهرس (Research Plan / Table of Contents)
+   ============================================================== */
+.plan-header {
+    text-align: center;
+    margin-bottom: 5mm;
+    padding-bottom: 2.5mm;
+    border-bottom: 2px solid #222;
+}
+
+.plan-main-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 18pt;
+    font-weight: 900;
+    color: #000;
+    letter-spacing: 1px;
+    margin-bottom: 1mm;
+}
+
+.plan-research-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #333;
+}
+
+.plan-items-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+}
+
+.plan-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 11.2pt;
+    line-height: 1.45;
+}
+
+.plan-row.main-row {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 800;
+    font-size: 11.8pt;
+    color: #000;
+    margin-top: 2.5mm;
+    padding-bottom: 0.8mm;
+    border-bottom: 1px dashed #aaa;
+}
+
+.plan-row.sub-row {
+    padding-right: 7mm;
+    font-size: 10.8pt;
+    color: #222;
+}
+
+.plan-row-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plan-row-dots {
+    flex-grow: 1;
+    border-bottom: 1.5px dotted #666;
+    margin: 0 6px 4px 6px;
+}
+
+.plan-row-page {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 700;
+    font-size: 10pt;
+    color: #333;
+    min-width: 32px;
+    text-align: left;
+}
+
+/* نمط بطاقة القراءة بعمودين */
+.two-columns-mode .page-content {
+    column-count: 2;
+    column-gap: 8mm;
+    column-rule: 1px dashed #bbb;
+}
+
+.two-columns-mode section {
+    break-inside: avoid;
+    margin-bottom: 4mm;
+}
+

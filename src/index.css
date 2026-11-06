@@ -1,0 +1,293 @@
+@import 'tailwindcss';
+@import './styles/paper.css';
+
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif;
+  --font-serif: 'Amiri', 'Traditional Arabic', serif;
+  --font-cairo: 'Cairo', sans-serif;
+
+  /* لوحة ألوان الهوية البصرية: درجات الحبر الفاخر والزجاج المصنفر النظيف */
+  --color-ink: #18181b;
+  --color-ink-2: #27272a;
+  --color-muted: #71717a;
+  --color-faint: #a1a1aa;
+  --color-paper: #ffffff;
+  --color-desk: #f4f4f5;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+
+  --color-brand-50: #f4f4f5;
+  --color-brand-100: #e4e4e7;
+  --color-brand-200: #d4d4d8;
+  --color-brand-500: #27272a;
+  --color-brand-600: #18181b;
+  --color-brand-700: #09090b;
+  --color-magenta: #18181b;
+
+  --color-ok: #0d7a55;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #a35a00;
+  --color-warn-soft: #fdf1df;
+  --color-danger: #c0362c;
+  --color-danger-soft: #fbe9e7;
+
+  --shadow-card: 0 1px 0 rgba(27, 21, 48, 0.04), 0 1px 3px rgba(27, 21, 48, 0.06);
+  --shadow-pop: 0 12px 40px -8px rgba(27, 21, 48, 0.28), 0 2px 6px rgba(27, 21, 48, 0.08);
+
+  --animate-rise: rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade: fade 0.2s ease-out both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --color-ink: #f4f4f5;
+      --color-ink-2: #e4e4e7;
+      --color-muted: #a1a1aa;
+      --color-faint: #71717a;
+      --color-paper: #09090b;
+      --color-desk: #09090b;
+      --color-line: rgba(255, 255, 255, 0.1);
+      --color-line-strong: rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  :root.dark,
+  html.dark,
+  .dark {
+    color-scheme: dark;
+    --color-ink: #f4f4f5;
+    --color-ink-2: #e4e4e7;
+    --color-muted: #a1a1aa;
+    --color-faint: #71717a;
+    --color-paper: #09090b;
+    --color-desk: #09090b;
+    --color-line: rgba(255, 255, 255, 0.1);
+    --color-line-strong: rgba(255, 255, 255, 0.15);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: #09090b;
+      color: #f4f4f5;
+    }
+  }
+  .dark body,
+  body.dark {
+    background: #09090b;
+    color: #f4f4f5;
+  }
+  ::selection {
+    background: #e4e4e7;
+    color: #18181b;
+  }
+  :focus-visible {
+    outline: 2px solid #18181b;
+    outline-offset: 2px;
+  }
+  input[type='range'] {
+    accent-color: #18181b;
+  }
+  @media (prefers-color-scheme: dark) {
+    input[type='range'] {
+      accent-color: #ffffff;
+    }
+  }
+}
+
+@layer components {
+  .field {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--color-line-strong);
+    background: #fff;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-ink);
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+  }
+  .field::placeholder {
+    color: var(--color-faint);
+  }
+  .field:hover {
+    border-color: #a1a1aa;
+  }
+  .field:focus {
+    outline: none;
+    border-color: #18181b;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    .field {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #f4f4f5;
+    }
+    .field:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .field:focus {
+      border-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+    }
+  }
+  .dark .field {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #f4f4f5;
+  }
+  .dark .field:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  .dark .field:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+  }
+  .field:disabled {
+    background: #f4f2ee;
+    color: var(--color-faint);
+    cursor: not-allowed;
+  }
+  select.field,
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 0.7rem center;
+    padding-left: 2.2rem;
+    color-scheme: dark;
+  }
+  select.field option,
+  select option {
+    background-color: #18181b;
+    color: #f4f4f5;
+  }
+  html:not(.dark) select.field,
+  html:not(.dark) select {
+    color-scheme: light;
+  }
+  html:not(.dark) select.field option,
+  html:not(.dark) select option {
+    background-color: #ffffff;
+    color: #18181b;
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #d3cdc1 transparent;
+  }
+}
+
+/* سطح المعاينة: ظل ورقي ناعم بدلاً من الظل الداكن الأصلي */
+.doc-stage .a4-page {
+  box-shadow:
+    0 1px 1px rgba(27, 21, 48, 0.06),
+    0 8px 24px -6px rgba(27, 21, 48, 0.18),
+    0 24px 48px -24px rgba(27, 21, 48, 0.22);
+  border-radius: 2px;
+  scroll-margin-top: 72px;
+}
+.page-flash {
+  animation: page-flash 1.2s ease-out;
+}
+@keyframes page-flash {
+  0% { outline: 3px solid rgba(116, 68, 242, 0.7); outline-offset: 6px; }
+  100% { outline: 3px solid rgba(116, 68, 242, 0); outline-offset: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* الطباعة / PDF: إظهار صفحات A4 فقط دون أي تحجيم */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-shell,
+  .print-shell > :not(.no-print),
+  .preview-pane,
+  .preview-scroll {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    border: 0 !important;
+  }
+  .doc-stage {
+    zoom: 1 !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .doc-stage .a4-page {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 auto !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  .doc-stage .a4-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+}
