@@ -6,6 +6,7 @@ import { StarRating } from '../ui/star-rating';
 import { Button } from '../ui/Button';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
+import { insertSupabaseReview } from '../../lib/supabase';
 
 const RATING_LABELS: Record<number, string> = {
   5: 'ممتاز جداً! سعداء بأن المنصة نالت إعجابك وفادتك 🌟',
@@ -85,7 +86,18 @@ export function FeedbackModal() {
       // منع التكرار وإضافة التقييم الجديد في المقدمة
       const filtered = Array.isArray(existingReviews) ? existingReviews.filter((r: { id?: string }) => r?.id !== reviewItem.id) : [];
       localStorage.setItem('bahtak_all_reviews', JSON.stringify([reviewItem, ...filtered]));
-      window.dispatchEvent(new CustomEvent('bahtak:review-added'));
+
+      // إرسال التقييم مباشرة إلى قاعدة بيانات Supabase ليظهر لجميع الناس في العالم
+      insertSupabaseReview({
+        name: finalName || 'طالب باحث',
+        university: finalUniversity || 'جامعة جزائرية',
+        rating,
+        comment: finalComment,
+        city: 'الجزائر',
+        country: 'DZ',
+      }).finally(() => {
+        window.dispatchEvent(new CustomEvent('bahtak:review-added'));
+      });
     } catch {
       /* ignore */
     }
