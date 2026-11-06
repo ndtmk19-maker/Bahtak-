@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { ArrowUpLeft, LayoutTemplate, Presentation, ListChecks } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useUI } from '../../state/UIContext';
@@ -7,15 +6,9 @@ import { session } from '../../lib/storage';
 
 const SEEN_KEY = 'charihatek_ad_seen';
 
-/** نافذة تعريف بمنصة «شريحتك» الشريكة — تظهر مرة واحدة في كل جلسة */
+/** نافذة تعريف بمنصة «شريحتك» الشريكة */
 export function PartnerModal() {
   const { partnerOpen, setPartnerOpen } = useUI();
-
-  useEffect(() => {
-    if (session.get(SEEN_KEY) === 'true') return;
-    const t = setTimeout(() => setPartnerOpen(true), 1200);
-    return () => clearTimeout(t);
-  }, [setPartnerOpen]);
 
   const close = () => {
     session.set(SEEN_KEY, 'true');
