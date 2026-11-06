@@ -4,11 +4,11 @@
 // باستخدام مفتاحه الشخصي؛ لا يوجد خادم وسيط.
 
         var FAST_GEMINI_MODELS = [
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
-            'gemini-3.5-flash-lite',
-            'gemini-3.8-flash-lite',
-            'gemini-3.8-flash'
+            'gemini-2.0-flash',
+            'gemini-1.5-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-1.5-flash-8b',
+            'gemini-2.5-flash'
         ];
 
         // مصفوفة المعايرة الهندسية الصارمة لحجم البحث وعدد الصفحات المتولدة
