@@ -290,7 +290,7 @@ function AiMode() {
 }
 
 function AiProgress() {
-  const { run } = useConverter();
+  const { run, rawText } = useConverter();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!run.running) return;
@@ -298,13 +298,13 @@ function AiProgress() {
     return () => clearInterval(t);
   }, [run.running]);
   const seconds = run.duration ?? (now - run.startedAt) / 1000;
-  const stageText = run.stage === 'plan' ? 'الخطوة 1: صياغة خطة وهيكل البحث...' : run.stage === 'writing' ? 'الخطوة 2: كتابة المقدمة والمباحث والخاتمة بالتوازي...' : 'اكتمل البحث وتم بناء صفحات A4.';
+  const stageText = run.stage === 'plan' ? 'الخطوة 1: صياغة خطة وهيكل البحث (ثانية واحدة)...' : run.stage === 'writing' ? 'الخطوة 2: توليد نصوص المباحث بالتوازي والبث اللحظي...' : 'اكتمل البحث وتم بناء وتنسيق صفحات A4.';
 
   return (
     <div className="animate-rise overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md shadow-xs" aria-live="polite">
       <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 px-3.5 py-2.5">
         <div className="flex items-center gap-2 text-[0.8rem] font-semibold text-zinc-900 dark:text-zinc-100">
-          {run.running ? <Loader2 className="size-4 animate-spin text-zinc-800 dark:text-zinc-200" /> : <CircleCheck className="size-4 text-zinc-900 dark:text-white" />}
+          {run.running ? <Loader2 className="size-4 animate-spin text-zinc-800 dark:text-zinc-200" /> : <CircleCheck className="size-4 text-emerald-500" />}
           {stageText}
         </div>
         <span className="rounded-md border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 font-mono text-[0.74rem] font-bold text-zinc-900 dark:text-white tabular-nums">{seconds.toFixed(1)} ث</span>
@@ -325,10 +325,29 @@ function AiProgress() {
           </li>
         ))}
       </ul>
+
+      {run.running && !!rawText && (
+        <div className="border-t border-black/10 dark:border-white/10 p-2.5 bg-black/[0.02] dark:bg-white/[0.02]">
+          <div className="flex items-center justify-between mb-1.5 text-[0.72rem] font-semibold text-zinc-600 dark:text-zinc-300">
+            <span className="flex items-center gap-1.5">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
+              </span>
+              بث مباشر متدفق لحظياً:
+            </span>
+            <span className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">{run.words.toLocaleString('ar')} كلمة</span>
+          </div>
+          <div className="max-h-24 overflow-hidden rounded-lg bg-black/[0.03] dark:bg-white/[0.04] p-2 text-[0.74rem] font-serif leading-relaxed text-zinc-700 dark:text-zinc-300 select-none line-clamp-3" dir="rtl">
+            {rawText.slice(-280)}...
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-2 border-t border-black/10 dark:border-white/10 px-3.5 py-2 text-[0.72rem] text-zinc-500 dark:text-zinc-400">
-        <span className="tabular-nums">بث مباشر: {run.words.toLocaleString('ar')} كلمة</span>
+        <span className="tabular-nums font-semibold">إجمالي الكلمات: {run.words.toLocaleString('ar')} كلمة</span>
         <span>
-          النموذج: <strong className="font-mono text-zinc-800 dark:text-zinc-200">{run.model}</strong>
+          النموذج النشط: <strong className="font-mono text-zinc-800 dark:text-zinc-200">{run.model}</strong>
         </span>
       </div>
     </div>
