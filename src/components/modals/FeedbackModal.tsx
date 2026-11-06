@@ -18,7 +18,7 @@ const RATING_LABELS: Record<number, string> = {
 };
 
 export function FeedbackModal() {
-  const { feedbackOpen, setFeedbackOpen, toast } = useUI();
+  const { feedbackOpen, setFeedbackOpen } = useUI();
   const { doc } = useDocument();
   const [name, setName] = useState<string>('');
   const [university, setUniversity] = useState<string>('');
@@ -103,14 +103,10 @@ export function FeedbackModal() {
     }
 
     setSubmitted(true);
-    toast('شكراً لتقييمك!', {
-      description: 'تم تسجيل رأيك بنجاح وسيظهر في قائمة تقييمات المنصة.',
-      tone: 'success',
-    });
 
     setTimeout(() => {
       close();
-    }, 2400);
+    }, 2200);
   };
 
   return (

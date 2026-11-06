@@ -38,7 +38,7 @@ export function Toaster() {
   return createPortal(
     <div className="no-print pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex flex-col items-center gap-2 px-4 lg:bottom-6" aria-live="polite" dir="rtl">
       {toasts.map((t) => (
-        <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-md animate-rise items-start gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-pop">
+        <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-md animate-rise items-start gap-3 rounded-2xl bg-zinc-900 border border-white/10 px-4 py-3 text-white shadow-xl backdrop-blur-md">
           <span className={`mt-0.5 ${t.tone === 'error' ? 'text-red-400' : t.tone === 'info' ? 'text-zinc-300' : 'text-emerald-400'}`}>
             {t.tone === 'error' ? <CircleAlert className="size-5" /> : t.tone === 'info' ? <Info className="size-5" /> : <CircleCheck className="size-5" />}
           </span>
