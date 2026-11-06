@@ -15,14 +15,14 @@ export type AiLength = 'short' | 'medium' | 'giant' | 'huge';
 export const AI_PROVIDERS: Record<AiProvider, { label: string; hint: string; keyUrl?: string; keyLabel?: string; placeholder: string }> = {
   gemini: {
     label: 'Google Gemini',
-    hint: 'Gemini 2.5 Flash / 2.0 Flash — فائق السرعة ومجاني (موصى به للطلبة)',
+    hint: 'Gemini 2.0 Flash / 1.5 Flash — فائق السرعة ومجاني (موصى به للطلبة)',
     keyUrl: 'https://aistudio.google.com/app/apikey',
     keyLabel: 'احصل على مفتاح Gemini مجاني في 30 ثانية',
     placeholder: 'ألصق مفتاح Gemini هنا (يبدأ بـ AIzaSy...)',
   },
   groq: {
     label: 'Groq',
-    hint: 'Llama 3.3 70B & 8B Instant — سرعة خيالية',
+    hint: 'Llama 3.3 70B & 8B Instant — سرعة استثنائية',
     keyUrl: 'https://console.groq.com/keys',
     keyLabel: 'صفحة مفاتيح Groq المجانية',
     placeholder: 'ألصق مفتاح Groq هنا (يبدأ بـ gsk_...)',
@@ -100,21 +100,15 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   emit();
   o.onStage('plan');
 
-  // 1. الخطة بصيغة JSON سريعة ومضبوطة (في حدود ثانية إلى ثانيتين مع مهلة حماية)
+  // 1. توليد خطة البحث الحقيقية بصيغة JSON من النموذج
   let planRaw = '';
   try {
-    const planPromise = call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg), null, {
+    planRaw = await call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg), null, {
       temperature: 0.25,
-      disableThinking: true,
-      maxTokens: 850,
-      jsonMode: true,
+      maxTokens: 1200,
     });
-    const timeoutPromise = new Promise<string>((_, reject) =>
-      setTimeout(() => reject(new Error('Plan timeout')), 7000),
-    );
-    planRaw = await Promise.race([planPromise, timeoutPromise]);
   } catch (errPlan) {
-    console.warn('⚡ استخدام الخطة البديلة الذكية لتسريع الاستجابة:', errPlan);
+    console.warn('تعذر توليد الخطة بالنموذج، الاعتماد على الخطة المنهجية الذكية:', errPlan);
     planRaw = '';
   }
 
@@ -146,18 +140,18 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   emit();
   o.onStage('writing');
 
-  // 2. التوليد المتوازي لجميع المباحث بالتزامن في نفس اللحظة عبر Promise.all
+  // 2. التوليد المتوازي الحقيقي للمقدمة والمباحث والخاتمة بالتزامن عبر Promise.all
   let intro = '';
   const mbTexts: string[] = new Array(p.mabahith.length).fill('');
   let conclusion = '';
 
   const refreshDraft = () => {
     const total = countWords(intro) + countWords(conclusion) + mbTexts.reduce((a, t) => a + countWords(t), 0);
-    let draft = `بحث بعنوان: ${p.title}\n\n` + (intro ? intro.trim() + '\n\n' : 'المقدمة:\n(جاري البث المباشر بالتوازي...)\n\n');
+    let draft = `بحث بعنوان: ${p.title}\n\n` + (intro ? intro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
     p.mabahith.forEach((mb, i) => {
-      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري كتابة المتن والمطالب بالتوازي...)\n\n`;
+      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
-    draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري استخلاص النتائج وقائمة المصادر والمراجع...)';
+    draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
     o.onDraft(draft, total);
   };
 
@@ -182,44 +176,29 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
 
   // مهمة المقدمة
   const tIntro = track('intro', (v) => (intro = v));
-  const taskIntro = call(buildIntroPrompt(p, cfg), tIntro.onChunk, { temperature: 0.35, disableThinking: true, maxTokens: cfg.introMaxTokens })
-    .then(tIntro.done)
-    .catch((err) => {
-      console.warn('Intro fallback recovery:', err);
-      const fallbackIntro = `المقدمة:\nتتناول هذه الدراسة الموسومة بـ «${p.title}» إشكالية مركزية تدور حول: ${p.problematic || 'تأصيل الأبعاد المفاهيمية والتطبيقية لهذا الحقل العلمي'}. وتكمن أهمية البحث في تقديم قراءة وصفية تحليلية رصينة تربط الإطار النظري بالممارسات العملية وفق ${p.methodology || 'المنهج الوصفي التحليلي'}.\n\nالهوامش:\n^1 انظر المرجع المنهجي العام، دار الفكر للنشر والتوزيع، الجزائر، 2024، ص 14.\n^2 دراسة في المنهجية الأكاديمية، مجلة العلوم الاجتماعية، المجلد 8، العدد 2، 2023، ص 45.`;
-      tIntro.done(fallbackIntro);
-      return fallbackIntro;
-    });
+  const taskIntro = call(buildIntroPrompt(p, cfg), tIntro.onChunk, {
+    temperature: 0.35,
+    maxTokens: cfg.introMaxTokens,
+  }).then(tIntro.done, tIntro.fail);
 
-  // مهام المباحث المتوازية بالتزامن
+  // مهام المباحث المتوازية
   const perMb = Math.round(cfg.mabahithWords / (p.mabahith.length || 1));
   const taskMbs = p.mabahith.map((mb, idx) => {
     const t = track(`mb${idx}`, (v) => (mbTexts[idx] = v));
-    return call(buildMabhathPrompt(p, mb, perMb, cfg), t.onChunk, { temperature: 0.35, disableThinking: true, maxTokens: cfg.mabhathMaxTokens })
-      .then(t.done)
-      .catch((err) => {
-        console.warn(`Mabhath ${idx} fallback recovery:`, err);
-        const matalibFallback = (mb.matalib || []).map((mt, mIdx) =>
-          `المطلب ${mIdx === 0 ? 'الأول' : mIdx === 1 ? 'الثاني' : 'الثالث'}: ${mt.title || 'التأصيل والمفاهيم الجوهرية'}\nتستند دراسة هذا المحور إلى استعراض المفاهيم والمحددات الأساسية التي تؤطر الموضوع وتحلل أبعاده الميدانية بدقة وتناسق.\n\nالهوامش:\n^1 المرجع الأكاديمي المتخصص، ديوان المطبوعات الجامعية، 2023، ص 22.`
-        ).join('\n\n');
-        const fallbackMb = `${mb.title}\n\n${matalibFallback}`;
-        t.done(fallbackMb);
-        return fallbackMb;
-      });
+    return call(buildMabhathPrompt(p, mb, perMb, cfg), t.onChunk, {
+      temperature: 0.35,
+      maxTokens: cfg.mabhathMaxTokens,
+    }).then(t.done, t.fail);
   });
 
   // مهمة الخاتمة والمراجع
   const tConc = track('conclusion', (v) => (conclusion = v));
-  const taskConc = call(buildConclusionPrompt(p, cfg), tConc.onChunk, { temperature: 0.35, disableThinking: true, maxTokens: cfg.conclusionMaxTokens })
-    .then(tConc.done)
-    .catch((err) => {
-      console.warn('Conclusion fallback recovery:', err);
-      const fallbackConc = `الخـاتـمـــة:\nتوصلت هذه الدراسة حول «${p.title}» إلى جملة من النتائج الجوهرية التي تؤكد تكامل الأبعاد النظرية والتطبيقية، مع التوصية بمواصلة البحث الميداني وتطوير استراتيجيات عمل مستدامة.\n\nقائمة المصادر والمراجع:\nأولاً: الكتب والمؤلفات:\n[1] د. أحمد بن محمد، مناهج البحث والتحليل العلمي، دار الفكر العربي، القاهرة، 2023.\n[2] د. سمير عبد القادر، الدراسات التطبيقية المعاصرة، ديوان المطبوعات الجامعية، الجزائر، 2024.\nثانياً: المجلات والدوريات:\n[3] المجلة الجزائرية للأبحاث والدراسات، المجلد 12، العدد 3، 2023، ص 75-92.`;
-      tConc.done(fallbackConc);
-      return fallbackConc;
-    });
+  const taskConc = call(buildConclusionPrompt(p, cfg), tConc.onChunk, {
+    temperature: 0.35,
+    maxTokens: cfg.conclusionMaxTokens,
+  }).then(tConc.done, tConc.fail);
 
-  // التنفيذ المتوازي لكافة الأقسام في نفس اللحظة
+  // تنفيذ جميع الأقسام بالتوازي التام
   await Promise.all([taskIntro, ...taskMbs, taskConc]);
   o.onStage('done');
 
