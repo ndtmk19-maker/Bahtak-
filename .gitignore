@@ -15,6 +15,7 @@ logs/
 
 # Android / IDE
 *.apk
+!public/Bahtak.apk
 *.aab
 .idea/
 android/.idea/

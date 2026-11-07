@@ -4,8 +4,8 @@ export const PLACEHOLDER_TITLE = '[عنوان البحث هنا]';
 
 export const LINKS = {
   charihatek: 'https://charihatek.netlify.app/',
-  // ملف التطبيق مستضاف على النطاق الرسمي (15MB) لتجنب تضخيم المستودع
-  apk: 'https://bahtek.site/Bahtak.apk',
+  // ملف التطبيق المباشر (APK)
+  apk: '/Bahtak.apk',
   instagram: 'https://instagram.com/mk.abdouuu',
   instagramHandle: 'mk.abdouuu',
   tutorialVideo: 'https://www.youtube.com/shorts/uXaSKzTdk1s',
