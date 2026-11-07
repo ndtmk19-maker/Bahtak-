@@ -6,6 +6,7 @@ import {
   buildIntroPrompt,
   buildMabhathPrompt,
   buildConclusionPrompt,
+  cleanIntroText,
   fetchAiText,
 } from './aiEngine';
 
@@ -146,8 +147,9 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   let conclusion = '';
 
   const refreshDraft = () => {
-    const total = countWords(intro) + countWords(conclusion) + mbTexts.reduce((a, t) => a + countWords(t), 0);
-    let draft = `بحث بعنوان: ${p.title}\n\n` + (intro ? intro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
+    const cleanedIntro = cleanIntroText(intro);
+    const total = countWords(cleanedIntro) + countWords(conclusion) + mbTexts.reduce((a, t) => a + countWords(t), 0);
+    let draft = `بحث بعنوان: ${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
     p.mabahith.forEach((mb, i) => {
       draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
@@ -177,8 +179,26 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   // مهلة مساعدة لتفادي التزاحم الفجائي على الـ API في نفس المللي ثانية
   const waitMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // مهمة المقدمة (تبدأ فوراً)
-  const tIntro = track('intro', (v) => (intro = v));
+  // مهمة المقدمة (تبدأ فوراً) مع تنقية الإشكالية واستبعاد أي تساؤلات فرعية
+  const tIntro = {
+    onChunk: (_c: string, acc: string) => {
+      intro = acc;
+      patch('intro', { words: countWords(cleanIntroText(acc)) });
+      refreshDraft();
+    },
+    done: (res: string) => {
+      const cleaned = cleanIntroText(res);
+      intro = cleaned;
+      patch('intro', { status: 'done', words: countWords(cleaned), seconds: elapsed() });
+      refreshDraft();
+      return cleaned;
+    },
+    fail: (err: unknown) => {
+      console.warn('Section intro failed:', err);
+      patch('intro', { status: 'error' });
+      throw err;
+    },
+  };
   const taskIntro = call(buildIntroPrompt(p, cfg), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
@@ -209,9 +229,10 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   await Promise.all([taskIntro, ...taskMbs, taskConc]);
   o.onStage('done');
 
+  const cleanedIntro = cleanIntroText(intro);
   const finalText =
     `بحث بعنوان: ${p.title.replace(/^#+\s*/, '').trim()}\n\n` +
-    cleanSection(intro) +
+    cleanSection(cleanedIntro) +
     '\n\n' +
     mbTexts.map(cleanSection).join('\n\n') +
     '\n\n' +
