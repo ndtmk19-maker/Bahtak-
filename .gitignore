@@ -21,6 +21,7 @@ logs/
 android/.idea/
 android/app/build/
 android/build/
+demo-recordings/
 # client-initiated single-repo workspace layout (make's `Path: "."` spec) the
 # repo root IS the workspace root, so these land inside this repo rather than
 # beside it.
