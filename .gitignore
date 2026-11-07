@@ -13,7 +13,13 @@ logs/
 .tmp-*
 /.figma/design-context/
 
-# Platform-managed agentplat state, not project source. In the
+# Android / IDE
+*.apk
+*.aab
+.idea/
+android/.idea/
+android/app/build/
+android/build/
 # client-initiated single-repo workspace layout (make's `Path: "."` spec) the
 # repo root IS the workspace root, so these land inside this repo rather than
 # beside it.
