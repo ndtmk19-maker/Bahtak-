@@ -36,17 +36,17 @@ export const WIZARD_STEPS: WizardStepMeta[] = [
   },
   {
     id: 2,
-    label: 'توليد البحث',
-    title: 'طريقة إدخال وتوليد البحث',
-    desc: 'اختر بين الصياغة التلقائية بالذكاء الاصطناعي لموضوعك أو لصق مسودة جاهزة لتحليلها وتنسيقها.',
-    icon: Wand2,
-  },
-  {
-    id: 3,
     label: 'التنسيق والمظهر',
     title: 'الخطوط والإطارات والتخطيط',
     desc: 'اضبط نوع الخط وحجمه وتباعد الأسطر ونمط الإطار وشريط معلومات الطالب.',
     icon: SlidersHorizontal,
+  },
+  {
+    id: 3,
+    label: 'توليد البحث',
+    title: 'طريقة إدخال وتوليد البحث',
+    desc: 'اختر بين الصياغة التلقائية بالذكاء الاصطناعي لموضوعك أو لصق مسودة جاهزة لتحليلها وتنسيقها.',
+    icon: Wand2,
   },
   {
     id: 4,
@@ -194,8 +194,8 @@ export function MultiStepWizard() {
             transition={{ duration: 0.24, ease: 'easeOut' }}
           >
             {wizardStep === 1 && <Step2Cover />}
-            {wizardStep === 2 && <Step1Input />}
-            {wizardStep === 3 && <Step4Style />}
+            {wizardStep === 2 && <Step4Style />}
+            {wizardStep === 3 && <Step1Input />}
             {wizardStep === 4 && <Step5Preview />}
           </motion.div>
         </AnimatePresence>

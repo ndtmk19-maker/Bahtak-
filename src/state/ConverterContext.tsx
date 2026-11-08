@@ -145,9 +145,9 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
           description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى خطوة التنسيق والمظهر...`,
         });
       }
-      // الانتقال التلقائي للخطوة الثالثة: التنسيق والمظهر
+      // الانتقال التلقائي للخطوة الرابعة: المعاينة والإنهاء
       setTimeout(() => {
-        ui.setWizardStep(3);
+        ui.setWizardStep(4);
       }, 700);
     } catch (err) {
       setRun((r) => ({ ...r, running: false, stage: 'idle' }));
