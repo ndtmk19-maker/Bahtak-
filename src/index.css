@@ -269,6 +269,8 @@
   .print-shell,
   .print-shell > :not(.no-print),
   .preview-pane,
+  .preview-pane.hidden,
+  div.preview-pane,
   .preview-scroll {
     display: block !important;
     position: static !important;

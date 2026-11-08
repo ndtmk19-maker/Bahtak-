@@ -49,6 +49,9 @@ interface UIApi {
   setPartnerOpen: (v: boolean) => void;
   feedbackOpen: boolean;
   setFeedbackOpen: (v: boolean) => void;
+  iosModal: { open: boolean; mode: 'guide' | 'inApp' };
+  openIOSModal: (mode: 'guide' | 'inApp') => void;
+  closeIOSModal: () => void;
   /** يطلب من المعاينة التمرير إلى صفحة محددة */
   focusPage: (domId: string) => void;
 }
@@ -84,6 +87,15 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [videoOpen, setVideoOpen] = useState(false);
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [iosModal, setIosModal] = useState<{ open: boolean; mode: 'guide' | 'inApp' }>({ open: false, mode: 'guide' });
+
+  const openIOSModal = useCallback((mode: 'guide' | 'inApp') => {
+    setIosModal({ open: true, mode });
+  }, []);
+
+  const closeIOSModal = useCallback(() => {
+    setIosModal((prev) => ({ ...prev, open: false }));
+  }, []);
 
   useEffect(() => {
     const handleAfterPrint = () => {
@@ -158,9 +170,12 @@ export function UIProvider({ children }: { children: ReactNode }) {
       setPartnerOpen,
       feedbackOpen,
       setFeedbackOpen,
+      iosModal,
+      openIOSModal,
+      closeIOSModal,
       focusPage,
     }),
-    [showLanding, setShowLanding, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, focusPage],
+    [showLanding, setShowLanding, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, focusPage],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

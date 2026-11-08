@@ -9,12 +9,12 @@ import { downloadWordDocument } from '../lib/wordExport';
 import { imageToDataUrl } from '../lib/image';
 import { LINKS } from '../data/defaults';
 import { SectionNav, useMediaQuery } from './Navigation';
-import { triggerPrintDocument } from '../lib/printDocument';
+import { isIOS, isInAppBrowser, triggerPrintDocument } from '../lib/printDocument';
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery('(min-width: 1280px)');
   const { doc, saveStatus } = useDocument();
-  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen } = useUI();
+  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen, openIOSModal } = useUI();
   const resetApp = useResetApp();
   const [exporting, setExporting] = useState(false);
 
@@ -38,10 +38,16 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
 
   const print = () => {
     setMobileView('preview');
-    // مهلة قصيرة لضمان رسم المعاينة قبل فتح نافذة الطباعة
-    setTimeout(() => {
-      triggerPrintDocument(doc.coverState.title);
-    }, 120);
+    // استدعاء متزامن ومباشر دون تأخير زمني لضمان فتح نافذة الطباعة في سفاري iOS
+    const res = triggerPrintDocument(doc.coverState.title);
+    if (res.inAppBrowser) {
+      openIOSModal('inApp');
+    } else if (isIOS()) {
+      toast('طريقة حفظ الـ PDF على الآيفون 📱', {
+        description: 'في نافذة الطباعة: اضغط على زر المشاركة (Share ⎋) في الأعلى ثم اختر "حفظ في الملفات".',
+        tone: 'info',
+      });
+    }
   };
 
   return (

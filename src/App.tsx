@@ -64,6 +64,7 @@ import { VideoModal } from './components/modals/VideoModal';
 import { PartnerModal } from './components/modals/PartnerModal';
 import { ConfirmDialog, Toaster } from './components/modals/Feedback';
 import { FeedbackModal } from './components/modals/FeedbackModal';
+import { IOSPrintModal } from './components/modals/IOSPrintModal';
 import { DocumentProvider } from './state/DocumentContext';
 import { UIProvider, useUI } from './state/UIContext';
 import { ConverterProvider } from './state/ConverterContext';
@@ -79,6 +80,7 @@ export default function App() {
             <VideoModal />
             <PartnerModal />
             <FeedbackModal />
+            <IOSPrintModal />
             <ConfirmDialog />
             <Toaster />
           </ConverterProvider>

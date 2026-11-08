@@ -31,11 +31,11 @@ import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
 import { downloadWordDocument } from '../../lib/wordExport';
 import { imageToDataUrl } from '../../lib/image';
-import { triggerPrintDocument } from '../../lib/printDocument';
+import { isIOS, isInAppBrowser, triggerPrintDocument } from '../../lib/printDocument';
 
 export function Step5Preview() {
   const { doc, pagesVersion, addPage } = useDocument();
-  const { toast, setMobileView, setViewMode, setSection, setFeedbackOpen } = useUI();
+  const { toast, setMobileView, setViewMode, setSection, setFeedbackOpen, openIOSModal } = useUI();
   const [exporting, setExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'edit'>('preview');
   const [inlineZoom, setInlineZoom] = useState(0.65);
@@ -63,9 +63,16 @@ export function Step5Preview() {
 
   const print = () => {
     setMobileView('preview');
-    setTimeout(() => {
-      triggerPrintDocument(doc.coverState.title);
-    }, 120);
+    // استدعاء متزامن ومباشر دون تأخير زمني لضمان فتح نافذة الطباعة في سفاري iOS
+    const res = triggerPrintDocument(doc.coverState.title);
+    if (res.inAppBrowser) {
+      openIOSModal('inApp');
+    } else if (isIOS()) {
+      toast('طريقة حفظ الـ PDF على الآيفون 📱', {
+        description: 'في نافذة الطباعة: اضغط على زر المشاركة (Share ⎋) في الأعلى ثم اختر "حفظ في الملفات".',
+        tone: 'info',
+      });
+    }
   };
 
   const finishToClassic = () => {
@@ -172,6 +179,26 @@ export function Step5Preview() {
           >
             طباعة / حفظ كملف PDF
           </Button>
+        </div>
+
+        {/* بطاقة إرشاد وتوجيه سريعة لمستخدمي هواتف آيفون (iOS) */}
+        <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-3.5 text-xs text-zinc-600 dark:text-zinc-300">
+          <div className="flex items-start gap-2.5">
+            <span className="text-base shrink-0">📱</span>
+            <div className="leading-relaxed">
+              <strong className="text-zinc-900 dark:text-white">طريقة حفظ الـ PDF على الآيفون (iOS):</strong>
+              <p className="mt-0.5 text-[0.74rem]">
+                في نافذة الطباعة: اضغط على زر المشاركة <span className="font-bold underline">Share ⎋</span> في الأعلى ثم اختر <span className="font-bold">"حفظ في الملفات" (Save to Files)</span>.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => openIOSModal('guide')}
+            className="shrink-0 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 px-2.5 py-1.5 font-bold text-[0.72rem] text-zinc-900 dark:text-white shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer self-end sm:self-auto"
+          >
+            الشرح المصور ➔
+          </button>
         </div>
 
         <button
