@@ -142,9 +142,13 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const count = parse({ silent: true, text: finalText });
       if (count) {
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
-          description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). المسودة الكاملة محفوظة في مربع النص.`,
+          description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى خطوة التنسيق والمظهر...`,
         });
       }
+      // الانتقال التلقائي للخطوة الثالثة: التنسيق والمظهر
+      setTimeout(() => {
+        ui.setWizardStep(3);
+      }, 700);
     } catch (err) {
       setRun((r) => ({ ...r, running: false, stage: 'idle' }));
       const msg = err instanceof Error ? err.message : String(err);

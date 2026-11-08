@@ -103,7 +103,7 @@ export function Step1Input() {
 
 function PasteModeFields() {
   const { rawText, setRawText, parse } = useConverter();
-  const { confirm, toast } = useUI();
+  const { confirm, toast, setWizardStep } = useUI();
   const resetApp = useResetApp();
   const words = rawText.trim() ? rawText.trim().split(/\s+/).length : 0;
 
@@ -161,7 +161,17 @@ function PasteModeFields() {
           </span>
           <span className="tabular-nums">{words.toLocaleString('ar')} كلمة</span>
         </div>
-        <Button variant="magic" size="lg" block icon={<Zap className="size-4.5" />} onClick={() => parse()} disabled={!rawText.trim()}>
+        <Button
+          variant="magic"
+          size="lg"
+          block
+          icon={<Zap className="size-4.5" />}
+          onClick={() => {
+            const count = parse();
+            if (count) setWizardStep(3);
+          }}
+          disabled={!rawText.trim()}
+        >
           تحليل النص وتوليد الصفحات المنسقة
         </Button>
         <Note icon={<Sparkles />} tone="brand">
@@ -329,9 +339,9 @@ function AiProgress() {
             size="md"
             block
             icon={<ArrowLeft className="size-4" />}
-            onClick={() => setWizardStep(4)}
+            onClick={() => setWizardStep(3)}
           >
-            الانتقال للمعاينة والصفحات المنسقة فوراً
+            الانتقال إلى الخطوة 3: التنسيق والمظهر
           </Button>
         </div>
       )}
