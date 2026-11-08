@@ -15,16 +15,20 @@ export function parsePlanRows(itemsText: string): PlanRow[] {
     .split('\n')
     .filter((l) => l.trim() !== '')
     .map((line) => {
-      const parts = line.split('|');
+      const parts = line.split(/[|#\t]/);
       const title = parts[0].trim();
-      const page = parts.length > 1 ? parts[1].trim() : '';
+      const page = parts.length > 1 ? parts.slice(1).join(' ').trim() : '';
       const isMain =
         title.startsWith('المبحث') ||
+        title.startsWith('مبحث') ||
+        title.startsWith('المقدمة') ||
         title.startsWith('مقدمة') ||
         title.includes('الخاتمة') ||
         title.includes('الخــاتـمـــة') ||
-        title.includes('المصادر');
-      return { title: title.replace(/^[-*]\s*/, ''), page, isMain };
+        title.includes('المصادر') ||
+        title.includes('المراجع') ||
+        title.includes('الفهرس');
+      return { title: title.replace(/^[-*•]\s*/, ''), page, isMain };
     });
 }
 
