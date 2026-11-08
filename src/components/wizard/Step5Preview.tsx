@@ -31,6 +31,7 @@ import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
 import { downloadWordDocument } from '../../lib/wordExport';
 import { imageToDataUrl } from '../../lib/image';
+import { triggerPrintDocument } from '../../lib/printDocument';
 
 export function Step5Preview() {
   const { doc, pagesVersion, addPage } = useDocument();
@@ -62,7 +63,9 @@ export function Step5Preview() {
 
   const print = () => {
     setMobileView('preview');
-    setTimeout(() => window.print(), 80);
+    setTimeout(() => {
+      triggerPrintDocument(doc.coverState.title);
+    }, 120);
   };
 
   const finishToClassic = () => {

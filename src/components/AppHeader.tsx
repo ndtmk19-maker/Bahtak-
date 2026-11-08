@@ -9,6 +9,7 @@ import { downloadWordDocument } from '../lib/wordExport';
 import { imageToDataUrl } from '../lib/image';
 import { LINKS } from '../data/defaults';
 import { SectionNav, useMediaQuery } from './Navigation';
+import { triggerPrintDocument } from '../lib/printDocument';
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery('(min-width: 1280px)');
@@ -38,7 +39,9 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const print = () => {
     setMobileView('preview');
     // مهلة قصيرة لضمان رسم المعاينة قبل فتح نافذة الطباعة
-    setTimeout(() => window.print(), 80);
+    setTimeout(() => {
+      triggerPrintDocument(doc.coverState.title);
+    }, 120);
   };
 
   return (

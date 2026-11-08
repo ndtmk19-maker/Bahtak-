@@ -237,8 +237,15 @@
   }
 }
 
+.print-only {
+  display: none !important;
+}
+
 /* الطباعة / PDF: إظهار صفحات A4 فقط دون أي تحجيم */
 @media print {
+  .print-only {
+    display: block !important;
+  }
   @page {
     size: A4 portrait;
     margin: 0;

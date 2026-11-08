@@ -176,7 +176,7 @@ function Workspace() {
 
       {/* إبقاء عنصر PreviewPane متاحاً لمحرك الطباعة عند طباعة PDF من المعالج */}
       {viewMode === 'wizard' && (
-        <div className="hidden print:block">
+        <div className="print-only">
           <PreviewPane />
         </div>
       )}
