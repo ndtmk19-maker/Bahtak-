@@ -27,6 +27,7 @@ import { useUI } from '../../state/UIContext';
 import { useResetApp } from '../../state/useResetApp';
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from '../../data/defaults';
 import { AI_LENGTHS, AI_PROVIDERS, type AiLength, type AiProvider } from '../../lib/aiGenerate';
+import { hasSystemGeminiKey } from '../../lib/aiKeys';
 
 export function Step1Input() {
   const { mode, setMode } = useConverter();
@@ -184,7 +185,7 @@ function AiModeFields() {
         icon={<KeyRound />}
         actions={
           <Button size="sm" variant="soft" icon={<Lightbulb className="size-3.5" />} onClick={() => openKeyGuide()}>
-            كيف أحصل على الرمز مجاناً؟
+            {form.provider === 'gemini' && hasSystemGeminiKey() ? 'استخدام رمز شخصي (اختياري)' : 'كيف أحصل على الرمز مجاناً؟'}
           </Button>
         }
       >
@@ -209,7 +210,11 @@ function AiModeFields() {
           hint={
             apiKey ? (
               <span className="inline-flex items-center gap-1 font-semibold text-zinc-800 dark:text-zinc-200">
-                <CircleCheck className="size-3.5 text-zinc-900 dark:text-white" /> محفوظ في هذا المتصفح فقط، ويُرسل مباشرة إلى المزود دون أي خادم وسيط.
+                <CircleCheck className="size-3.5 text-zinc-900 dark:text-white" /> مفتاحك المخصص محفوظ في متصفحك وله الأولوية.
+              </span>
+            ) : form.provider === 'gemini' && hasSystemGeminiKey() ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" /> الذكاء الاصطناعي مفعّل وجاهز مجاناً بنقرة واحدة! (وضع رمزك الشخصي اختياري).
               </span>
             ) : (
               'يضعه كل طالب لمرة واحدة فقط، ويبقى محفوظاً في متصفحك الشخصي.'
@@ -222,7 +227,7 @@ function AiModeFields() {
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={provider.placeholder}
+                placeholder={form.provider === 'gemini' && !apiKey && hasSystemGeminiKey() ? 'مفعّل تلقائياً عبر المنصة (أو الصق رمزك الخاص هنا)' : provider.placeholder}
                 className="field pl-10 font-mono text-[0.8rem]"
                 dir="ltr"
                 autoComplete="off"

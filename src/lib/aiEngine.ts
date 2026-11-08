@@ -1,11 +1,12 @@
 // @ts-nocheck
 // محرك التوليد الأكاديمي بالذكاء الاصطناعي — الإعدادات والتعليمات (Prompts) وعملاء البث اللحظي
-// الاتصال يتم مباشرة من متصفح المستخدم إلى مزود الخدمة باستخدام مفتاحه الشخصي دون أي خادم وسيط.
+import { getEffectiveGeminiKey, rotateSystemGeminiKey } from './aiKeys';
 
 // النماذج الرسمية النشطة وفائقة السرعة في Google Gemini API (تم التحقق منها بنجاح 200 OK)
 var FAST_GEMINI_MODELS = [
     'gemini-3.5-flash-lite',
     'gemini-3.5-flash',
+    'gemini-3.8-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash'
 ];
@@ -124,6 +125,7 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
     var temp = typeof config.temperature === 'number' ? config.temperature : 0.35;
     var maxTokens = config.maxTokens || 4096;
 
+    var currentKey = getEffectiveGeminiKey(apiKey);
     var models = FAST_GEMINI_MODELS.slice();
     var lastErr = null;
 
@@ -134,7 +136,7 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
         }
 
         try {
-            var streamRes = await callGeminiStreaming(apiKey, m, prompt, onChunk, temp, maxTokens);
+            var streamRes = await callGeminiStreaming(currentKey, m, prompt, onChunk, temp, maxTokens);
             if (streamRes && streamRes.trim()) {
                 return streamRes;
             }
@@ -145,11 +147,12 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
 
             // إذا كان المفتاح غير صالح إطلاقاً، نتوقف فوراً
             if (msg.includes('api key not valid') || msg.includes('api_key_invalid')) {
-                throw new Error('رمز الـ API الخاص بـ Google Gemini غير صالح. يرجى التأكد من نسخه بشكل صحيح.');
+                throw new Error('رمز الـ API الخاص بـ Google Gemini غير صالح. يرجى التأكد من صحة المفتاح.');
             }
 
-            // إذا كان خطأ تجاوز الحصة المؤقت (429)، ننتظر ثانية ونصف قبل تجربة النموذج التالي
+            // إذا كان خطأ تجاوز الحصة المؤقت (429)، نقوم بتدوير المفتاح وتجربة البديل
             if (msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted')) {
+                currentKey = rotateSystemGeminiKey();
                 await new Promise(function(resolve) { setTimeout(resolve, 1400); });
             }
 
@@ -160,7 +163,7 @@ async function fetchGeminiStreamWithFallback(apiKey, prompt, onChunk, config) {
     // محاولة أخيرة عبر الاتصال المباشر غير التدفقي
     for (var j = 0; j < models.length; j++) {
         try {
-            var directRes = await callGeminiDirect(apiKey, models[j], prompt, temp, maxTokens);
+            var directRes = await callGeminiDirect(currentKey, models[j], prompt, temp, maxTokens);
             if (directRes && directRes.trim()) return directRes;
         } catch (eDirect) {
             lastErr = eDirect;

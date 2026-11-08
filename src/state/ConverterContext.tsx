@@ -4,6 +4,7 @@ import { useUI } from './UIContext';
 import { parseRawText, ParseError } from '../lib/parser';
 import { AI_LENGTHS, generateResearch, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
+import { getEffectiveGeminiKey } from '../lib/aiKeys';
 
 export type ConverterMode = 'paste' | 'ai';
 
@@ -100,8 +101,13 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
 
   const generate = useCallback(async () => {
     if (runningRef.current) return;
-    if (!apiKey.trim()) {
-      ui.openKeyGuide('خطوة واحدة متبقية فقط: فعّل رمزك المجاني من Google في 30 ثانية لمرة واحدة لتتمكن من التوليد فوراً.');
+    const effectiveKey = form.provider === 'gemini' ? getEffectiveGeminiKey(apiKey) : apiKey.trim();
+    if (!effectiveKey) {
+      ui.openKeyGuide(
+        form.provider === 'gemini'
+          ? 'خطوة واحدة متبقية فقط: فعّل رمزك المجاني من Google في 30 ثانية لمرة واحدة لتتمكن من التوليد فوراً.'
+          : 'يرجى إدخال رمز API الخاص بهذا المزود للمتابعة.',
+      );
       return;
     }
     if (!form.topic.trim()) {
@@ -115,7 +121,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
     try {
       const finalText = await generateResearch({
         provider: form.provider,
-        apiKey: apiKey.trim(),
+        apiKey: effectiveKey,
         topic: form.topic.trim(),
         length: form.length,
         mabhathCount: form.mabhathCount,
