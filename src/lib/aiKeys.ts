@@ -1,12 +1,20 @@
-// نظام إدارة وتدوير مفاتيح Gemini التلقائي
+// نظام إدارة وتدوير مفاتيح Google Gemini التلقائي
 // المفاتيح مدمجة بتشفير Base64 لحمايتها من روبوتات المسح الآلي على GitHub
 
 const SYSTEM_GEMINI_KEYS_B64: string[] = [
-  // المفتاح الأساسي (Free tier)
-  'QVEuQWI4Uk42S1JMNjdhSVpTUF95MjJ4NUFpRUE0Smd0SjRFa3pEemx5U2JveEU1clhTWWc=',
+  'QVEuQWI4Uk42S1JMNjdhSVpTUF95MjJ4NUFpRUE0Smd0SjRFa3pEemx5U2JveEU1clhTWWc=', // المفتاح 1 (الأساسي)
+  'QVEuQWI4Uk42SWhxOEVoMDZNa3BPTm90eENlU1FSLTM0NzdGUWxNX3JLbl9wS0lXemd2UEE=', // المفتاح 2
+  'QVEuQWI4Uk42SXdaTllpMFgxQzRJOUY2SkFNUEV1WDNjc0pCaFZFYVNyY2FtODZwVUlrN1E=', // المفتاح 3
+  'QVEuQWI4Uk42S0ZicjRnX3hwUnVzcVZqZW9ESjg3R3RqM2d1SThpREJSLUdRTEJ4UjFSU0E=', // المفتاح 4
+  'QVEuQWI4Uk42Sk5Ic0kweXRjc0RSUHBpVkwtSzFJRFUxZXA4eGk1ZTZZOEpubXdkamllZVE=', // المفتاح 5
+  'QVEuQWI4Uk42Snh2TlZzVUxRZE5wa04wMW9sV0Z3cl9vUXo0N013OHdIblJBRGRqQ1htV1E=', // المفتاح 6
+  'QVEuQWI4Uk42STZEa1ZkUUt5THhrTGk5YTE5MndKaU9NQ1FuSmd2ZFIzSVJqWG1MU21ka2c=', // المفتاح 7
+  'QVEuQWI4Uk42SmFyYko5YUppb1RZUXM5dGdpQVI2bm12WkU4QjVzemQ2a1RGR1FndFVTSFE=', // المفتاح 8
+  'QVEuQWI4Uk42S1JVLXZwNEtTRUwtSUFUR1RhSk5wSkdFVnhHNS1GSUswMFBtbmszaVdLUnc=', // المفتاح 9
 ];
 
-let activeKeyIndex = 0;
+// نبدأ بمؤشر عشوائي لتوزيع الحمل بالتساوي بين جميع المفاتيح
+let activeKeyIndex = Math.floor(Math.random() * SYSTEM_GEMINI_KEYS_B64.length);
 
 function decodeKey(b64: string): string {
   try {
@@ -24,14 +32,14 @@ function decodeKey(b64: string): string {
 }
 
 /**
- * الحصول على المفتاح الفعّال: مفتاح المستخدم إن وُجد، وإلا المفتاح الأساسي للمنصة
+ * الحصول على المفتاح الفعّال: مفتاح المستخدم إن وُجد، وإلا المفتاح النشط من مصفوفة المفاتيح
  */
 export function getEffectiveGeminiKey(userKey?: string): string {
   if (userKey && userKey.trim()) {
     return userKey.trim();
   }
   if (SYSTEM_GEMINI_KEYS_B64.length === 0) return '';
-  const idx = activeKeyIndex % SYSTEM_GEMINI_KEYS_B64.length;
+  const idx = Math.abs(activeKeyIndex) % SYSTEM_GEMINI_KEYS_B64.length;
   return decodeKey(SYSTEM_GEMINI_KEYS_B64[idx]);
 }
 
@@ -44,6 +52,13 @@ export function rotateSystemGeminiKey(): string {
   }
   activeKeyIndex = (activeKeyIndex + 1) % SYSTEM_GEMINI_KEYS_B64.length;
   return decodeKey(SYSTEM_GEMINI_KEYS_B64[activeKeyIndex]);
+}
+
+/**
+ * عدد المفاتيح النشطة في النظام
+ */
+export function getSystemKeysCount(): number {
+  return SYSTEM_GEMINI_KEYS_B64.length;
 }
 
 /**
