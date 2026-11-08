@@ -173,90 +173,29 @@ function PasteModeFields() {
 }
 
 function AiModeFields() {
-  const { apiKey, setApiKey, form, setForm, run, generate } = useConverter();
-  const { openKeyGuide } = useUI();
-  const [showKey, setShowKey] = useState(false);
-  const provider = AI_PROVIDERS[form.provider];
+  const { form, setForm, run, generate } = useConverter();
 
   return (
     <div className="flex animate-rise flex-col gap-3.5">
-      <Section
-        title="مزود الذكاء الاصطناعي ورمز الـ API"
-        icon={<KeyRound />}
-        actions={
-          <Button size="sm" variant="soft" icon={<Lightbulb className="size-3.5" />} onClick={() => openKeyGuide()}>
-            {form.provider === 'gemini' && hasSystemGeminiKey() ? 'استخدام رمز شخصي (اختياري)' : 'كيف أحصل على الرمز مجاناً؟'}
-          </Button>
-        }
-      >
-        <SelectInput label="المزود والنموذج" value={form.provider} onChange={(e) => setForm({ provider: e.target.value as AiProvider })} hint={provider.hint}>
-          {(Object.keys(AI_PROVIDERS) as AiProvider[]).map((k) => (
-            <option key={k} value={k}>
-              {AI_PROVIDERS[k].label}
-              {k === 'gemini' ? ' (موصى به ومجاني)' : ''}
-            </option>
-          ))}
-        </SelectInput>
-
-        <Field
-          label="رمز الـ API الشخصي"
-          aside={
-            provider.keyUrl && (
-              <a href={provider.keyUrl} target="_blank" rel="noopener noreferrer" className="text-[0.74rem] font-semibold text-zinc-900 dark:text-white underline-offset-4 hover:underline">
-                {provider.keyLabel} ↗
-              </a>
-            )
-          }
-          hint={
-            apiKey ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-zinc-800 dark:text-zinc-200">
-                <CircleCheck className="size-3.5 text-zinc-900 dark:text-white" /> مفتاحك المخصص محفوظ في متصفحك وله الأولوية.
-              </span>
-            ) : form.provider === 'gemini' && hasSystemGeminiKey() ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" /> الذكاء الاصطناعي مفعّل وجاهز مجاناً بنقرة واحدة! (وضع رمزك الشخصي اختياري).
-              </span>
-            ) : (
-              'يضعه كل طالب لمرة واحدة فقط، ويبقى محفوظاً في متصفحك الشخصي.'
-            )
-          }
-        >
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={form.provider === 'gemini' && !apiKey && hasSystemGeminiKey() ? 'مفعّل تلقائياً عبر المنصة (أو الصق رمزك الخاص هنا)' : provider.placeholder}
-                className="field pl-10 font-mono text-[0.8rem]"
-                dir="ltr"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey((v) => !v)}
-                aria-label={showKey ? 'إخفاء الرمز' : 'إظهار الرمز'}
-                className="absolute top-1/2 left-2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
-              >
-                {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
+      {/* بطاقة تأكيد تفعيل الذكاء الاصطناعي الأكاديمي مجاناً */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-emerald-50/30 p-3 sm:px-4 sm:py-3 dark:from-emerald-950/25 dark:via-teal-950/20 dark:to-emerald-950/10">
+        <div className="flex items-center gap-2.5">
+          <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-600/10 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400">
+            <Sparkles className="size-4" />
+          </div>
+          <div>
+            <div className="text-[0.82rem] font-bold text-emerald-950 dark:text-emerald-100">
+              التوليد بالذكاء الاصطناعي الأكاديمي مفعّل وجاهز مجاناً
             </div>
-            <Button variant="secondary" icon={<Trash2 className="size-4" />} onClick={() => setApiKey('')} disabled={!apiKey} aria-label="مسح الرمز المحفوظ" title="مسح الرمز المحفوظ" />
+            <div className="text-[0.72rem] text-emerald-700 dark:text-emerald-300">
+              اكتب موضوع أو عنوان بحثك في الأسفل واضغط على زر التوليد مباشرة دون الحاجة لأي رمز.
+            </div>
           </div>
-        </Field>
-
-        {form.provider === 'openrouter' && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="رابط الواجهة (Endpoint URL)">
-              <input className="field font-mono text-[0.78rem]" dir="ltr" value={form.customUrl} onChange={(e) => setForm({ customUrl: e.target.value })} placeholder="https://openrouter.ai/api/v1/chat/completions" />
-            </Field>
-            <Field label="معرف النموذج (اختياري)">
-              <input className="field font-mono text-[0.78rem]" dir="ltr" value={form.customModel} onChange={(e) => setForm({ customModel: e.target.value })} placeholder="openrouter/auto أو deepseek/deepseek-chat" />
-            </Field>
-          </div>
-        )}
-      </Section>
+        </div>
+        <div className="hidden sm:flex items-center gap-1 rounded-full border border-emerald-500/30 bg-white/80 dark:bg-neutral-900/80 px-2.5 py-1 text-[0.72rem] font-bold text-emerald-700 dark:text-emerald-300">
+          <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Google Gemini
+        </div>
+      </div>
 
       <Section title="موضوع وخطة البحث المطلوب" icon={<BookOpenCheck />}>
         <TextArea
