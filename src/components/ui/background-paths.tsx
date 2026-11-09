@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { MetallicButton } from "./metallic-button";
 import { AndroidIcon, InstagramIcon } from "./BrandIcons";
 import { LINKS } from "@/data/defaults";
+import { trackApkDownload } from "@/lib/analytics";
 
 export interface BackgroundPathsProps {
   className?: string;
@@ -543,6 +544,7 @@ export function BackgroundPaths({
                 <a
                   href={LINKS.apk}
                   download="Bahtak.apk"
+                  onClick={() => trackApkDownload('تحميل تطبيق الأندرويد (الصفحة الرئيسية)')}
                   className="group/apk inline-flex items-center gap-2.5 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/80 hover:bg-white dark:hover:bg-neutral-800 px-4 py-2 font-bold text-neutral-900 dark:text-neutral-100 shadow-sm backdrop-blur-md transition-all hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span className="grid size-6 place-items-center rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs transition group-hover/apk:scale-105">

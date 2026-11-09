@@ -11,6 +11,7 @@ import {
 import { Modal, ModalHeader } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useUI } from '../../state/UIContext';
+import { trackApkDownload } from '../../lib/analytics';
 import {
   AppUpdater,
   checkForAppUpdates,
@@ -162,6 +163,9 @@ export function AppUpdatePrompt() {
     setApkPrompt((p) => (p ? { ...p, stage: 'downloading', errorMsg: '' } : p));
     try {
       const res = await AppUpdater.downloadAndInstallApk({ url: apkPrompt.apk.url });
+      if (res.status !== 'error') {
+        trackApkDownload(`تحديث تطبيق الأندرويد (${apkPrompt.apk.versionName})`);
+      }
       if (res.status === 'needs_permission') {
         setApkPrompt((p) => (p ? { ...p, stage: 'needs_permission' } : p));
       } else {
@@ -357,6 +361,7 @@ export function AppUpdatePrompt() {
                     href={apkPrompt.apk.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackApkDownload('تحديث تطبيق الأندرويد (عبر المتصفح)')}
                     className="inline-flex items-center gap-1.5 text-[0.76rem] font-semibold text-zinc-600 dark:text-zinc-400 hover:underline"
                   >
                     <ExternalLink className="size-3.5" /> التحميل عبر المتصفح

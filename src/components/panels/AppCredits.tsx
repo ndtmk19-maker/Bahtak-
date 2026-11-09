@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import { AndroidIcon, InstagramIcon } from '../ui/BrandIcons';
 import { LINKS } from '../../data/defaults';
 import { useUI } from '../../state/UIContext';
+import { trackApkDownload } from '../../lib/analytics';
 
 /** بطاقة تطبيق الأندرويد وحقوق المطور بتصميم متناسق مع الهوية البصرية الفاخرة */
 export function AppCredits() {
@@ -24,6 +25,7 @@ export function AppCredits() {
       <a
         href={LINKS.apk}
         download="Bahtak.apk"
+        onClick={() => trackApkDownload('تحميل تطبيق الأندرويد (بطاقة التطبيق)')}
         className="group relative overflow-hidden flex items-center gap-3.5 rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 p-4 shadow-sm backdrop-blur-md transition hover:border-black/25 dark:hover:border-white/25 hover:shadow-md"
       >
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-sm transition group-hover:scale-105">

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Modal, ModalHeader } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { AndroidIcon } from '../ui/BrandIcons';
 import { useUI } from '../../state/UIContext';
 import {
   getAnalyticsStats,
@@ -141,7 +142,17 @@ export function AdminDashboardModal() {
   const filteredEvents = useMemo(() => {
     if (!stats?.events) return [];
     return stats.events.filter((ev) => {
-      if (filterType !== 'all' && ev.event_type !== filterType) return false;
+      if (filterType === 'downloads_all') {
+        if (
+          ev.event_type !== 'export_pdf' &&
+          ev.event_type !== 'export_word' &&
+          ev.event_type !== 'export_pptx'
+        ) {
+          return false;
+        }
+      } else if (filterType !== 'all' && ev.event_type !== filterType) {
+        return false;
+      }
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -285,55 +296,79 @@ export function AdminDashboardModal() {
 
           <div className="p-5 sm:p-6 flex flex-col gap-5 text-sm">
             {/* بطاقات الإحصائيات الكبرى */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <Users className="size-3.5 text-zinc-600 dark:text-zinc-300" /> زوار الموقع
-                </span>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
-                  {stats?.totalVisits ?? 0}
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <Users className="size-3.5 text-zinc-600 dark:text-zinc-300" /> زوار الموقع
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalVisits ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">جلسات الدخول</span>
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">جلسات الدخول</span>
+
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="size-3.5 text-zinc-600 dark:text-zinc-300" /> بحوث مولدة
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalGenerations ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">بالذكاء الاصطناعي</span>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1 rounded-2xl border border-emerald-500/25 dark:border-emerald-400/25 bg-emerald-500/[0.04] dark:bg-emerald-400/[0.06] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Download className="size-3.5" /> إجمالي التحميلات
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalDownloads ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-500 dark:text-zinc-400">PDF + Word + PowerPoint</span>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <Sparkles className="size-3.5 text-zinc-600 dark:text-zinc-300" /> بحوث مولدة
-                </span>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
-                  {stats?.totalGenerations ?? 0}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <Printer className="size-3.5 text-zinc-600 dark:text-zinc-300" /> تصدير PDF
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalPdfExports ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">طباعة / حفظ PDF</span>
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">بالذكاء الاصطناعي</span>
-              </div>
 
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <Printer className="size-3.5 text-zinc-600 dark:text-zinc-300" /> تصدير PDF
-                </span>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
-                  {stats?.totalPdfExports ?? 0}
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <FileDown className="size-3.5 text-zinc-600 dark:text-zinc-300" /> تصدير Word
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalWordExports ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">ملفات .doc محملة</span>
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">طباعة / حفظ PDF</span>
-              </div>
 
-              <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <FileDown className="size-3.5 text-zinc-600 dark:text-zinc-300" /> تصدير Word
-                </span>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
-                  {stats?.totalWordExports ?? 0}
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <Presentation className="size-3.5 text-zinc-600 dark:text-zinc-300" /> PowerPoint
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalPptxExports ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">عروض .pptx محملة</span>
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">ملفات .doc محملة</span>
-              </div>
 
-              <div className="col-span-2 sm:col-span-1 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
-                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <Presentation className="size-3.5 text-zinc-600 dark:text-zinc-300" /> PowerPoint
-                </span>
-                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
-                  {stats?.totalPptxExports ?? 0}
+                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                  <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                    <AndroidIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" /> إجمالي تحميلات APK
+                  </span>
+                  <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                    {stats?.totalApkDownloads ?? 0}
+                  </div>
+                  <span className="text-[0.66rem] text-zinc-400">تطبيق الأندرويد (.apk)</span>
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">عروض .pptx محملة</span>
               </div>
             </div>
 
@@ -446,9 +481,11 @@ export function AdminDashboardModal() {
                     <option value="all">كل الأحداث</option>
                     <option value="generate">بحوث مولدة</option>
                     <option value="visit">زيارات</option>
+                    <option value="downloads_all">كل التحميلات (PDF/Word/PPTX)</option>
                     <option value="export_pdf">تصدير PDF</option>
                     <option value="export_word">تصدير Word</option>
                     <option value="export_pptx">تصدير PowerPoint</option>
+                    <option value="download_apk">تحميلات APK</option>
                   </select>
                 </div>
               </div>
@@ -474,15 +511,32 @@ export function AdminDashboardModal() {
                                 ? 'bg-red-500/10 text-red-700 dark:text-red-400'
                                 : ev.event_type === 'export_pptx'
                                 ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
+                                : ev.event_type === 'download_apk'
+                                ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400'
                                 : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                             }`}
                           >
-                            {ev.event_type === 'generate' ? '⚡' : ev.event_type === 'visit' ? '👁️' : ev.event_type === 'export_pdf' ? '📄' : ev.event_type === 'export_pptx' ? '📊' : '📝'}
+                            {ev.event_type === 'generate'
+                              ? '⚡'
+                              : ev.event_type === 'visit'
+                              ? '👁️'
+                              : ev.event_type === 'export_pdf'
+                              ? '📄'
+                              : ev.event_type === 'export_pptx'
+                              ? '📊'
+                              : ev.event_type === 'download_apk'
+                              ? '📱'
+                              : '📝'}
                           </span>
 
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-zinc-900 dark:text-white truncate">
-                              {ev.topic || (ev.event_type === 'visit' ? 'زيارة جديدة للمنصة' : 'بدون عنوان')}
+                              {ev.topic ||
+                                (ev.event_type === 'visit'
+                                  ? 'زيارة جديدة للمنصة'
+                                  : ev.event_type === 'download_apk'
+                                  ? 'تحميل تطبيق الأندرويد (APK)'
+                                  : 'بدون عنوان')}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 text-[0.68rem] text-zinc-400">
                               {ev.pages_count ? <span>{ev.pages_count} {ev.event_type === 'export_pptx' ? 'شريحة' : 'صفحة A4'} ·</span> : null}

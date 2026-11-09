@@ -28,7 +28,7 @@ import { imageToDataUrl } from "../lib/image";
 import { LINKS } from "../data/defaults";
 import { SectionNav, useMediaQuery } from "./Navigation";
 import { isIOS, triggerPrintDocument } from "../lib/printDocument";
-import { trackEvent } from "../lib/analytics";
+import { trackEvent, trackApkDownload } from "../lib/analytics";
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery("(min-width: 1280px)");
@@ -465,7 +465,10 @@ function MoreMenu({
               download="Bahtak.apk"
               className={item}
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                trackApkDownload('تحميل تطبيق الأندرويد (القائمة العلوية)');
+              }}
             >
               <AndroidIcon className="size-5 text-zinc-800 dark:text-zinc-200" />
               تطبيق أندرويد (APK)
