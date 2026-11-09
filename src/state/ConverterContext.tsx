@@ -39,7 +39,7 @@ interface ConverterApi {
   form: AiForm;
   setForm: (p: Partial<AiForm>) => void;
   run: AiRun;
-  parse: (opts?: { silent?: boolean; text?: string }) => number | null;
+  parse: (opts?: { silent?: boolean; text?: string; overrideTitle?: string }) => number | null;
   generate: () => Promise<void>;
 }
 
@@ -80,9 +80,12 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const parse = useCallback(
-    (opts?: { silent?: boolean; text?: string }) => {
+    (opts?: { silent?: boolean; text?: string; overrideTitle?: string }) => {
       try {
         const result = parseRawText(opts?.text ?? rawText);
+        if (opts?.overrideTitle) {
+          result.detectedTitle = opts.overrideTitle;
+        }
         applyParsed(result);
         ui.setSection('pages');
         if (isMobile()) ui.setMobileView('preview');
@@ -111,7 +114,8 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       );
       return;
     }
-    if (!form.topic.trim()) {
+    const exactUserTopic = form.topic.trim();
+    if (!exactUserTopic) {
       ui.toast('يرجى كتابة عنوان أو موضوع البحث المراد توليده.', { tone: 'error' });
       document.getElementById('ai-topic-input')?.focus();
       return;
@@ -123,7 +127,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const finalText = await generateResearch({
         provider: form.provider,
         apiKey: effectiveKey,
-        topic: form.topic.trim(),
+        topic: exactUserTopic,
         length: form.length,
         mabhathCount: form.mabhathCount,
         matlabCount: form.matlabCount,
@@ -140,7 +144,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const duration = Math.round((Date.now() - startedAt) / 100) / 10;
       setRun((r) => ({ ...r, running: false, stage: 'done', duration }));
       saveRawText(finalText);
-      const count = parse({ silent: true, text: finalText });
+      const count = parse({ silent: true, text: finalText, overrideTitle: exactUserTopic });
       if (count) {
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
           description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى خطوة التنسيق والمظهر...`,

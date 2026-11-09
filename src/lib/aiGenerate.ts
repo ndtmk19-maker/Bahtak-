@@ -126,9 +126,12 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     }
   }
 
-  if (!plan || !plan.title || !plan.mabahith?.length) {
-    plan = buildFallbackPlan(o.topic, o.mabhathCount, o.matlabCount, o.length) as AiPlan;
+  const exactUserTopic = o.topic.trim();
+  if (!plan || !plan.mabahith?.length) {
+    plan = buildFallbackPlan(exactUserTopic, o.mabhathCount, o.matlabCount, o.length) as AiPlan;
   }
+  // إبقاء عنوان البحث مطابقاً حرفياً للعنوان الذي كتبه المستخدم ومنع الذكاء الاصطناعي من استبداله أو إعادة صياغته
+  plan.title = exactUserTopic;
   const p = plan;
 
   // شارات التوليد المتوازي اللحظي لكل الأقسام
