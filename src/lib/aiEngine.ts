@@ -22,9 +22,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرتين علميتين لكل مطلب مع مناقشة وتوثيق',
         conclusionWords: 280,
         maxRefs: 12,
-        introMaxTokens: 900,
-        mabhathMaxTokens: 1400,
-        conclusionMaxTokens: 800
+        introMaxTokens: 1400,
+        mabhathMaxTokens: 2600,
+        conclusionMaxTokens: 1300
     },
     'medium': {
         label: 'متوسط (8 إلى 12 صفحة)',
@@ -35,9 +35,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات علمية مفصلة لكل مطلب بدقة وأمثلة واقعية وتوثيق أكاديمي',
         conclusionWords: 350,
         maxRefs: 16,
-        introMaxTokens: 1300,
-        mabhathMaxTokens: 2000,
-        conclusionMaxTokens: 1100
+        introMaxTokens: 2000,
+        mabhathMaxTokens: 3800,
+        conclusionMaxTokens: 1800
     },
     'giant': {
         label: 'موسع (12 إلى 16 صفحة)',
@@ -48,9 +48,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات علمية موسعة لكل مطلب مع مناقشة فكرية معمقة وهوامش وفيرة',
         conclusionWords: 450,
         maxRefs: 20,
-        introMaxTokens: 1800,
-        mabhathMaxTokens: 2600,
-        conclusionMaxTokens: 1400
+        introMaxTokens: 2800,
+        mabhathMaxTokens: 5200,
+        conclusionMaxTokens: 2400
     },
     'huge': {
         label: 'مطول جداً (20 إلى 25 صفحة)',
@@ -61,40 +61,106 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات تحليلية موسعة وتفريعات لكل مطلب مع إحالات مرجعية مكثفة',
         conclusionWords: 550,
         maxRefs: 25,
-        introMaxTokens: 2400,
-        mabhathMaxTokens: 3200,
-        conclusionMaxTokens: 1600
+        introMaxTokens: 3600,
+        mabhathMaxTokens: 7000,
+        conclusionMaxTokens: 3200
     }
 };
 
-// دالة إنشاء خطة بديلة ذكية في حال تعذر الاتصال بالكامل
+var ORDINAL_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس'];
+
+function sanitizeFallbackTopic(topic) {
+    return (topic || '').replace(/^["«'\s]+|["»'\s]+$/g, '').trim() || 'موضوع البحث';
+}
+
+// توليد عناوين مطالب متميزة ومختلفة لكل مبحث لمنع تكرار خطة المبحث الأول في المبحث الثاني والثالث
+function getDistinctFallbackMatalib(topic, mabhathIdx, count) {
+    var cleanTopic = sanitizeFallbackTopic(topic);
+    var topicRef = cleanTopic.length <= 42 ? cleanTopic : 'موضوع الدراسة';
+    var tCount = Math.max(1, parseInt(count, 10) || 2);
+
+    var pools = [
+        // المبحث الأول: الإطار النظري والمفاهيمي
+        [
+            'ماهية ' + topicRef + ' ونشأته التاريخية',
+            'الأسس النظرية والخصائص المميزة لـ ' + topicRef,
+            'الأهمية العلمية والأهداف الجوهرية لـ ' + topicRef,
+            'المفاهيم والمصطلحات ذات الصلة بـ ' + topicRef,
+            'المبادئ والركائز التأسيسية للموضوع',
+            'العوامل والمحددات الأساسية المؤثرة في ' + topicRef
+        ],
+        // المبحث الثاني: الآليات التطبيقية والأبعاد الميدانية
+        [
+            'الآليات والأدوات العملية لتفعيل ' + topicRef,
+            'مجالات التطبيق العملي ومؤشرات القياس والأداء',
+            'الأدوار المؤسسية والسياسات الداعمة للتنفيذ',
+            'متطلبات الحوكمة وضوابط الممارسة الميدانية',
+            'النماذج والتجارب التطبيقية في مجال ' + topicRef,
+            'العلاقة التفاعلية بين السياسات العامة و' + topicRef
+        ],
+        // المبحث الثالث: التحديات والتقييم والآفاق المستقبلية
+        [
+            'التحديات والمعوقات الراهنة أمام ' + topicRef,
+            'تقييم الآثار الاقتصادية والاجتماعية والمؤسسية',
+            'الفرص المتاحة والآفاق المستقبلية لتطوير ' + topicRef,
+            'استراتيجيات المعالجة وتحسين الكفاءة التشغيلية',
+            'مخاطر القصور وسبل التحصين والوقاية',
+            'رؤية استشرافية وتوصيات تطويرية حول ' + topicRef
+        ],
+        // المبحث الرابع (عند الطلب الموسع)
+        [
+            'الإطار القانوني والتنظيمي المنظم للمجال',
+            'المعايير الدولية وآليات الرقابة والامتثال',
+            'دراسة مقارنة للتشريعات والممارسات المعاصرة',
+            'مسؤوليات الفاعلين في منظومة التنفيذ',
+            'سبل تحديث البنية التنظيمية والمؤسسية',
+            'ضمانات الشفافية والمساءلة في التطبيق'
+        ],
+        // المبحث الخامس
+        [
+            'منهجية التحليل وتقييم المعطيات الميدانية',
+            'قراءة نقدية في المؤشرات والاتجاهات الحديثة',
+            'استخلاص الدروس المستفادة من المقارنات',
+            'قياس الكفاءة والفعالية على المدى البعيد',
+            'محددات الاستدامة والتطوير المستمر',
+            'البدائل الاستراتيجية المقترحة للتنفيذ'
+        ]
+    ];
+
+    var selectedPool = pools[mabhathIdx % pools.length];
+    var list = [];
+    for (var j = 0; j < tCount; j++) {
+        var sub = selectedPool[j] || ('المحور التحليلي ' + (ORDINAL_LABELS[j] || (j + 1)) + ' في ' + topicRef);
+        list.push(sub);
+    }
+    return list;
+}
+
+// دالة إنشاء خطة بديلة ذكية بمطالب متباينة تماماً لكل مبحث في حال تعذر الاتصال بالكامل
 function buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode) {
-    var mCount = parseInt(mabhathCount, 10) || 2;
-    var tCount = parseInt(matlabCount, 10) || 2;
-    var cleanTopic = (topic || '').replace(/^["«'\s]+|["»'\s]+$/g, '').trim();
+    var mCount = Math.max(1, parseInt(mabhathCount, 10) || 2);
+    var tCount = Math.max(1, parseInt(matlabCount, 10) || 2);
+    var cleanTopic = sanitizeFallbackTopic(topic);
+    var topicRef = cleanTopic.length <= 42 ? cleanTopic : 'موضوع الدراسة';
 
-    var ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
     var mabahith = [];
-
     var mabhathThemes = [
-        'الإطار المفاهيمي والنظري لـ ' + cleanTopic,
-        'الآليات التطبيقية والأبعاد الميدانية لـ ' + cleanTopic,
-        'التحديات والآفاق المستقبلية لـ ' + cleanTopic
+        'الإطار المفاهيمي والنظري لـ ' + topicRef,
+        'الآليات التطبيقية والأبعاد الميدانية لـ ' + topicRef,
+        'التحديات والتقييم والآفاق المستقبلية لـ ' + topicRef,
+        'الإطار المؤسسي والتنظيمي لـ ' + topicRef,
+        'التحليل المقارن والاتجاهات المعاصرة في ' + topicRef,
+        'استراتيجيات التطوير والبدائل العملية لـ ' + topicRef
     ];
 
     for (var i = 0; i < mCount; i++) {
-        var mTitle = 'المبحث ' + (ordinals[i] || (i + 1)) + ': ' + (mabhathThemes[i] || ('دراسة في ' + cleanTopic));
-        var matalib = [];
-        for (var j = 0; j < tCount; j++) {
-            var matTitle = 'المطلب ' + (ordinals[j] || (j + 1)) + ': ' + (
-                j === 0 ? 'المفاهيم والأسس الجوهرية' :
-                j === 1 ? 'الخصائص والمحددات العلمية' :
-                'الأهمية والتطبيقات العملية'
-            );
-            matalib.push({
-                title: matTitle
-            });
-        }
+        var mTitle = 'المبحث ' + (ORDINAL_LABELS[i] || (i + 1)) + ': ' + (mabhathThemes[i] || ('البعد التحليلي لـ ' + topicRef));
+        var matSubTitles = getDistinctFallbackMatalib(cleanTopic, i, tCount);
+        var matalib = matSubTitles.map(function(sub, j) {
+            return {
+                title: 'المطلب ' + (ORDINAL_LABELS[j] || (j + 1)) + ': ' + sub
+            };
+        });
         mabahith.push({
             title: mTitle,
             matalib: matalib
@@ -103,10 +169,10 @@ function buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode) {
 
     return {
         title: cleanTopic,
-        problematic: 'ما هي الأبعاد المفاهيمية والتطبيقية المرتبطة بـ ' + cleanTopic + '، وكيف تسهم في الارتقاء بالأداء والممارسات العملية؟',
+        problematic: 'ما هي الأبعاد المفاهيمية والتطبيقية المرتبطة بـ ' + cleanTopic + '، وما هي التحديات والآفاق الكفيلة بتطويرها؟',
         questions: [],
         hypotheses: [
-            'توجد علاقة ارتباطية إيجابية بين وضوح الرؤية النظرية وحسن التطبيق العملي.'
+            'توجد علاقة ارتباطية إيجابية بين وضوح التأصيل النظري وكفاءة الآليات التطبيقية المرتبطة بالموضوع.'
         ],
         methodology: 'المنهج الوصفي التحليلي',
         mabahith: mabahith
@@ -449,30 +515,56 @@ export function fetchAiText(provider, apiKey, prompt, onChunk, options, customUr
     return fetchOpenAiStreamWithFallback(apiKey, url, model, prompt, onChunk, temp, maxTokens);
 }
 
-// صياغة خطة بحث أكاديمي دقيقة وواقعية
+// صياغة خطة بحث أكاديمي دقيقة وواقعية بعدد المباحث والمطالب الدقيق دون أي تكرار
 export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg) {
     var exactTopic = (topic || '').trim();
+    var mCount = Math.max(1, parseInt(mabhathCount, 10) || 2);
+    var tCount = Math.max(1, parseInt(matlabCount, 10) || 2);
+
+    var mabhathAngles = [
+        'الإطار النظري والمفاهيمي للموضوع',
+        'الآليات التطبيقية والممارسات العملية للموضوع',
+        'التحديات والتقييم والآفاق المستقبلية للموضوع',
+        'الأبعاد المؤسسية والقانونية للموضوع',
+        'الدراسة التحليلية والمقارنة والاتجاهات الحديثة'
+    ];
+
+    var exampleMabahith = [];
+    for (var i = 0; i < mCount; i++) {
+        var ordMb = ORDINAL_LABELS[i] || String(i + 1);
+        var angleHint = mabhathAngles[i] || ('المحور التحليلي ' + ordMb + ' للموضوع');
+        var exampleMatalib = [];
+        for (var j = 0; j < tCount; j++) {
+            var ordMt = ORDINAL_LABELS[j] || String(j + 1);
+            exampleMatalib.push({
+                title: 'المطلب ' + ordMt + ': [عنوان فرعي جديد وفريد يخص المبحث ' + ordMb + ' فقط ولا يتكرر في غيره]'
+            });
+        }
+        exampleMabahith.push({
+            title: 'المبحث ' + ordMb + ': [' + angleHint + ']',
+            matalib: exampleMatalib
+        });
+    }
+
+    var schemaPreview = JSON.stringify({
+        title: exactTopic,
+        problematic: 'صياغة إشكالية رئيسية واحدة فقط للبحث تكون جوهرية ومحكمة وتنتهي حتماً بعلامة استفهام (؟) كنص نثري متصل دون أي مطات أو نقاط ودون أي تساؤلات فرعية',
+        hypotheses: ['الفرضية الأولى...', 'الفرضية الثانية...'],
+        methodology: 'المنهج الوصفي التحليلي',
+        mabahith: exampleMabahith
+    }, null, 2);
+
     return 'أنت عميد أكاديمي ومحكم أبحاث ودراسات عليا. المطلوب منك وضع خطة بحث أكاديمي دقيقة ومحكمة متناسقة مع موضوع البحث بصيغة JSON فقط دون أي شروحات إضافية أو كتل ماركداون.\n' +
     'العنوان الدقيق المطلوب للبحث (التزم بهذا العنوان حرفياً كما هو دون تغيير أي كلمة أو إعادة صياغة): «' + exactTopic + '»\n' +
-    'عدد المباحث المطلوبة: ' + mabhathCount + '\n' +
-    'عدد المطالب في كل مبحث: ' + matlabCount + '\n' +
+    'عدد المباحث المطلوبة بالضبط: ' + mCount + ' مباحث.\n' +
+    'عدد المطالب في كل مبحث بالضبط: ' + tCount + ' مطالب (بإجمالي ' + (mCount * tCount) + ' مطلباً مختلفاً تماماً).\n' +
     'حجم البحث المستهدف الإجمالي: ' + cfg.targetPages + '.\n\n' +
-    'يجب أن تُرجع كائن JSON صالح 100% حصراً بالشكل التالي دون نصوص خارج الأقواس:\n' +
-    '{\n' +
-    '  "title": ' + JSON.stringify(exactTopic) + ',\n' +
-    '  "problematic": "صياغة إشكالية رئيسية واحدة فقط للبحث تكون جوهرية ومحكمة وتنتهي حتماً بعلامة استفهام (؟) كنص نثري متصل دون أي مطات أو نقاط ودون أي تساؤلات فرعية",\n' +
-    '  "hypotheses": ["الفرضية الأولى...", "الفرضية الثانية..."],\n' +
-    '  "methodology": "المنهج الوصفي التحليلي",\n' +
-    '  "mabahith": [\n' +
-    '    {\n' +
-    '      "title": "المبحث الأول: [عنوان المبحث الأول ذو صلة مباشرة بموضوع البحث]",\n' +
-    '      "matalib": [\n' +
-    '        { "title": "المطلب الأول: [عنوان المطلب الأول]" },\n' +
-    '        { "title": "المطلب الثاني: [عنوان المطلب الثاني]" }\n' +
-    '      ]\n' +
-    '    }\n' +
-    '  ]\n' +
-    '}';
+    'قواعد صارمة لا يُسمح بمخالفتها:\n' +
+    '1. يجب أن يحتوي مصفوف mabahith على ' + mCount + ' عناصر بالضبط، وأن يحتوي حقل matalib في كل مبحث على ' + tCount + ' عناصر بالضبط دون نقصان أي مطلب.\n' +
+    '2. ممنوع منعاً باتاً تكرار نفس عناوين المطالب أو نسخ خطة المبحث الأول داخل المبحث الثاني أو الثالث؛ يجب أن يعالج كل مبحث زاوية علمية مستقلة بمطالب جديدة وفريدة تماماً لا تتشابه لفظياً ولا موضوعياً مع مطالب أي مبحث آخر.\n' +
+    '3. التزم حرفياً بكتابة العناوين بصيغة «المبحث الأول: ...» و«المطلب الأول: ...» دون أي علامات ماركداون مثل ** أو #.\n\n' +
+    'يجب أن تُرجع كائن JSON صالح 100% حصراً بنفس البنية وعدد العناصر تماماً دون نصوص خارج الأقواس:\n' +
+    schemaPreview;
 }
 
 // صياغة مقدمة أكاديمية كاملة مع هوامش مرقمة
@@ -630,26 +722,54 @@ export function cleanIntroText(txt) {
 
 // صياغة مبحث أكاديمي كامل ومطالبه مع هوامش مرقمة لكل مطلب
 export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg) {
-    var matalibList = (mb.matalib || []).map(function(mt, mIdx) {
-        return '- ' + (mt.title || ('المطلب ' + (mIdx+1)));
+    var matalib = mb.matalib || [];
+    var mtCount = matalib.length;
+    var perMatlabWords = Math.max(120, Math.round((targetWordsPerMb || 600) / Math.max(1, mtCount)));
+    var matalibList = matalib.map(function(mt, mIdx) {
+        return (mIdx + 1) + '. ' + (mt.title || ('المطلب ' + (mIdx + 1)));
     }).join('\n');
+    var otherMabahith = (plan.mabahith || []).filter(function(other) {
+        return other && other.title && other.title !== mb.title;
+    }).map(function(other) {
+        return '- ' + other.title;
+    }).join('\n');
+
     return 'أنت باحث أكاديمي متخصص. اكتب متن هذا المبحث الأكاديمي كاملاً بأسلوب علمي رصين ومفصل دون اختصار مخل:\n' +
     'عنوان البحث العام: ' + plan.title + '\n' +
-    'المبحث المطلوب كتابته حصراً: ' + mb.title + '\n' +
-    'مطالب هذا المبحث:\n' + matalibList + '\n\n' +
+    'المبحث المطلوب كتابته حصراً الآن: ' + mb.title + '\n' +
+    (otherMabahith ? 'بقية مباحث البحث (للتكامل فقط — ممنوع تكرار محاورها أو إعادة كتابة مطالبها هنا):\n' + otherMabahith + '\n' : '') +
+    'جميع المطالب المطلوب كتابتها كاملة داخل هذا المبحث (' + mtCount + ' مطالب بالضبط):\n' + matalibList + '\n\n' +
     'معيار الطول والحجم المطلوب:\n' +
-    '- الطول الإجمالي المطلوب لهذا المبحث كاملاً بجميع مطالبه هو: حوالي ' + targetWordsPerMb + ' كلمة.\n' +
+    '- الطول الإجمالي المطلوب لهذا المبحث كاملاً بجميع مطالبه الـ ' + mtCount + ' هو: حوالي ' + targetWordsPerMb + ' كلمة (أي نحو ' + perMatlabWords + ' كلمة متوازنة لكل مطلب دون إطالة في مطلب على حساب حذف المطلب الأخير).\n' +
     '- لكل مطلب: اكتب ' + cfg.matlabParagraphs + '، مع إحالات وهوامش توثيقية حقيقية.\n\n' +
     'الشروط الصارمة:\n' +
-    '1. ابدأ بالسطر الأول مباشرة بعنوان المبحث:\n' + mb.title + '\n' +
-    '2. ثم اكتب كل مطلب بالتفصيل:\n' +
-    'المطلب الأول: [عنوان المطلب]\n' +
-    '(اكتب فقرات علمية تحليلية رصينة وموسعة تناقش محتوى المطلب بأمثلة ومفاهيم واضحة، مع وضع أرقام الهوامش ^1 و ^2 في نهايات الفقرات).\n' +
+    '1. ابدأ بالسطر الأول مباشرة بعنوان المبحث كنص صريح دون أي نجمات أو رموز ماركداون (** أو #):\n' + mb.title + '\n' +
+    '2. التزم بكتابة كل المطالب المذكورة أعلاه بالترتيب وعددها (' + mtCount + ') دون دمج أو إسقاط أو اختصار أي مطلب منها، وبنفس العنوان المحدد حرفياً كنص صريح دون ** أو #، متبوعاً بمتنه ثم هوامشه كالتالي:\n' +
+    (matalib[0] ? matalib[0].title : 'المطلب الأول: [عنوان المطلب]') + '\n' +
+    '(اكتب فقرات علمية تحليلية رصينة تناقش هذا المطلب بأمثلة ومفاهيم واضحة، مع وضع أرقام الهوامش ^1 و ^2 في نهايات الفقرات).\n' +
     'الهوامش:\n' +
     '^1 اسم المؤلف، عنوان الكتاب الأكاديمي، دار النشر، سنة الطبع، ص...\n' +
     '^2 اسم المؤلف، عنوان الدراسة، دار النشر، سنة الطبع، ص...\n' +
-    '3. كرر نفس البنية العلمية المفصلة لبقية مطالب هذا المبحث بالهو هامش لكل مطلب.\n' +
-    '4. لا تكتب مقدمة عامة ولا خاتمة، بل اكتب متن هذا المبحث ومطالبه وهوامشه فقط.';
+    '3. كرر نفس البنية العلمية المفصلة لجميع المطالب الـ ' + mtCount + ' كاملة مع كتابة قسم الهوامش لكل مطلب.\n' +
+    '4. لا تكتب مقدمة عامة ولا خاتمة ولا تكتب عنوان مبحث آخر غير (' + mb.title + ').';
+}
+
+// استكمال مطالب ناقصة داخل مبحث لم يكمل النموذج كل مطالبه المحددة
+export function buildMissingMatalibPrompt(plan, mb, missingMatalib, perMatlabWords, cfg) {
+    var list = (missingMatalib || []).map(function(mt, idx) {
+        return (idx + 1) + '. ' + mt.title;
+    }).join('\n');
+    return 'أنت باحث أكاديمي متخصص. تم توليد المطالب السابقة من المبحث التالي وبقيت المطالب الناقصة أدناه فقط بحاجة إلى كتابة:\n' +
+    'عنوان البحث العام: ' + plan.title + '\n' +
+    'المبحث: ' + mb.title + '\n' +
+    'المطالب المطلوب كتابتها الآن حصراً دون نقصان:\n' + list + '\n\n' +
+    'الشروط الصارمة:\n' +
+    '1. لا تعد كتابة عنوان المبحث ولا المقدمة ولا المطالب السابقة؛ ابدأ السطر الأول مباشرة بعنوان أول مطلب مطلوب أدناه.\n' +
+    '2. التزم بكتابة عنوان كل مطلب كما هو حرفياً في سطر مستقل دون علامات ** أو #.\n' +
+    '3. لكل مطلب اكتب نحو ' + (perMatlabWords || 250) + ' كلمة (' + cfg.matlabParagraphs + ')، متبوعاً بقسم:\n' +
+    'الهوامش:\n' +
+    '^1 اسم المؤلف، عنوان المرجع، دار النشر، سنة النشر، ص...\n' +
+    '^2 اسم المؤلف، عنوان الدراسة، دار النشر، سنة النشر، ص...';
 }
 
 // صياغة خاتمة وقائمة مصادر ومراجع كاملة ومفصلة
@@ -683,4 +803,4 @@ export function buildConclusionPrompt(plan, cfg) {
     'لا تضع أي نصوص ترحيبية أو اعتذارية خارج هذا الهيكل.';
 }
 
-export { LENGTH_CONFIGS, buildFallbackPlan };
+export { LENGTH_CONFIGS, buildFallbackPlan, getDistinctFallbackMatalib };

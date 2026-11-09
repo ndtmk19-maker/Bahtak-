@@ -2,9 +2,11 @@
 import {
   LENGTH_CONFIGS,
   buildFallbackPlan,
+  getDistinctFallbackMatalib,
   buildPlanPrompt,
   buildIntroPrompt,
   buildMabhathPrompt,
+  buildMissingMatalibPrompt,
   buildConclusionPrompt,
   cleanIntroText,
   fetchAiText,
@@ -89,6 +91,328 @@ export interface AiPlan {
   mabahith: { title: string; matalib?: { title: string }[] }[];
 }
 
+const ORDINAL_WORDS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس'];
+const ARABIC_ORD_PATTERN = '(?:الأول|الاول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\\s+عشر|الثاني\\s+عشر|[\\d٠-٩]+)';
+
+const ORDINAL_INDEX_MAP: Record<string, number> = {
+  'الأول': 0, 'الاول': 0, '1': 0, '١': 0,
+  'الثاني': 1, 'الثانى': 1, '2': 1, '٢': 1,
+  'الثالث': 2, '3': 2, '٣': 2,
+  'الرابع': 3, '4': 3, '٤': 3,
+  'الخامس': 4, '5': 4, '٥': 4,
+  'السادس': 5, '6': 5, '٦': 5,
+};
+
+function stripHeadingMarkdown(line: string): string {
+  return (line || '')
+    .trim()
+    .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
+    .replace(/\*\*|__/g, '')
+    .replace(/^\*+|\*+$/g, '')
+    .replace(/^["«']+|["»']+$/g, '')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .trim();
+}
+
+function stripStructuralPrefix(title: string, keyword: 'مبحث' | 'مطلب'): string {
+  const cleaned = stripHeadingMarkdown(title);
+  return cleaned
+    .replace(new RegExp(`^(?:ال)?${keyword}\\s+${ARABIC_ORD_PATTERN}(?:\\s*[:：\\-–—\\.]+)?\\s*`, 'i'), '')
+    .replace(new RegExp(`^(?:ال)?${keyword}\\s*[:：\\-–—]+\\s*`, 'i'), '')
+    .trim();
+}
+
+function normalizeArabicComparable(text: string): string {
+  return (text || '')
+    .replace(/[\u064B-\u065F\u0670ـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[^\u0621-\u064Aa-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function toComparisonTokens(subTitle: string, topic: string): string[] {
+  const normSub = normalizeArabicComparable(subTitle);
+  const normTopic = normalizeArabicComparable(topic);
+  const stopWords = new Set(['في', 'من', 'علي', 'إلي', 'الي', 'عن', 'مع', 'حول', 'بين', 'لـ', 'ال', 'و', 'او', 'ثم', 'حيث', 'دراسه', 'تحليل']);
+  const topicTokens = new Set(normTopic.split(' ').filter((w) => w.length >= 3));
+
+  const withoutTopicStr = normTopic.length >= 3 ? normSub.split(normTopic).join(' ') : normSub;
+  const rawTokens = withoutTopicStr.split(' ').filter(Boolean);
+  const filtered = rawTokens.filter((tok) => {
+    const bare = tok.replace(/^(?:وال|بال|كال|فال|لل|ال|ل)/, '');
+    if (stopWords.has(tok) || stopWords.has(bare)) return false;
+    if (topicTokens.has(tok) || (bare.length >= 3 && topicTokens.has(bare))) return false;
+    return tok.length >= 2;
+  });
+
+  // إذا كان العنوان مبنياً حصراً من كلمات الموضوع، نبقي الرموز الأصلية بدون حذف كلمات الموضوع
+  if (filtered.length === 0) {
+    return rawTokens.filter((t) => t.length >= 2 && !stopWords.has(t));
+  }
+  return filtered;
+}
+
+function isTooSimilarHeading(subTitle: string, existingTokenLists: string[][], topic: string): boolean {
+  const tokens = toComparisonTokens(subTitle, topic);
+  if (tokens.length === 0) return true;
+  const sig = tokens.join(' ');
+  const tokSet = new Set(tokens);
+
+  for (const prev of existingTokenLists) {
+    if (prev.length === 0) continue;
+    if (prev.join(' ') === sig) return true;
+    const prevSet = new Set(prev);
+    let overlap = 0;
+    for (const t of tokSet) {
+      if (prevSet.has(t)) overlap++;
+    }
+    const minLen = Math.min(tokSet.size, prevSet.size);
+    const maxLen = Math.max(tokSet.size, prevSet.size);
+    if (minLen === 1 && maxLen <= 2 && overlap === 1) return true;
+    if (minLen >= 2 && overlap / minLen >= 0.78) return true;
+  }
+  return false;
+}
+
+export function parseAiPlanJson(planRaw: string): AiPlan | null {
+  if (!planRaw) return null;
+  try {
+    let json = planRaw.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const f = json.indexOf('{');
+    const l = json.lastIndexOf('}');
+    if (f !== -1 && l !== -1 && l > f) json = json.substring(f, l + 1);
+    json = json.replace(/,\s*([}\]])/g, '$1');
+    const parsed = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as AiPlan;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * توحيد الخطة الأكاديمية وضبط عدد المباحث والمطالب الدقيق (mCount × tCount)،
+ * ومنع تكرار مطالب المبحث الأول داخل المبحث الثاني أو الثالث أو أي مبحث آخر.
+ */
+export function normalizeResearchPlan(
+  rawPlan: AiPlan | null | undefined,
+  topic: string,
+  mabhathCountRaw: string | number,
+  matlabCountRaw: string | number,
+): AiPlan {
+  const exactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
+  const mCount = Math.max(1, Math.min(6, parseInt(String(mabhathCountRaw), 10) || 2));
+  const tCount = Math.max(1, Math.min(6, parseInt(String(matlabCountRaw), 10) || 2));
+  const fb = buildFallbackPlan(exactTopic, mCount, tCount, 'medium') as AiPlan;
+
+  const usedMbTokens: string[][] = [];
+  const usedMtTokens: string[][] = [];
+  const normalizedMabahith: { title: string; matalib: { title: string }[] }[] = [];
+
+  for (let i = 0; i < mCount; i++) {
+    const rawMb = rawPlan?.mabahith?.[i];
+    const fbMbSub = stripStructuralPrefix(fb.mabahith[i]?.title || '', 'مبحث') || `المحور ${ORDINAL_WORDS[i] || i + 1}`;
+    let mbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
+    if (!mbSub || mbSub.startsWith('[') || isTooSimilarHeading(mbSub, usedMbTokens, exactTopic)) {
+      mbSub = fbMbSub;
+    }
+    usedMbTokens.push(toComparisonTokens(mbSub, exactTopic));
+
+    // جمع قائمة مرشحين احتياطيين متميزين لهذا المبحث (ثم من المباحث المجاورة عند الحاجة)
+    const fallbackPool: string[] = [];
+    for (let shift = 0; shift < 5; shift++) {
+      fallbackPool.push(...(getDistinctFallbackMatalib(exactTopic, i + shift, 6) as string[]));
+    }
+
+    const matalib: { title: string }[] = [];
+    for (let j = 0; j < tCount; j++) {
+      const rawMtTitle = rawMb?.matalib?.[j]?.title || '';
+      let mtSub = stripStructuralPrefix(rawMtTitle, 'مطلب');
+      if (!mtSub || mtSub.startsWith('[') || isTooSimilarHeading(mtSub, usedMtTokens, exactTopic)) {
+        const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, exactTopic));
+        mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
+      }
+      usedMtTokens.push(toComparisonTokens(mtSub, exactTopic));
+      matalib.push({
+        title: `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`,
+      });
+    }
+
+    normalizedMabahith.push({
+      title: `المبحث ${ORDINAL_WORDS[i] || i + 1}: ${mbSub}`,
+      matalib,
+    });
+  }
+
+  return {
+    title: exactTopic,
+    problematic: rawPlan?.problematic?.trim() || fb.problematic,
+    questions: Array.isArray(rawPlan?.questions) ? rawPlan.questions : fb.questions,
+    hypotheses: Array.isArray(rawPlan?.hypotheses) && rawPlan.hypotheses.length ? rawPlan.hypotheses : fb.hypotheses,
+    methodology: rawPlan?.methodology?.trim() || fb.methodology,
+    mabahith: normalizedMabahith,
+  };
+}
+
+/**
+ * تنظيف نص المبحث المتولد من علامات الماركداون حول العناوين، ومنع تسرب مبحث إضافي أو خاتمة داخل نفس الاستجابة
+ */
+export function sanitizeMabhathOutput(
+  rawText: string,
+  mb: { title: string; matalib?: { title: string }[] },
+): string {
+  const cleanedRaw = cleanSection(rawText).replace(/\r\n/g, '\n');
+  if (!cleanedRaw) return '';
+
+  const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const footnotesHeadingRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i;
+  const conclusionHeadingRe = /^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث|قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع)\s*[:\-]?$/i;
+
+  const lines = cleanedRaw.split('\n');
+  const out: string[] = [];
+  let seenMabhathHeader = false;
+  let seenMatlabHeader = false;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      out.push('');
+      continue;
+    }
+
+    const stripped = stripHeadingMarkdown(trimmed);
+
+    if (conclusionHeadingRe.test(stripped) && seenMatlabHeader) {
+      break;
+    }
+
+    if (mabhathHeadingRe.test(stripped)) {
+      if (!seenMabhathHeader && !seenMatlabHeader) {
+        out.push(mb.title);
+        seenMabhathHeader = true;
+        continue;
+      }
+      // إذا تسرّب عنوان مبحث جديد بعد كتابة مطالب داخل هذا المبحث، نوقف القراءة قبله تماماً
+      if (seenMatlabHeader) {
+        break;
+      }
+      continue;
+    }
+
+    if (matlabHeadingRe.test(stripped)) {
+      seenMatlabHeader = true;
+      out.push(stripped);
+      continue;
+    }
+
+    if (footnotesHeadingRe.test(stripped)) {
+      out.push(stripped.endsWith(':') ? stripped : `${stripped}:`);
+      continue;
+    }
+
+    out.push(trimmed);
+  }
+
+  let res = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (seenMatlabHeader && !seenMabhathHeader) {
+    res = `${mb.title}\n\n${res}`;
+  }
+  return res;
+}
+
+/**
+ * اكتشاف المطالب الناقصة أو المبتورة داخل نص مبحث معين لإكمالها آلياً دون فقدان أي مطلب
+ */
+export function findMissingMatalibIndices(
+  mabhathText: string,
+  expectedMatalib: { title: string }[],
+): number[] {
+  const count = expectedMatalib?.length || 0;
+  if (count === 0) return [];
+  const lines = (mabhathText || '').replace(/\r\n/g, '\n').split('\n');
+  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+(${ARABIC_ORD_PATTERN})(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش)\s*[:\-]?$/i;
+
+  const sectionBodies = new Map<number, number>();
+  let curOrdIdx: number | null = null;
+  let curBodyChars = 0;
+
+  const commitCurrent = () => {
+    if (curOrdIdx !== null) {
+      const prev = sectionBodies.get(curOrdIdx) || 0;
+      sectionBodies.set(curOrdIdx, Math.max(prev, curBodyChars));
+    }
+  };
+
+  for (const line of lines) {
+    const stripped = stripHeadingMarkdown(line);
+    if (!stripped) continue;
+
+    const m = stripped.match(matlabRe);
+    if (m) {
+      commitCurrent();
+      const ordKey = m[1].replace(/\s+/g, ' ').trim();
+      curOrdIdx = ORDINAL_INDEX_MAP[ordKey] ?? null;
+      curBodyChars = 0;
+      continue;
+    }
+
+    if (curOrdIdx !== null) {
+      if (footnotesRe.test(stripped) || /^[\^\[\(]?\s*\d+/.test(stripped)) continue;
+      curBodyChars += stripped.length;
+    }
+  }
+  commitCurrent();
+
+  const missing: number[] = [];
+  for (let k = 0; k < count; k++) {
+    const chars = sectionBodies.get(k) || 0;
+    if (chars < 20) missing.push(k);
+  }
+  return missing;
+}
+
+function stripContinuationDuplicateHeader(text: string): string {
+  const lines = cleanSection(text).replace(/\r\n/g, '\n').split('\n');
+  const mbRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const out: string[] = [];
+  let startedMatlab = false;
+
+  for (const l of lines) {
+    const stripped = stripHeadingMarkdown(l);
+    if (!startedMatlab && (!stripped || mbRe.test(stripped))) {
+      continue;
+    }
+    if (new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}`, 'i').test(stripped)) {
+      startedMatlab = true;
+      out.push(stripped);
+      continue;
+    }
+    if (mbRe.test(stripped) && startedMatlab) {
+      break;
+    }
+    out.push(l);
+  }
+  return out.join('\n').trim();
+}
+
+function trimTrailingEmptyMatlabStub(text: string): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  while (lines.length > 0 && !lines[lines.length - 1].trim()) {
+    lines.pop();
+  }
+  if (lines.length > 0 && matlabRe.test(stripHeadingMarkdown(lines[lines.length - 1]))) {
+    lines.pop();
+  }
+  return lines.join('\n').trim();
+}
+
 export async function generateResearch(o: GenerateOptions): Promise<string> {
   const cfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
   const started = Date.now();
@@ -111,33 +435,22 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   try {
     planRaw = await call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg), null, {
       temperature: 0.25,
-      maxTokens: 1200,
+      maxTokens: 2400,
     });
   } catch (errPlan) {
     console.warn('تعذر توليد الخطة بالنموذج، الاعتماد على الخطة المنهجية الذكية:', errPlan);
     planRaw = '';
   }
 
-  let plan: AiPlan | null = null;
-  if (planRaw) {
-    try {
-      let json = planRaw.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const f = json.indexOf('{');
-      const l = json.lastIndexOf('}');
-      if (f !== -1 && l !== -1) json = json.substring(f, l + 1);
-      plan = JSON.parse(json);
-    } catch {
-      plan = null;
-    }
-  }
-
+  let plan: AiPlan | null = parseAiPlanJson(planRaw);
   const exactUserTopic = o.topic.trim();
   if (!plan || !plan.mabahith?.length) {
     plan = buildFallbackPlan(exactUserTopic, o.mabhathCount, o.matlabCount, o.length) as AiPlan;
   }
-  // إبقاء عنوان البحث مطابقاً حرفياً للعنوان الذي كتبه المستخدم ومنع الذكاء الاصطناعي من استبداله أو إعادة صياغته
-  plan.title = exactUserTopic;
+  // ضبط العدد الدقيق للمباحث والمطالب (مثل 3×3) ومنع أي تكرار في خطة المباحث
+  plan = normalizeResearchPlan(plan, exactUserTopic, o.mabhathCount, o.matlabCount);
   if (o.normalizePlan) plan = o.normalizePlan(plan);
+  plan.title = exactUserTopic;
   const p = plan;
 
   // شارات التوليد المتوازي اللحظي لكل الأقسام
@@ -213,15 +526,53 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
 
-  // مهام المباحث بالتوازي مع إرجاء زمني خفيف (350ms) بين المباحث لتفادي حظر التردد اللحظي (Rate-limit)
+  // مهام المباحث بالتوازي مع تحقق واستكمال آلي للمطالب الناقصة عند انقطاع البث أو اختصار النموذج
   const perMb = Math.round(cfg.mabahithWords / (p.mabahith.length || 1));
   const taskMbs = p.mabahith.map(async (mb, idx) => {
     await waitMs(350 * (idx + 1));
     const t = track(`mb${idx}`, (v) => (mbTexts[idx] = v));
-    return call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg)), t.onChunk, {
-      temperature: 0.35,
-      maxTokens: cfg.mabhathMaxTokens,
-    }).then(t.done, t.fail);
+    try {
+      const expectedMatalib = mb.matalib || [];
+      const dynamicMaxTokens = Math.min(8192, Math.max(cfg.mabhathMaxTokens, expectedMatalib.length * 1400));
+      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg)), t.onChunk, {
+        temperature: 0.35,
+        maxTokens: dynamicMaxTokens,
+      });
+
+      let verifiedMbText = sanitizeMabhathOutput(rawMbText, mb);
+      const missingIndices = findMissingMatalibIndices(verifiedMbText, expectedMatalib);
+
+      if (missingIndices.length > 0 && expectedMatalib.length > 0) {
+        const missingMatalib = missingIndices.map((k) => expectedMatalib[k]).filter(Boolean);
+        const perMatlabWords = Math.max(120, Math.round(perMb / expectedMatalib.length));
+        try {
+          const contRaw = await call(
+            withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg)),
+            (_c, acc) => {
+              const previewCombined = `${trimTrailingEmptyMatlabStub(verifiedMbText)}\n\n${stripContinuationDuplicateHeader(acc)}`;
+              mbTexts[idx] = previewCombined;
+              patch(`mb${idx}`, { words: countWords(previewCombined) });
+              refreshDraft();
+            },
+            {
+              temperature: 0.35,
+              maxTokens: Math.min(8192, Math.max(1800, missingMatalib.length * 1500)),
+            },
+          );
+          const cleanCont = stripContinuationDuplicateHeader(contRaw);
+          if (cleanCont) {
+            const baseText = trimTrailingEmptyMatlabStub(verifiedMbText) || mb.title;
+            verifiedMbText = sanitizeMabhathOutput(`${baseText}\n\n${cleanCont}`, mb);
+          }
+        } catch (errCont) {
+          console.warn(`Continuation for mb${idx} failed:`, errCont);
+        }
+      }
+
+      return t.done(verifiedMbText || rawMbText);
+    } catch (err) {
+      return t.fail(err);
+    }
   });
 
   // مهمة الخاتمة والمراجع مع إرجاء زمني خفيف

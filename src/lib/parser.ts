@@ -34,6 +34,19 @@ export interface ResearchAnalysis {
   sections: AnalyzedSection[];
 }
 
+// تعبير منتظم لأرقام وترتيب المباحث والمطالب (يدعم الهمزات والأرقام العربية والهندية)
+const ARABIC_STRUCT_ORD = '(?:الأول|الاول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\\s+عشر|الثاني\\s+عشر|[\\d٠-٩]+)';
+
+function stripStructuralMarkdown(line: string): string {
+    return (line || '')
+        .trim()
+        .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
+        .replace(/\*\*|__/g, '')
+        .replace(/^\*+|\*+$/g, '')
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .trim();
+}
+
 // تعبير منتظم لاكتشاف عبارات التمهيد للقوائم والنقاط (أهمها، عناصرها، خصائصها، أنواعها، مهامها، أهدافها، مميزاتها، كما يلي، كالاتي...)
 export const LIST_INTRO_REGEX = /(?:أهم|اهم|أبرز|ابرز|عناصر|العناصر|مكونات|المكونات|أنواع|انواع|الأنواع|الانواع|أقسام|اقسام|الأقسام|الاقسام|أصناف|اصناف|خصائص|الخصائص|مميزات|المميزات|سمات|السمات|مهام|مهمات|المهام|المهمات|وظائف|الوظائف|أهداف|اهداف|الأهداف|الاهداف|شروط|الشروط|ركائز|الركائز|مبادئ|المبادئ|أبعاد|ابعاد|الأبعاد|مراحل|المراحل|خطوات|الخطوات|متطلبات|المتطلبات|ما\s*يلي|كما\s*يلي|كالآتي|كالاتي|كالآتى|كالاتى|الآتي|الاتي|التالي|التالية|تتمثل\s+في|تتمثل\s+فى|تنقسم\s+إلى|تنقسم\s+الى|تتفرع\s+إلى|تتفرع\s+الى)[^:\n]{0,80}[:\-–—]/i;
 
@@ -219,21 +232,22 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     for (let i = 0; i < linesAfterPlan.length; i++) {
                         const l = linesAfterPlan[i].trim();
                         if (!l) continue;
+                        const hl = stripStructuralMarkdown(l);
 
-                        if (/^(?:#+\s*)?(?:بحث\s+بعنوان|عنوان\s+البحث)\s*[:\-]/i.test(l)) {
+                        if (/^(?:بحث\s+بعنوان|عنوان\s+البحث)\s*[:\-]/i.test(hl)) {
                             bodyStartIndexInLines = i;
                             break;
                         }
 
-                        if (/^(?:#+\s*)?(?:المقدمة|مقدمة|مدخل\s+عام)[\s:\-]*$/i.test(l)) {
+                        if (/^(?:المقدمة|مقدمة|مدخل\s+عام)[\s:\-]*$/i.test(hl)) {
                             let nextNonEmpty = '';
                             for (let j = i + 1; j < linesAfterPlan.length; j++) {
                                 if (linesAfterPlan[j].trim()) {
-                                    nextNonEmpty = linesAfterPlan[j].trim();
+                                    nextNonEmpty = stripStructuralMarkdown(linesAfterPlan[j]);
                                     break;
                                 }
                             }
-                            if (nextNonEmpty && !/^(?:#+\s*|[-*•]\s*)?(?:المبحث|مبحث|المطلب|مطلب|خاتمة|الخاتمة|مراجع|المراجع)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
+                            if (nextNonEmpty && !/^(?:المبحث|مبحث|المطلب|مطلب|خاتمة|الخاتمة|مراجع|المراجع)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
                                 bodyStartIndexInLines = i;
                                 break;
                             }
@@ -244,8 +258,8 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                         const planBlockLines = linesAfterPlan.slice(0, bodyStartIndexInLines);
                         const validPlanLines = [];
                         planBlockLines.forEach(pl => {
-                            const tr = pl.trim();
-                            if (tr && /^(?:#+\s*|[-*•]\s*)?(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع)/i.test(tr)) {
+                            const tr = stripStructuralMarkdown(pl);
+                            if (tr && /^(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع)/i.test(tr)) {
                                 validPlanLines.push(tr);
                             }
                         });
@@ -258,14 +272,14 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     }
                 } else {
                     // ج) حالة وجود هيكل خطة في البداية متبوع بمقدمة مكررة
-                    const introRegex = /(?:^|\n)\s*(?:#+\s*)?(?:المقدمة|مقدمة|مدخل\s+عام)[\s:\-]*\n/gi;
+                    const introRegex = /(?:^|\n)\s*(?:#+\s*|\*{1,3}\s*)?(?:المقدمة|مقدمة|مدخل\s+عام)(?:\*{1,3})?[\s:\-]*\n/gi;
                     const matches = [...bodyText.matchAll(introRegex)];
                     if (matches.length >= 2) {
                         const firstIdx = matches[0].index;
                         const secondIdx = matches[1].index;
                         const between = bodyText.substring(firstIdx, secondIdx);
-                        const betweenLines = between.split('\n').map(l => l.trim()).filter(l => l);
-                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:#+\s*|[-*•]\s*)?(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة)/i.test(l));
+                        const betweenLines = between.split('\n').map(l => stripStructuralMarkdown(l)).filter(l => l);
+                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة)/i.test(l));
                         if (isOutlineOnly) {
                             extractedPlan = betweenLines.join('\n');
                             bodyText = bodyText.substring(0, firstIdx) + '\n' + bodyText.substring(secondIdx);
@@ -280,12 +294,13 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             }
 
             let titleLineToSkip = '';
-            const isStructuralHeading = /^(?:#+\s*|[-*•]\s*)?(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
+            const isStructuralHeading = /^(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
 
             if (!detectedTitle && rawLines.length > 0) {
                 const firstLine = rawLines[0].trim();
-                if (!isStructuralHeading.test(firstLine) && firstLine.length <= 250) {
-                    detectedTitle = firstLine.replace(/^#+\s*/, '').replace(/^[:"«'\s]+|[:"»'\s]+$/g, '').trim();
+                const firstHeading = stripStructuralMarkdown(firstLine);
+                if (!isStructuralHeading.test(firstHeading) && firstLine.length <= 250) {
+                    detectedTitle = firstHeading.replace(/^[:"«'\s]+|[:"»'\s]+$/g, '').trim();
                     titleLineToSkip = firstLine;
                 }
             }
@@ -304,65 +319,100 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 };
             }
 
+            const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+            const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+
             let pendingMabhath = '';
+            let pendingPreambleLines = [];
+
+            function flushPendingMabhathIfOrphaned() {
+                if (pendingMabhath) {
+                    startNewSection('matlab', pendingMabhath, '');
+                    if (pendingPreambleLines.length > 0) {
+                        curSection.lines.push(...pendingPreambleLines);
+                        pendingPreambleLines = [];
+                    }
+                    pendingMabhath = '';
+                }
+            }
 
             for (let i = 0; i < rawLines.length; i++) {
                 let line = rawLines[i].trim();
+                const headingLine = stripStructuralMarkdown(line);
 
-                if (/^(?:#+\s*)?(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث)\s*[:\-]/i.test(line)) {
+                if (/^(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث)\s*[:\-]/i.test(headingLine)) {
                     continue;
                 }
 
-                const cleanLineNoQuotes = line.replace(/^#+\s*/, '').replace(/^[:"«'\s]+|[:"»'\s]+$/g, '').trim();
+                const cleanLineNoQuotes = headingLine.replace(/^[:"«'\s]+|[:"»'\s]+$/g, '').trim();
                 if (detectedTitle && (cleanLineNoQuotes === detectedTitle || (titleLineToSkip && line === titleLineToSkip))) {
                     continue; // تجاوز سطر العنوان حتى لا يدخل في متن المقدمة أو يُنشئ صفحة منفردة
                 }
 
                 // المقدمة
-                if (/^(?:#+\s*)?(?:المقدمة|مقدمة|مقدمة\s+البحث|مدخل\s+عام)[\s:\-]*$/i.test(line)) {
+                if (/^(?:المقدمة|مقدمة|مقدمة\s+البحث|مدخل\s+عام)[\s:\-]*$/i.test(headingLine)) {
+                    flushPendingMabhathIfOrphaned();
                     startNewSection('intro', 'المقدمة', '');
                     pendingMabhath = '';
+                    pendingPreambleLines = [];
                     continue;
                 }
 
                 // الخاتمة
-                if (/^(?:#+\s*)?(?:الخاتمة|خاتمة|خاتمة\s+البحث)[\s:\-]*$/i.test(line)) {
+                if (/^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث)[\s:\-]*$/i.test(headingLine)) {
+                    flushPendingMabhathIfOrphaned();
                     startNewSection('conclusion', 'الخــاتـمـــة', '');
                     pendingMabhath = '';
+                    pendingPreambleLines = [];
                     continue;
                 }
 
                 // قائمة المراجع
-                if (/^(?:#+\s*)?(?:قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع|قائمة\s+المراجع|المراجع\s+والمصادر|المراجع)[\s:\-]*$/i.test(line)) {
+                if (/^(?:قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع|قائمة\s+المراجع|المراجع\s+والمصادر|المراجع)[\s:\-]*$/i.test(headingLine)) {
+                    flushPendingMabhathIfOrphaned();
                     startNewSection('references', 'قائمة المصادر والمراجع', '');
                     pendingMabhath = '';
+                    pendingPreambleLines = [];
                     continue;
                 }
 
-                // المبحث (مع دعم الشرطات والنقاط)
-                if (/^(?:#+\s*|[-*•]\s*)?(?:المبحث|مبحث)\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|\d+)[\s:\-]*/i.test(line)) {
-                    pendingMabhath = line.replace(/^(?:#+\s*|[-*•]\s*)/, '');
+                // المبحث (مع دعم الماركداون والشرطات والنقاط والأرقام)
+                if (mabhathHeadingRe.test(headingLine)) {
+                    flushPendingMabhathIfOrphaned();
+                    pendingMabhath = headingLine;
+                    pendingPreambleLines = [];
                     continue;
                 }
 
-                // المطلب (مع دعم الشرطات والنقاط)
-                if (/^(?:#+\s*|[-*•]\s*)?(?:المطلب|مطلب)\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|\d+)[\s:\-]*/i.test(line)) {
-                    startNewSection('matlab', pendingMabhath, line.replace(/^(?:#+\s*|[-*•]\s*)/, ''));
+                // المطلب (مع دعم الماركداون والشرطات والنقاط والأرقام)
+                if (matlabHeadingRe.test(headingLine)) {
+                    startNewSection('matlab', pendingMabhath, headingLine);
+                    if (pendingPreambleLines.length > 0) {
+                        curSection.lines.push(...pendingPreambleLines);
+                        pendingPreambleLines = [];
+                    }
                     pendingMabhath = '';
+                    continue;
+                }
+
+                if (pendingMabhath) {
+                    // حفظ أي سطر تمهيدي يرد بين عنوان المبحث وأول مطلب له بدلاً من دمجه في المبحث السابق
+                    pendingPreambleLines.push(line);
                     continue;
                 }
 
                 if (!curSection) {
-                    startNewSection('intro', pendingMabhath || 'المقدمة', '');
-                    pendingMabhath = '';
+                    startNewSection('intro', 'المقدمة', '');
                 }
 
                 curSection.lines.push(line);
             }
+            flushPendingMabhathIfOrphaned();
             if (curSection) rawSections.push(curSection);
 
             // تجهيز عناصر كل قسم (استخراج الإحالات وتحديد الارتفاعات التقريبية)
             const processedSections = [];
+            let carryMabhathTitle = '';
             rawSections.forEach((sec) => {
                 const contentLines = [];
                 const rawFootnotes = [];
@@ -370,7 +420,8 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
                 sec.lines.forEach(line => {
                     const trimmed = line.trim();
-                    if (/^(?:#+\s*)?(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i.test(trimmed)) {
+                    const headingTrimmed = stripStructuralMarkdown(trimmed);
+                    if (/^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i.test(headingTrimmed)) {
                         inFootnotesBlock = true;
                         return;
                     }
@@ -395,9 +446,21 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     }
                 });
 
-                // حماية حاسمة: منع إنشاء أقسام فارغة لا تحتوي على أسطر محتوى ولا هوامش
+                if (sec.type !== 'matlab') {
+                    carryMabhathTitle = '';
+                }
+
+                // حماية حاسمة: منع إنشاء أقسام فارغة مع حفظ عنوان المبحث المتبوع للمطلب التالي في حال حذف المطلب الفارغ
                 if (contentLines.length === 0 && rawFootnotes.length === 0) {
+                    if (sec.type === 'matlab' && sec.mabhathTitle) {
+                        carryMabhathTitle = sec.mabhathTitle;
+                    }
                     return;
+                }
+
+                const effectiveMabhathTitle = sec.type === 'matlab' ? (sec.mabhathTitle || carryMabhathTitle) : sec.mabhathTitle;
+                if (sec.type === 'matlab' && effectiveMabhathTitle) {
+                    carryMabhathTitle = '';
                 }
 
                 // تفكيك أي قوائم أو نقاط تعداد مدمجة في نفس السطر
@@ -506,7 +569,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
                 processedSections.push({
                     type: sec.type,
-                    mabhathTitle: sec.mabhathTitle,
+                    mabhathTitle: effectiveMabhathTitle,
                     matlabTitle: sec.matlabTitle,
                     items: items,
                     rawFootnotes: rawFootnotes
