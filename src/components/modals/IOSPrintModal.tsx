@@ -51,7 +51,7 @@ export function IOSPrintModal() {
         title={isInApp ? 'تنبيه لمستخدمي الآيفون (متصفح التطبيق)' : 'طريقة حفظ البحث كـ PDF على الآيفون'}
         subtitle={
           isInApp
-            ? 'متصفحات التطبيقات (انستغرام / تيك توك / فيسبوك) تمنع تحميل ملفات PDF'
+            ? 'متصفحات التطبيقات (انستغرام / تيك توك / فيسبوك) تمنع تحميل ملفات PDF و PowerPoint'
             : 'دليل خطوات حفظ الـ PDF مباشرة عبر نافذة طباعة Safari'
         }
         icon={isInApp ? <Compass className="size-5" /> : <Smartphone className="size-5" />}
@@ -67,7 +67,7 @@ export function IOSPrintModal() {
                 <div className="leading-relaxed">
                   <strong>أنت تتصفح الموقع حالياً من داخل متصفح تطبيق:</strong>
                   <p className="mt-1">
-                    تطبيقات مثل <strong>Instagram</strong> و <strong>TikTok</strong> و <strong>Facebook</strong> تفتح المواقع في متصفح داخلي مقيّد لا يدعم تنزيل ملفات الـ PDF أو فتح نافذة الطباعة.
+                    تطبيقات مثل <strong>Instagram</strong> و <strong>TikTok</strong> و <strong>Facebook</strong> تفتح المواقع في متصفح داخلي مقيّد لا يدعم تنزيل ملفات الـ PDF و PowerPoint أو فتح نافذة الطباعة.
                   </p>
                 </div>
               </div>

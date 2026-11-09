@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SLIDE_ICONS, type SlideIconName } from "./icons";
 import type { LaidSlide, Prim, TPara } from "./layout";
 import { imageToDataUrl } from "../image";
+import { isInAppBrowser } from "../printDocument";
 import type { SlideTheme } from "./themes";
 
 const cache = new Map<string, Promise<string | null>>();
@@ -215,62 +216,104 @@ export async function buildPptx(
   return pptx;
 }
 
+export interface PptxExportResult {
+  success: boolean;
+  fileName?: string;
+  inAppBrowser?: boolean;
+  nativeAndroid?: boolean;
+  error?: string;
+}
+
 export function safeFileName(title: string) {
-  return (
-    (title || "عرض_تقديمي")
-      .replace(/[\\/:*?"<>|]+/g, "")
-      .replace(/\s+/g, "_")
-      .slice(0, 80) + ".pptx"
-  );
+  const base = (title || "عرض_تقديمي")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[\\/:*?"<>|#%&{}~$!'`=@+]+/g, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/^[._]+|[._]+$/g, "")
+    .slice(0, 80)
+    .replace(/[._]+$/g, "");
+  return `${base || "عرض_تقديمي"}.pptx`;
 }
 
 const PPTX_MIME =
   "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const res = typeof reader.result === "string" ? reader.result : "";
-      const comma = res.indexOf(",");
-      resolve(comma !== -1 ? res.slice(comma + 1) : res);
-    };
-    reader.onerror = () => reject(reader.error || new Error("فشل قراءة الملف"));
-    reader.readAsDataURL(blob);
-  });
+function createPptxBlob(buffer: ArrayBuffer, fileName: string): Blob {
+  // تغليف البيانات بـ File/Blob بنوع PPTX الرسمي بدلاً من application/zip الذي تُخرجه JSZip
+  // لأن متصفحات الهواتف (Safari iOS وChrome Android) تستبدل اللاحقة بـ .zip إذا كان النوع application/zip
+  if (typeof File === "function") {
+    try {
+      return new File([buffer], fileName, { type: PPTX_MIME });
+    } catch {
+      /* fallback to Blob */
+    }
+  }
+  return new Blob([buffer], { type: PPTX_MIME });
 }
 
-/** إنشاء الملف وتنزيله في المتصفح أو عبر الجسر الأصلي في تطبيق الأندرويد */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(parts.join(""));
+}
+
+/** إنشاء ملف PPTX وتنزيله بنوع MIME الرسمي الصحيح لمنع حفظه بصيغة ZIP على الهواتف */
 export async function downloadPptx(
   slides: LaidSlide[],
   theme: SlideTheme,
   meta: PptxMeta,
-): Promise<string> {
-  const pptx = await buildPptx(slides, theme, meta);
-  const blob = (await pptx.write({ outputType: "blob" })) as Blob;
-  const fileName = safeFileName(meta.title);
-
-  const nativeBridge = (
-    window as unknown as {
-      AndroidNativeFile?: {
-        saveBase64File?: (b64: string, name: string, mime: string) => boolean;
-      };
-    }
-  ).AndroidNativeFile;
-  if (nativeBridge && typeof nativeBridge.saveBase64File === "function") {
-    const base64 = await blobToBase64(blob);
-    if (nativeBridge.saveBase64File(base64, fileName, PPTX_MIME)) {
-      return fileName;
-    }
+): Promise<PptxExportResult> {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return { success: false, error: "التصدير غير مدعوم خارج بيئة المتصفح" };
   }
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-  return fileName;
+  if (isInAppBrowser()) {
+    return { success: false, inAppBrowser: true };
+  }
+
+  try {
+    const pptx = await buildPptx(slides, theme, meta);
+    const buffer = (await pptx.write({ outputType: "arraybuffer" })) as ArrayBuffer;
+    const fileName = safeFileName(meta.title);
+
+    const nativeBridge = (
+      window as unknown as {
+        AndroidNativeFile?: {
+          saveBase64File?: (b64: string, name: string, mime: string) => boolean;
+        };
+      }
+    ).AndroidNativeFile;
+    if (nativeBridge && typeof nativeBridge.saveBase64File === "function") {
+      const base64 = arrayBufferToBase64(buffer);
+      if (nativeBridge.saveBase64File(base64, fileName, PPTX_MIME)) {
+        return { success: true, fileName, nativeAndroid: true };
+      }
+    }
+
+    const pptxBlob = createPptxBlob(buffer, fileName);
+    const url = URL.createObjectURL(pptxBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.type = PPTX_MIME;
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 60000);
+    return { success: true, fileName };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }

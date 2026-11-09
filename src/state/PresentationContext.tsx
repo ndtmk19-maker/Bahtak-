@@ -14,6 +14,7 @@ import { useUI } from "./UIContext";
 import { ParseError } from "../lib/parser";
 import { getEffectiveGeminiKey } from "../lib/aiKeys";
 import { trackEvent } from "../lib/analytics";
+import { isIOS } from "../lib/printDocument";
 import type { SectionProgress } from "../lib/aiGenerate";
 import {
   DEFAULT_DECK_OPTIONS,
@@ -325,12 +326,28 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     try {
       // تحميل مكتبة PowerPoint عند الحاجة فقط حتى لا تثقل الواجهة
       const { downloadPptx } = await import("../lib/slides/pptxExport");
-      const fileName = await downloadPptx(laid, theme, {
+      const res = await downloadPptx(laid, theme, {
         title: deck.title,
         author: coverMeta.presenters.join("، "),
       });
+      if (res.inAppBrowser) {
+        ui.openIOSModal("inApp");
+        return;
+      }
+      if (!res.success) {
+        ui.toast("تعذر إنشاء ملف PowerPoint", {
+          tone: "error",
+          description: res.error,
+        });
+        return;
+      }
+      const fileName = res.fileName || "عرض_تقديمي.pptx";
       ui.toast("تم تنزيل ملف PowerPoint", {
-        description: `${fileName} — ${laid.length} شريحة قابلة للتعديل بالكامل.`,
+        description: res.nativeAndroid
+          ? `تم حفظ ${fileName} في التنزيلات ومشاركته (${laid.length} شريحة).`
+          : isIOS()
+            ? `${fileName} — افتح تطبيق «الملفات» ➔ «التنزيلات» أو اضغط سهم التنزيل (↓) في Safari.`
+            : `${fileName} — ${laid.length} شريحة قابلة للتعديل بالكامل.`,
       });
       trackEvent({
         event_type: "export_pptx",
