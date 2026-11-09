@@ -11,6 +11,7 @@ import {
   cleanIntroText,
   fetchAiText,
 } from './aiEngine';
+import { rotateSystemGeminiKey } from './aiKeys';
 
 export type AiProvider = 'gemini' | 'groq' | 'openai' | 'openrouter';
 export type AiLength = 'short' | 'medium' | 'giant' | 'huge';
@@ -104,14 +105,34 @@ const ORDINAL_INDEX_MAP: Record<string, number> = {
 };
 
 function stripHeadingMarkdown(line: string): string {
-  return (line || '')
+  let s = (line || '')
+    .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ')
     .trim()
     .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
     .replace(/\*\*|__/g, '')
     .replace(/^\*+|\*+$/g, '')
     .replace(/^["«']+|["»']+$/g, '')
-    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[\u064B-\u065F\u0670ـ]/g, '')
     .trim();
+
+  // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" أو "(3) المطلب" أو "ثالثاً: المطلب" فقط عندما يسبق عنواناً هيكلياً
+  const numberedStructMatch = s.match(
+    /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر).*)$/i,
+  );
+  if (numberedStructMatch) {
+    s = numberedStructMatch[1].trim();
+  }
+
+  // توحيد صيغة "المطلب رقم 3:" أو "المطلب3:" إلى "المطلب 3:"
+  s = s.replace(/^(المبحث|مبحث|المطلب|مطلب)\s*(?:رقم\s*)?([\d٠-٩]+)/i, '$1 $2');
+  return s;
+}
+
+function splitInlineStructuralHeadings(text: string): string {
+  return (text || '').replace(
+    new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:المبحث|المطلب)\\s+${ARABIC_ORD_PATTERN}\\s*[:\\-–—])`, 'g'),
+    '$1\n\n',
+  );
 }
 
 function stripStructuralPrefix(title: string, keyword: 'مبحث' | 'مطلب'): string {
@@ -265,11 +286,11 @@ export function sanitizeMabhathOutput(
   rawText: string,
   mb: { title: string; matalib?: { title: string }[] },
 ): string {
-  const cleanedRaw = cleanSection(rawText).replace(/\r\n/g, '\n');
+  const cleanedRaw = splitInlineStructuralHeadings(cleanSection(rawText).replace(/\r\n/g, '\n'));
   if (!cleanedRaw) return '';
 
-  const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
-  const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
   const footnotesHeadingRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i;
   const conclusionHeadingRe = /^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث|قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع)\s*[:\-]?$/i;
 
@@ -334,8 +355,8 @@ export function findMissingMatalibIndices(
 ): number[] {
   const count = expectedMatalib?.length || 0;
   if (count === 0) return [];
-  const lines = (mabhathText || '').replace(/\r\n/g, '\n').split('\n');
-  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+(${ARABIC_ORD_PATTERN})(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+  const lines = splitInlineStructuralHeadings(mabhathText || '').replace(/\r\n/g, '\n').split('\n');
+  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+(${ARABIC_ORD_PATTERN})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
   const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش)\s*[:\-]?$/i;
 
   const sectionBodies = new Map<number, number>();
@@ -377,28 +398,40 @@ export function findMissingMatalibIndices(
   return missing;
 }
 
-function stripContinuationDuplicateHeader(text: string): string {
-  const lines = cleanSection(text).replace(/\r\n/g, '\n').split('\n');
-  const mbRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+function stripContinuationDuplicateHeader(text: string, missingMatalib?: { title: string }[]): string {
+  const lines = splitInlineStructuralHeadings(cleanSection(text).replace(/\r\n/g, '\n')).split('\n');
+  const mbRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const mtRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
   const out: string[] = [];
-  let startedMatlab = false;
+  let startedBodyOrMatlab = false;
+  let mappedCount = 0;
 
   for (const l of lines) {
     const stripped = stripHeadingMarkdown(l);
-    if (!startedMatlab && (!stripped || mbRe.test(stripped))) {
+    if (!startedBodyOrMatlab && (!stripped || mbRe.test(stripped))) {
       continue;
     }
-    if (new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}`, 'i').test(stripped)) {
-      startedMatlab = true;
-      out.push(stripped);
+    if (mtRe.test(stripped)) {
+      startedBodyOrMatlab = true;
+      // إذا أعاد النموذج ترقيماً خاطئاً مثل "المطلب الأول" أثناء الاستكمال، نصحح العنوان ليطابق المطلب الناقص الفعلي
+      const canonical = missingMatalib && missingMatalib[mappedCount] ? missingMatalib[mappedCount].title : stripped;
+      out.push(canonical);
+      mappedCount++;
       continue;
     }
-    if (mbRe.test(stripped) && startedMatlab) {
+    if (mbRe.test(stripped) && startedBodyOrMatlab) {
       break;
     }
+    if (stripped) startedBodyOrMatlab = true;
     out.push(l);
   }
-  return out.join('\n').trim();
+
+  let res = out.join('\n').trim();
+  // إذا كتب النموذج متن المطلب الناقص مباشرة بدون سطر العنوان، ندرج عنوان المطلب المتوقع أعلى المتن
+  if (res && mappedCount === 0 && missingMatalib && missingMatalib[0]?.title) {
+    res = `${missingMatalib[0].title}\n${res}`;
+  }
+  return res;
 }
 
 function trimTrailingEmptyMatlabStub(text: string): string {
@@ -540,7 +573,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       });
 
       let verifiedMbText = sanitizeMabhathOutput(rawMbText, mb);
-      const missingIndices = findMissingMatalibIndices(verifiedMbText, expectedMatalib);
+      let missingIndices = findMissingMatalibIndices(verifiedMbText, expectedMatalib);
 
       if (missingIndices.length > 0 && expectedMatalib.length > 0) {
         const missingMatalib = missingIndices.map((k) => expectedMatalib[k]).filter(Boolean);
@@ -549,23 +582,51 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
           const contRaw = await call(
             withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg)),
             (_c, acc) => {
-              const previewCombined = `${trimTrailingEmptyMatlabStub(verifiedMbText)}\n\n${stripContinuationDuplicateHeader(acc)}`;
+              const previewCombined = `${trimTrailingEmptyMatlabStub(verifiedMbText)}\n\n${stripContinuationDuplicateHeader(acc, missingMatalib)}`;
               mbTexts[idx] = previewCombined;
               patch(`mb${idx}`, { words: countWords(previewCombined) });
               refreshDraft();
             },
             {
               temperature: 0.35,
-              maxTokens: Math.min(8192, Math.max(1800, missingMatalib.length * 1500)),
+              maxTokens: Math.min(8192, Math.max(2000, missingMatalib.length * 1600)),
             },
           );
-          const cleanCont = stripContinuationDuplicateHeader(contRaw);
+          const cleanCont = stripContinuationDuplicateHeader(contRaw, missingMatalib);
           if (cleanCont) {
             const baseText = trimTrailingEmptyMatlabStub(verifiedMbText) || mb.title;
             verifiedMbText = sanitizeMabhathOutput(`${baseText}\n\n${cleanCont}`, mb);
           }
         } catch (errCont) {
           console.warn(`Continuation for mb${idx} failed:`, errCont);
+        }
+
+        // تحقق ثانٍ: إذا بقي أي مطلب ناقص بعد الاستكمال الأول (مثلاً بسبب حد الحصة أو توقف جزئي)، نعيد المحاولة له منفرداً مع تدوير المفتاح
+        missingIndices = findMissingMatalibIndices(verifiedMbText, expectedMatalib);
+        if (missingIndices.length > 0) {
+          if (o.provider === 'gemini') rotateSystemGeminiKey();
+          await waitMs(1200);
+          for (const mk of missingIndices) {
+            const targetMt = expectedMatalib[mk];
+            if (!targetMt) continue;
+            try {
+              const retryRaw = await call(
+                withAddendum(buildMissingMatalibPrompt(p, mb, [targetMt], perMatlabWords, cfg)),
+                null,
+                {
+                  temperature: 0.3,
+                  maxTokens: 2000,
+                },
+              );
+              const cleanRetry = stripContinuationDuplicateHeader(retryRaw, [targetMt]);
+              if (cleanRetry) {
+                const baseText = trimTrailingEmptyMatlabStub(verifiedMbText) || mb.title;
+                verifiedMbText = sanitizeMabhathOutput(`${baseText}\n\n${cleanRetry}`, mb);
+              }
+            } catch (errRetry) {
+              console.warn(`Retry continuation for mb${idx} matlab ${mk} failed:`, errRetry);
+            }
+          }
         }
       }
 

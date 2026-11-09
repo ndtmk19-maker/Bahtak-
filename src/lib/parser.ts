@@ -38,13 +38,23 @@ export interface ResearchAnalysis {
 const ARABIC_STRUCT_ORD = '(?:الأول|الاول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\\s+عشر|الثاني\\s+عشر|[\\d٠-٩]+)';
 
 function stripStructuralMarkdown(line: string): string {
-    return (line || '')
+    let s = (line || '')
         .trim()
         .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
         .replace(/\*\*|__/g, '')
         .replace(/^\*+|\*+$/g, '')
-        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/[\u064B-\u065F\u0670ـ]/g, '')
         .trim();
+
+    // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" فقط إذا سبق عنواناً هيكلياً صريحاً
+    const numberedStructMatch = s.match(
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر).*)$/i,
+    );
+    if (numberedStructMatch) {
+        s = numberedStructMatch[1].trim();
+    }
+
+    return s.replace(/^(المبحث|مبحث|المطلب|مطلب)\s*(?:رقم\s*)?([\d٠-٩]+)/i, '$1 $2');
 }
 
 // تعبير منتظم لاكتشاف عبارات التمهيد للقوائم والنقاط (أهمها، عناصرها، خصائصها، أنواعها، مهامها، أهدافها، مميزاتها، كما يلي، كالاتي...)
@@ -182,6 +192,10 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             let cleanText = rawText.replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ');
             cleanText = cleanText.replace(/\\([.&_*\\#\-\(\)\[\]])/g, '$1');
             cleanText = cleanText.replace(/ـ+/g, '');
+            cleanText = cleanText.replace(
+                new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:المبحث|المطلب)\\s+${ARABIC_STRUCT_ORD}\\s*[:\\-–—])`, 'g'),
+                '$1\n\n',
+            );
 
             // 2. استخراج عنوان البحث الرئيسي إن وجد
             let detectedTitle = '';
@@ -319,8 +333,8 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 };
             }
 
-            const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
-            const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(]|$)`, 'i');
+            const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+            const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
 
             let pendingMabhath = '';
             let pendingPreambleLines = [];

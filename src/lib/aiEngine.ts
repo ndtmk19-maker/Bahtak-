@@ -22,9 +22,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرتين علميتين لكل مطلب مع مناقشة وتوثيق',
         conclusionWords: 280,
         maxRefs: 12,
-        introMaxTokens: 1400,
-        mabhathMaxTokens: 2600,
-        conclusionMaxTokens: 1300
+        introMaxTokens: 1600,
+        mabhathMaxTokens: 3000,
+        conclusionMaxTokens: 1500
     },
     'medium': {
         label: 'متوسط (8 إلى 12 صفحة)',
@@ -35,9 +35,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات علمية مفصلة لكل مطلب بدقة وأمثلة واقعية وتوثيق أكاديمي',
         conclusionWords: 350,
         maxRefs: 16,
-        introMaxTokens: 2000,
-        mabhathMaxTokens: 3800,
-        conclusionMaxTokens: 1800
+        introMaxTokens: 2200,
+        mabhathMaxTokens: 4500,
+        conclusionMaxTokens: 2000
     },
     'giant': {
         label: 'موسع (12 إلى 16 صفحة)',
@@ -48,9 +48,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات علمية موسعة لكل مطلب مع مناقشة فكرية معمقة وهوامش وفيرة',
         conclusionWords: 450,
         maxRefs: 20,
-        introMaxTokens: 2800,
-        mabhathMaxTokens: 5200,
-        conclusionMaxTokens: 2400
+        introMaxTokens: 3000,
+        mabhathMaxTokens: 6000,
+        conclusionMaxTokens: 2600
     },
     'huge': {
         label: 'مطول جداً (20 إلى 25 صفحة)',
@@ -61,9 +61,9 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: 'فقرات تحليلية موسعة وتفريعات لكل مطلب مع إحالات مرجعية مكثفة',
         conclusionWords: 550,
         maxRefs: 25,
-        introMaxTokens: 3600,
-        mabhathMaxTokens: 7000,
-        conclusionMaxTokens: 3200
+        introMaxTokens: 3800,
+        mabhathMaxTokens: 7600,
+        conclusionMaxTokens: 3400
     }
 };
 
@@ -726,8 +726,9 @@ export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg) {
     var mtCount = matalib.length;
     var perMatlabWords = Math.max(120, Math.round((targetWordsPerMb || 600) / Math.max(1, mtCount)));
     var matalibList = matalib.map(function(mt, mIdx) {
-        return (mIdx + 1) + '. ' + (mt.title || ('المطلب ' + (mIdx + 1)));
+        return (mt.title || ('المطلب ' + (ORDINAL_LABELS[mIdx] || (mIdx + 1))));
     }).join('\n');
+    var lastMatlabTitle = matalib[mtCount - 1] ? matalib[mtCount - 1].title : '';
     var otherMabahith = (plan.mabahith || []).filter(function(other) {
         return other && other.title && other.title !== mb.title;
     }).map(function(other) {
@@ -740,33 +741,34 @@ export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg) {
     (otherMabahith ? 'بقية مباحث البحث (للتكامل فقط — ممنوع تكرار محاورها أو إعادة كتابة مطالبها هنا):\n' + otherMabahith + '\n' : '') +
     'جميع المطالب المطلوب كتابتها كاملة داخل هذا المبحث (' + mtCount + ' مطالب بالضبط):\n' + matalibList + '\n\n' +
     'معيار الطول والحجم المطلوب:\n' +
-    '- الطول الإجمالي المطلوب لهذا المبحث كاملاً بجميع مطالبه الـ ' + mtCount + ' هو: حوالي ' + targetWordsPerMb + ' كلمة (أي نحو ' + perMatlabWords + ' كلمة متوازنة لكل مطلب دون إطالة في مطلب على حساب حذف المطلب الأخير).\n' +
+    '- الطول الإجمالي المطلوب لهذا المبحث كاملاً بجميع مطالبه الـ ' + mtCount + ' هو: حوالي ' + targetWordsPerMb + ' كلمة (أي نحو ' + perMatlabWords + ' كلمة متوازنة لكل مطلب دون إطالة مفرطة في الأول والثاني تؤدي لاختصار أو حذف: ' + lastMatlabTitle + ').\n' +
     '- لكل مطلب: اكتب ' + cfg.matlabParagraphs + '، مع إحالات وهوامش توثيقية حقيقية.\n\n' +
     'الشروط الصارمة:\n' +
-    '1. ابدأ بالسطر الأول مباشرة بعنوان المبحث كنص صريح دون أي نجمات أو رموز ماركداون (** أو #):\n' + mb.title + '\n' +
-    '2. التزم بكتابة كل المطالب المذكورة أعلاه بالترتيب وعددها (' + mtCount + ') دون دمج أو إسقاط أو اختصار أي مطلب منها، وبنفس العنوان المحدد حرفياً كنص صريح دون ** أو #، متبوعاً بمتنه ثم هوامشه كالتالي:\n' +
+    '1. ابدأ بالسطر الأول مباشرة بعنوان المبحث كنص صريح دون أي نجمات أو رموز ماركداون (** أو # أو أرقام قبله):\n' + mb.title + '\n' +
+    '2. التزم بكتابة كل المطالب المذكورة أعلاه بالترتيب وعددها (' + mtCount + ') دون دمج أو إسقاط أو اختصار أي مطلب منها، واكتب عنوان كل مطلب في سطر مستقل تماماً كما هو حرفياً دون وضع أرقام مثل 1. أو 3. ودون ** أو # قبل كلمة «المطلب»، متبوعاً بمتنه ثم هوامشه كالتالي:\n' +
     (matalib[0] ? matalib[0].title : 'المطلب الأول: [عنوان المطلب]') + '\n' +
     '(اكتب فقرات علمية تحليلية رصينة تناقش هذا المطلب بأمثلة ومفاهيم واضحة، مع وضع أرقام الهوامش ^1 و ^2 في نهايات الفقرات).\n' +
     'الهوامش:\n' +
     '^1 اسم المؤلف، عنوان الكتاب الأكاديمي، دار النشر، سنة الطبع، ص...\n' +
     '^2 اسم المؤلف، عنوان الدراسة، دار النشر، سنة الطبع، ص...\n' +
-    '3. كرر نفس البنية العلمية المفصلة لجميع المطالب الـ ' + mtCount + ' كاملة مع كتابة قسم الهوامش لكل مطلب.\n' +
+    '3. كرر نفس البنية العلمية المفصلة لجميع المطالب الـ ' + mtCount + ' كاملة وصولاً إلى كتابة (' + lastMatlabTitle + ') بالكامل مع قسم الهوامش الخاص به.\n' +
     '4. لا تكتب مقدمة عامة ولا خاتمة ولا تكتب عنوان مبحث آخر غير (' + mb.title + ').';
 }
 
 // استكمال مطالب ناقصة داخل مبحث لم يكمل النموذج كل مطالبه المحددة
 export function buildMissingMatalibPrompt(plan, mb, missingMatalib, perMatlabWords, cfg) {
-    var list = (missingMatalib || []).map(function(mt, idx) {
-        return (idx + 1) + '. ' + mt.title;
+    var list = (missingMatalib || []).map(function(mt) {
+        return mt.title;
     }).join('\n');
+    var firstExpectedTitle = (missingMatalib && missingMatalib[0] && missingMatalib[0].title) || 'المطلب الثالث: ...';
     return 'أنت باحث أكاديمي متخصص. تم توليد المطالب السابقة من المبحث التالي وبقيت المطالب الناقصة أدناه فقط بحاجة إلى كتابة:\n' +
     'عنوان البحث العام: ' + plan.title + '\n' +
     'المبحث: ' + mb.title + '\n' +
     'المطالب المطلوب كتابتها الآن حصراً دون نقصان:\n' + list + '\n\n' +
     'الشروط الصارمة:\n' +
-    '1. لا تعد كتابة عنوان المبحث ولا المقدمة ولا المطالب السابقة؛ ابدأ السطر الأول مباشرة بعنوان أول مطلب مطلوب أدناه.\n' +
-    '2. التزم بكتابة عنوان كل مطلب كما هو حرفياً في سطر مستقل دون علامات ** أو #.\n' +
-    '3. لكل مطلب اكتب نحو ' + (perMatlabWords || 250) + ' كلمة (' + cfg.matlabParagraphs + ')، متبوعاً بقسم:\n' +
+    '1. لا تعد كتابة عنوان المبحث ولا المقدمة ولا المطالب السابقة.\n' +
+    '2. ابدأ السطر الأول مباشرة بكتابة هذا العنوان حرفياً في سطر مستقل دون أي أرقام قبله (مثل 1.) ودون علامات ** أو #:\n' + firstExpectedTitle + '\n' +
+    '3. التزم بكتابة عنوان كل مطلب ناقص كما هو حرفياً في سطر مستقل، ثم اكتب تحته نحو ' + (perMatlabWords || 250) + ' كلمة (' + cfg.matlabParagraphs + ') متبوعاً بقسم:\n' +
     'الهوامش:\n' +
     '^1 اسم المؤلف، عنوان المرجع، دار النشر، سنة النشر، ص...\n' +
     '^2 اسم المؤلف، عنوان الدراسة، دار النشر، سنة النشر، ص...';
