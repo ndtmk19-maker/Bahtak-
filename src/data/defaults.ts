@@ -92,7 +92,7 @@ export function createDefaultDocument(): DocumentState {
     planState: {
       enabled: true,
       pageTitle: 'خـطّـة البـحـث',
-      researchTitle: PLACEHOLDER_TITLE,
+      researchTitle: '',
       showPageNumbers: true,
       itemsText: PLAN_TEMPLATES.standard,
     },

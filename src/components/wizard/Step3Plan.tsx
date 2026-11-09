@@ -56,7 +56,6 @@ export function Step3Plan() {
       <div className={`flex flex-col gap-3.5 transition-opacity ${ps.enabled ? '' : 'pointer-events-none opacity-45'}`} aria-disabled={!ps.enabled}>
         <Section title="إعدادات العرض" icon={<Settings2 />}>
           <TextInput label="عنوان صفحة الخطة" value={ps.pageTitle} onChange={(e) => updatePlan({ pageTitle: e.target.value })} />
-          <TextInput label="عنوان البحث العام (أسفل عنوان الخطة)" value={ps.researchTitle} placeholder="عنوان البحث العام..." onChange={(e) => updatePlan({ researchTitle: e.target.value })} />
           <div className="flex flex-col gap-1.5">
             <span className="text-[0.8rem] font-semibold text-zinc-800 dark:text-zinc-200">نمط العرض</span>
             <Segmented

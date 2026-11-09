@@ -179,10 +179,9 @@ export function buildWordHtml(doc: DocumentState): { html: string; fileName: str
       <tr>
         <td style="padding: 14pt 16pt; vertical-align: top;">
           
-          <div style="text-align: center; font-family: 'Cairo', Arial, sans-serif; font-size: 17pt; font-weight: bold; border-bottom: 2pt solid #222; padding-bottom: 4pt; margin-bottom: 6pt;">
+          <div style="text-align: center; font-family: 'Cairo', Arial, sans-serif; font-size: 17pt; font-weight: bold; border-bottom: 2pt solid #222; padding-bottom: 6pt; margin-bottom: 14pt;">
             ${escapeHtml(ps.pageTitle || 'خـطّـة البـحـث')}
           </div>
-          ${ps.researchTitle ? `<div style="text-align: center; font-family: 'Cairo', Arial, sans-serif; font-size: 11.5pt; font-weight: bold; color: #475569; margin-bottom: 14pt;">${escapeHtml(ps.researchTitle)}</div>` : '<div style="margin-bottom: 10pt;"></div>'}
 
           <table dir="rtl" style="width: 100%; border-collapse: collapse;">
             ${rows}

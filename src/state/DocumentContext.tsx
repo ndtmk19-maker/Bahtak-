@@ -138,7 +138,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
       ...d,
       pages: r.pages,
       coverState: { ...d.coverState, subtitle: '', ...(r.detectedTitle ? { title: r.detectedTitle } : {}) },
-      planState: { ...d.planState, itemsText: r.planText, ...(r.detectedTitle ? { researchTitle: r.detectedTitle } : {}) },
+      planState: { ...d.planState, itemsText: r.planText, researchTitle: '' },
     }));
     bump();
   }, []);

@@ -4,7 +4,7 @@ import { PanelShell } from './PanelShell';
 import { Button } from '../ui/Button';
 import { ChoiceCards, Segmented, Switch } from '../ui/Controls';
 import { SelectInput, TextArea, TextInput } from '../ui/Form';
-import { Note, Section, ToggleRow } from '../ui/Section';
+import { Section, ToggleRow } from '../ui/Section';
 import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
 import { ALGERIAN_WILAYAS } from '../../data/universities';
@@ -12,7 +12,7 @@ import { imageToDataUrl, readFileAsDataUrl } from '../../lib/image';
 import type { CoverTheme, LogoPosition, LogoSize } from '../../types';
 
 export function CoverPanel() {
-  const { doc, updateCover, updateCoverWith, updatePlan } = useDocument();
+  const { doc, updateCover, updateCoverWith } = useDocument();
   const { toast } = useUI();
   const cs = doc.coverState;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -138,16 +138,12 @@ export function CoverPanel() {
         </Section>
 
         <Section title="موضوع وعنوان البحث" icon={<ScrollText />}>
-          <Note>يُمرَّر العنوان تلقائياً إلى صفحة خطة البحث أيضاً.</Note>
           <TextInput
             label="عنوان البحث الرئيسي"
             value={cs.title}
             placeholder="اكتب عنوان البحث الرئيسي..."
             className="font-serif text-base font-bold"
-            onChange={(e) => {
-              updateCover({ title: e.target.value });
-              if (e.target.value) updatePlan({ researchTitle: e.target.value });
-            }}
+            onChange={(e) => updateCover({ title: e.target.value })}
           />
           <TextInput label="العنوان الفرعي (اختياري)" value={cs.subtitle} placeholder="اكتب العنوان الفرعي إن وجد..." onChange={(e) => updateCover({ subtitle: e.target.value })} />
         </Section>

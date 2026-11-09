@@ -108,7 +108,6 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
           <div className="page-content">
             <div className="plan-header">
               <div className="plan-main-title">{ps.pageTitle}</div>
-              {ps.researchTitle && <div className="plan-research-title">{ps.researchTitle}</div>}
             </div>
             <div className="plan-items-container">
               {parsePlanRows(ps.itemsText).map((row, i) => (
