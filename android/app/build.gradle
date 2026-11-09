@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+def versionConfigFile = rootProject.file("../version.config.json")
+def versionConfig = new groovy.json.JsonSlurper().parseText(versionConfigFile.getText("UTF-8"))
+
 android {
     namespace = "dz.bahtak.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "dz.bahtak.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode versionConfig.apkVersionCode as Integer
+        versionName versionConfig.apkVersionName as String
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

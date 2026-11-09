@@ -66,6 +66,7 @@ import { ConfirmDialog, Toaster } from './components/modals/Feedback';
 import { FeedbackModal } from './components/modals/FeedbackModal';
 import { IOSPrintModal } from './components/modals/IOSPrintModal';
 import { AdminDashboardModal } from './components/modals/AdminDashboardModal';
+import { AppUpdatePrompt } from './components/modals/AppUpdatePrompt';
 import { DocumentProvider } from './state/DocumentContext';
 import { UIProvider, useUI } from './state/UIContext';
 import { ConverterProvider } from './state/ConverterContext';
@@ -88,6 +89,7 @@ export default function App() {
             <FeedbackModal />
             <IOSPrintModal />
             <AdminDashboardModal />
+            <AppUpdatePrompt />
             <ConfirmDialog />
             <Toaster />
           </ConverterProvider>

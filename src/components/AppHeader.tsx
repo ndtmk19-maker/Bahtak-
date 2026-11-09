@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CloudUpload, Compass, Download, FileDown, FileText, Home, LayoutGrid, Loader2, MoreVertical, Presentation, Printer, RotateCcw } from 'lucide-react';
+import { Check, CloudUpload, Compass, Download, FileDown, FileText, Home, LayoutGrid, Loader2, MoreVertical, Presentation, Printer, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from './ui/Button';
 import { AndroidIcon } from './ui/BrandIcons';
+import { isAndroidApp } from '../lib/appUpdater';
 import { useDocument } from '../state/DocumentContext';
 import { useUI } from '../state/UIContext';
 import { usePresentation } from '../state/PresentationContext';
@@ -232,6 +233,7 @@ function MoreMenu({
   }, [open]);
 
   const item = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.84rem] font-semibold text-zinc-800 dark:text-zinc-200 transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer';
+  const inAndroidApp = isAndroidApp();
   return (
     <div ref={ref} className="relative">
       <button type="button" aria-label="المزيد" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="grid size-10 place-items-center rounded-xl text-zinc-800 dark:text-zinc-200 transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer">
@@ -297,11 +299,26 @@ function MoreMenu({
             صفحة البداية والتعريف
           </button>
           <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
-          <a href={LINKS.apk} download="Bahtak.apk" className={item} role="menuitem" onClick={() => setOpen(false)}>
-            <AndroidIcon className="size-5 text-zinc-800 dark:text-zinc-200" />
-            تطبيق أندرويد (APK)
-            <Download className="mr-auto size-4 text-zinc-400" />
-          </a>
+          {inAndroidApp ? (
+            <button
+              type="button"
+              className={item}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new CustomEvent('bahtak:check-update'));
+              }}
+            >
+              <RefreshCw className="size-5 text-zinc-800 dark:text-zinc-200" />
+              التحقق من تحديثات التطبيق
+            </button>
+          ) : (
+            <a href={LINKS.apk} download="Bahtak.apk" className={item} role="menuitem" onClick={() => setOpen(false)}>
+              <AndroidIcon className="size-5 text-zinc-800 dark:text-zinc-200" />
+              تطبيق أندرويد (APK)
+              <Download className="mr-auto size-4 text-zinc-400" />
+            </a>
+          )}
           <button
             type="button"
             className={`${item} text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}

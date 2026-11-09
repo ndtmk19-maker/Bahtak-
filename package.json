@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-updates.mjs",
     "preview": "vite preview",
-    "cap:sync": "npm run build && npx cap sync",
+    "cap:sync": "npm run build && node scripts/sync-android.mjs",
     "cap:open": "npx cap open android",
     "record:demo": "node scripts/record-demo.mjs",
     "format": "oxfmt"
