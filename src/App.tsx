@@ -82,16 +82,16 @@ export default function App() {
           <ConverterProvider>
             <PresentationProvider>
               <AppContent />
+              <KeyGuideModal />
+              <VideoModal />
+              <PartnerModal />
+              <FeedbackModal />
+              <IOSPrintModal />
+              <AdminDashboardModal />
+              <AppUpdatePrompt />
+              <ConfirmDialog />
+              <Toaster />
             </PresentationProvider>
-            <KeyGuideModal />
-            <VideoModal />
-            <PartnerModal />
-            <FeedbackModal />
-            <IOSPrintModal />
-            <AdminDashboardModal />
-            <AppUpdatePrompt />
-            <ConfirmDialog />
-            <Toaster />
           </ConverterProvider>
         </DocumentProvider>
       </UIProvider>

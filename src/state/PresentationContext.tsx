@@ -335,6 +335,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         pages_count: laid.length,
         university: coverMeta.institution || undefined,
       }).catch(() => {});
+      setTimeout(() => ui.setFeedbackOpen(true), 1200);
     } catch (err) {
       ui.toast("تعذر إنشاء ملف PowerPoint", {
         tone: "error",
