@@ -9,14 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useDocument } from "./DocumentContext";
 import { useConverter } from "./ConverterContext";
 import { useUI } from "./UIContext";
 import { ParseError } from "../lib/parser";
 import { getEffectiveGeminiKey } from "../lib/aiKeys";
 import { trackEvent } from "../lib/analytics";
 import type { SectionProgress } from "../lib/aiGenerate";
-import { PLACEHOLDER_TITLE } from "../data/defaults";
 import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
@@ -84,12 +82,12 @@ interface PresentationApi extends Persisted {
   generate: () => Promise<void>;
   exportPptx: () => Promise<void>;
   exporting: boolean;
-  importFromResearch: () => void;
-  importCover: () => void;
-  hasResearchDraft: boolean;
+  reset: () => void;
+  resetVersion: number;
 }
 
-const KEY = "bahtak_presentation_v1";
+const KEY = "bahtak_presentation_v2";
+const LEGACY_KEY = "bahtak_presentation_v1";
 const EMPTY_META: PresentationMeta = {
   title: "",
   subtitle: "عرض تقديمي",
@@ -103,34 +101,25 @@ const EMPTY_META: PresentationMeta = {
   logoUrl: "",
 };
 
-const isPlaceholder = (v: string) => !v.trim() || /الاسم واللقب|أستاذ\(ة\) المقياس|\[عنوان/.test(v);
-
-/** نقل بيانات غلاف البحث إلى بيانات شريحة الغلاف (إعادة استعمال لما أدخله الطالب في نظام البحوث) */
-function metaFromCover(
-  cs: ReturnType<typeof useDocument>["doc"]["coverState"],
-): Partial<PresentationMeta> {
-  const presenters = cs.studentsText
-    .split("\n")
-    .map((l) => l.replace(/^\s*(?:الطالب\(ة\)|الطالبة|الطالب|الطلبة|إعداد)\s*[:：]\s*/, "").trim())
-    .filter((l) => l && !isPlaceholder(l));
-  const out: Partial<PresentationMeta> = {};
-  if (cs.universityName.trim()) out.institution = cs.universityName.trim();
-  if (cs.facultyName.trim()) out.faculty = cs.facultyName.trim();
-  if (presenters.length) out.presentersText = presenters.join("\n");
-  if (!isPlaceholder(cs.supervisor)) out.supervisor = cs.supervisor.trim();
-  if (cs.academicYear.trim()) out.year = cs.academicYear.trim();
-  if (cs.logoUrl) {
-    out.logoUrl = cs.logoUrl;
-    out.selectedWilaya = cs.selectedWilaya;
-    out.selectedUnivId = cs.selectedUnivId;
-  }
-  if (cs.title && cs.title !== PLACEHOLDER_TITLE && !isPlaceholder(cs.title))
-    out.title = cs.title.trim();
-  return out;
+function createDefaultPersisted(): Persisted {
+  return {
+    mode: "draft",
+    draftText: "",
+    meta: { ...EMPTY_META },
+    themeId: DEFAULT_THEME_ID,
+    autoTheme: true,
+    options: { ...DEFAULT_DECK_OPTIONS },
+    aiTopic: "",
+    aiSize: "standard",
+  };
 }
 
 function load(): Persisted | null {
   try {
+    // تنظيف التخزين القديم الذي كان يستورد بيانات غلاف A4 تلقائياً لضمان الفصل التام
+    if (localStorage.getItem(LEGACY_KEY) !== null) {
+      localStorage.removeItem(LEGACY_KEY);
+    }
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Persisted>;
@@ -152,23 +141,9 @@ function load(): Persisted | null {
 const Ctx = createContext<PresentationApi | null>(null);
 
 export function PresentationProvider({ children }: { children: ReactNode }) {
-  const { doc } = useDocument();
   const converter = useConverter();
   const ui = useUI();
-  const [state, setState] = useState<Persisted>(() => {
-    const saved = load();
-    if (saved) return saved;
-    return {
-      mode: "draft",
-      draftText: "",
-      meta: { ...EMPTY_META, ...metaFromCover(doc.coverState) },
-      themeId: DEFAULT_THEME_ID,
-      autoTheme: true,
-      options: DEFAULT_DECK_OPTIONS,
-      aiTopic: "",
-      aiSize: "standard",
-    };
-  });
+  const [state, setState] = useState<Persisted>(() => load() ?? createDefaultPersisted());
   const [run, setRun] = useState<SlidesRun>({
     running: false,
     stage: "idle",
@@ -177,9 +152,13 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     model: "",
   });
   const [exporting, setExporting] = useState(false);
+  const [resetVersion, setResetVersion] = useState(0);
   const runningRef = useRef(false);
+  const runIdRef = useRef(0);
+  const hasUserEditedRef = useRef(false);
 
   useEffect(() => {
+    if (!hasUserEditedRef.current) return;
     const t = setTimeout(() => {
       try {
         localStorage.setItem(KEY, JSON.stringify(state));
@@ -190,15 +169,18 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [state]);
 
-  const patch = useCallback((p: Partial<Persisted>) => setState((s) => ({ ...s, ...p })), []);
-  const setMeta = useCallback(
-    (p: Partial<PresentationMeta>) => setState((s) => ({ ...s, meta: { ...s.meta, ...p } })),
-    [],
-  );
-  const setOptions = useCallback(
-    (p: Partial<DeckOptions>) => setState((s) => ({ ...s, options: { ...s.options, ...p } })),
-    [],
-  );
+  const patch = useCallback((p: Partial<Persisted>) => {
+    hasUserEditedRef.current = true;
+    setState((s) => ({ ...s, ...p }));
+  }, []);
+  const setMeta = useCallback((p: Partial<PresentationMeta>) => {
+    hasUserEditedRef.current = true;
+    setState((s) => ({ ...s, meta: { ...s.meta, ...p } }));
+  }, []);
+  const setOptions = useCallback((p: Partial<DeckOptions>) => {
+    hasUserEditedRef.current = true;
+    setState((s) => ({ ...s, options: { ...s.options, ...p } }));
+  }, []);
 
   // التحليل البنيوي المشترك ← خطة الشرائح (يُعاد حسابه مع كل تعديل على المسودة)
   const draft = useDeferredValue(state.draftText);
@@ -237,30 +219,26 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     [deck, theme, state.options],
   );
 
-  const importFromResearch = useCallback(() => {
-    const text = converter.rawText.trim();
-    if (!text) {
-      ui.toast("لا توجد مسودة بحث محفوظة بعد", {
-        tone: "info",
-        description: "أنشئ بحثاً أولاً من قسم البحوث، أو الصق مسودة العرض مباشرة.",
-      });
-      return;
+  const reset = useCallback(() => {
+    runIdRef.current += 1;
+    runningRef.current = false;
+    hasUserEditedRef.current = false;
+    try {
+      localStorage.removeItem(KEY);
+      localStorage.removeItem(LEGACY_KEY);
+    } catch {
+      /* ignore */
     }
-    setState((s) => ({
-      ...s,
-      draftText: text,
-      mode: "draft",
-      meta: { ...s.meta, ...metaFromCover(doc.coverState) },
-    }));
-    ui.toast("تم استيراد مسودة البحث الحالية", {
-      description: "حُوّلت المقدمة والمباحث والمطالب والخاتمة والمراجع إلى شرائح مرتبة.",
+    setState(createDefaultPersisted());
+    setRun({
+      running: false,
+      stage: "idle",
+      sections: [],
+      words: 0,
+      model: "",
     });
-  }, [converter.rawText, doc.coverState, ui]);
-
-  const importCover = useCallback(() => {
-    setMeta(metaFromCover(doc.coverState));
-    ui.toast("تم نسخ بيانات الغلاف من البحث", { tone: "info" });
-  }, [doc.coverState, setMeta, ui]);
+    setResetVersion((v) => v + 1);
+  }, []);
 
   const generate = useCallback(async () => {
     if (runningRef.current) return;
@@ -281,7 +259,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       document.getElementById("slides-ai-topic")?.focus();
       return;
     }
+    const myRunId = ++runIdRef.current;
     runningRef.current = true;
+    hasUserEditedRef.current = true;
     setRun({ running: true, stage: "plan", sections: [], words: 0, model: "" });
     try {
       const text = await generatePresentationDraft({
@@ -291,14 +271,24 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         size: state.aiSize,
         customUrl,
         customModel,
-        onSections: (sections) => setRun((r) => ({ ...r, sections })),
+        onSections: (sections) => {
+          if (runIdRef.current === myRunId) setRun((r) => ({ ...r, sections }));
+        },
         onDraft: (t, words) => {
+          if (runIdRef.current !== myRunId) return;
+          hasUserEditedRef.current = true;
           setState((s) => ({ ...s, draftText: t }));
           setRun((r) => ({ ...r, words }));
         },
-        onModel: (model) => setRun((r) => ({ ...r, model })),
-        onStage: (stage) => setRun((r) => ({ ...r, stage })),
+        onModel: (model) => {
+          if (runIdRef.current === myRunId) setRun((r) => ({ ...r, model }));
+        },
+        onStage: (stage) => {
+          if (runIdRef.current === myRunId) setRun((r) => ({ ...r, stage }));
+        },
       });
+      if (runIdRef.current !== myRunId) return;
+      hasUserEditedRef.current = true;
       setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: topic } }));
       setRun((r) => ({ ...r, running: false, stage: "done" }));
       ui.toast("اكتمل توليد محتوى العرض", {
@@ -307,13 +297,16 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       });
       trackEvent({ event_type: "generate", topic: `[PPTX] ${topic}` }).catch(() => {});
     } catch (err) {
+      if (runIdRef.current !== myRunId) return;
       setRun((r) => ({ ...r, running: false, stage: "idle" }));
       ui.toast("تعذر إكمال التوليد", {
         tone: "error",
         description: `${err instanceof Error ? err.message : String(err)} — تأكد من المفتاح واتصالك بالإنترنت.`,
       });
     } finally {
-      runningRef.current = false;
+      if (runIdRef.current === myRunId) {
+        runningRef.current = false;
+      }
     }
   }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, ui]);
 
@@ -371,9 +364,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       generate,
       exportPptx,
       exporting,
-      importFromResearch,
-      importCover,
-      hasResearchDraft: !!converter.rawText.trim(),
+      reset,
+      resetVersion,
     }),
     [
       state,
@@ -388,9 +380,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       generate,
       exportPptx,
       exporting,
-      importFromResearch,
-      importCover,
-      converter.rawText,
+      reset,
+      resetVersion,
     ],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

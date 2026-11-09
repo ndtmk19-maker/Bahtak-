@@ -312,10 +312,10 @@ function MoreMenu({
             }}
           >
             <RotateCcw className="size-5" />
-            إعادة تعيين وبدء بحث جديد
+            {isSlides ? 'إعادة تعيين وبدء عرض جديد' : 'إعادة تعيين وبدء بحث جديد'}
           </button>
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 text-[0.7rem] text-zinc-500 dark:text-zinc-400">
-            <CloudUpload className="size-3.5" /> يُحفظ بحثك تلقائياً في هذا المتصفح
+            <CloudUpload className="size-3.5" /> {isSlides ? 'يُحفظ عرضك تلقائياً في هذا المتصفح' : 'يُحفظ بحثك تلقائياً في هذا المتصفح'}
           </div>
           <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
           <button

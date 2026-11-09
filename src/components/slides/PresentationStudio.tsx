@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ALGERIAN_WILAYAS } from "../../data/universities";
 import { readFileAsDataUrl } from "../../lib/image";
 import {
-  ArrowLeftRight,
   BookOpenCheck,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +9,6 @@ import {
   CircleCheck,
   ClipboardPaste,
   Download,
-  FileInput,
   FlaskConical,
   GraduationCap,
   ImageUp,
@@ -22,6 +20,7 @@ import {
   MessageSquareText,
   Palette,
   Presentation,
+  RotateCcw,
   Rows3,
   Sparkles,
   Trash2,
@@ -34,6 +33,7 @@ import { SelectInput, TextArea, TextInput } from "../ui/Form";
 import { Note, Section } from "../ui/Section";
 import { SlideCanvas } from "./SlideCanvas";
 import { usePresentation } from "../../state/PresentationContext";
+import { useResetApp } from "../../state/useResetApp";
 import { useUI } from "../../state/UIContext";
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from "../../data/defaults";
 import { SLIDE_THEMES, type Slide, type SlideTheme } from "../../lib/slides";
@@ -50,7 +50,11 @@ const KIND_LABEL: Record<Slide["kind"], string> = {
 };
 
 export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
+  const { resetVersion } = usePresentation();
   const [view, setView] = useState<"editor" | "preview">("editor");
+  useEffect(() => {
+    if (resetVersion > 0) setView("editor");
+  }, [resetVersion]);
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950 lg:flex-row">
       {!isDesktop && (
@@ -81,6 +85,7 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
           <CoverFields />
           <ThemePicker />
           <StructureOptions />
+          <ResetPresentationSection />
         </div>
       </aside>
       <Stage className={isDesktop || view === "preview" ? "flex" : "hidden"} />
@@ -89,17 +94,23 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
 }
 
 function EditorIntro() {
+  const resetApp = useResetApp();
   return (
     <div className="animate-rise">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3 py-1 text-[0.72rem] font-bold text-zinc-700 dark:text-zinc-300">
-        <Presentation className="size-3.5" /> نظام العروض التقديمية
-      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3 py-1 text-[0.72rem] font-bold text-zinc-700 dark:text-zinc-300">
+          <Presentation className="size-3.5" /> نظام العروض التقديمية المستقل
+        </span>
+        <Button size="sm" variant="ghost" icon={<RotateCcw className="size-3.5" />} onClick={resetApp}>
+          عرض جديد
+        </Button>
+      </div>
       <h1 className="mt-3 font-serif text-[1.65rem] leading-snug font-bold text-zinc-900 dark:text-zinc-100">
-        حوّل بحثك إلى عرض PowerPoint
+        إنشاء عرض PowerPoint احترافي
       </h1>
       <p className="mt-1.5 text-[0.86rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
-        يعتمد العرض على نفس محرك تحليل البحوث: يتعرف على المقدمة والمباحث والمطالب والخاتمة
-        والمراجع، ثم يوزعها على شرائح متوازنة قابلة للتعديل بالكامل.
+        استوديو مستقل تماماً عن بحوث A4: اكتب أو ألصق مسودة العرض أو ولّدها بالذكاء الاصطناعي،
+        وسيتم توزيعها تلقائياً على شرائح متوازنة قابلة للتعديل بالكامل.
       </p>
     </div>
   );
@@ -129,7 +140,7 @@ function MethodPicker() {
           من المسودة
         </span>
         <span className="text-[0.74rem] leading-relaxed text-neutral-600 dark:text-neutral-400">
-          الصق محتوى العرض أو استورد مسودة بحثك الحالية.
+          اكتب محتوى العرض أو ألصق مسودتك مباشرة.
         </span>
       </button>
       <button
@@ -156,6 +167,7 @@ function MethodPicker() {
 function ContentInput() {
   const p = usePresentation();
   const { confirm } = useUI();
+  const resetApp = useResetApp();
   const words = p.draftText.trim() ? p.draftText.trim().split(/\s+/).length : 0;
 
   if (p.mode === "ai") return <AiFields />;
@@ -163,37 +175,28 @@ function ContentInput() {
     <Section
       title="مسودة العرض"
       icon={<ClipboardPaste />}
-      description="نفس صيغة مسودة البحث: المقدمة، المبحث، المطلب، الخاتمة، المراجع، والهوامش ^1."
+      description="الصيغة المدعومة: المقدمة، المبحث، المطلب، الخاتمة، المراجع، والهوامش ^1."
       actions={
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={<Trash2 className="size-3.5" />}
-          onClick={async () =>
-            p.draftText &&
-            (await confirm({ title: "مسح مسودة العرض؟", confirmLabel: "مسح" })) &&
-            p.setDraftText("")
-          }
-        >
-          مسح
-        </Button>
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Trash2 className="size-3.5" />}
+            onClick={async () =>
+              p.draftText &&
+              (await confirm({ title: "مسح مسودة العرض؟", confirmLabel: "مسح" })) &&
+              p.setDraftText("")
+            }
+          >
+            مسح
+          </Button>
+          <Button size="sm" variant="ghost" icon={<RotateCcw className="size-3.5" />} onClick={resetApp}>
+            جديد
+          </Button>
+        </>
       }
     >
       <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<FileInput className="size-3.5" />}
-          onClick={p.importFromResearch}
-          disabled={!p.hasResearchDraft}
-          title={
-            p.hasResearchDraft
-              ? "استيراد نص البحث الذي أنشأته في قسم البحوث"
-              : "لا توجد مسودة بحث محفوظة بعد"
-          }
-        >
-          استيراد مسودة البحث الحالية
-        </Button>
         <Button
           size="sm"
           variant="ghost"
@@ -475,22 +478,9 @@ function LogoPicker() {
 }
 
 function CoverFields() {
-  const { meta, setMeta, importCover, deck } = usePresentation();
+  const { meta, setMeta, deck } = usePresentation();
   return (
-    <Section
-      title="شريحة الغلاف"
-      icon={<GraduationCap />}
-      actions={
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={<ArrowLeftRight className="size-3.5" />}
-          onClick={importCover}
-        >
-          من غلاف البحث
-        </Button>
-      }
-    >
+    <Section title="شريحة الغلاف" icon={<GraduationCap />}>
       <TextInput
         label="عنوان العرض"
         value={meta.title}
@@ -698,10 +688,35 @@ function StructureOptions() {
   );
 }
 
+function ResetPresentationSection() {
+  const resetApp = useResetApp();
+  return (
+    <Section
+      title="بدء عرض جديد"
+      icon={<RotateCcw />}
+      description="يحفظ التطبيق عرضك تلقائياً في هذا المتصفح بشكل مستقل تماماً عن بحوث A4. إعادة التعيين تمسح العرض الحالي فقط."
+    >
+      <Button
+        variant="secondary"
+        block
+        icon={<RotateCcw className="size-4" />}
+        onClick={resetApp}
+        className="!text-red-600 dark:!text-red-400 !border-red-500/20 hover:!bg-red-500/10"
+      >
+        إعادة تعيين العرض ومسح بياناته
+      </Button>
+    </Section>
+  );
+}
+
 function Stage({ className }: { className: string }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode } = usePresentation();
+  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion } =
+    usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
+  useEffect(() => {
+    if (resetVersion > 0) setSel(0);
+  }, [resetVersion]);
   useEffect(() => {
     if (sel > count - 1) setSel(Math.max(0, count - 1));
   }, [count, sel]);
@@ -770,7 +785,7 @@ function Stage({ className }: { className: string }) {
             </h2>
             <p className="mt-1.5 text-[0.84rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
               {mode === "draft"
-                ? "الصق مسودة العرض أو استورد مسودة بحثك لتتكون الشرائح فوراً."
+                ? "اكتب أو ألصق مسودة العرض لتتكون الشرائح فوراً."
                 : "اكتب موضوع العرض واضغط توليد، وستُبنى الشرائح أثناء الكتابة."}
             </p>
             {mode === "ai" && (
