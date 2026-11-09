@@ -1,9 +1,24 @@
+import { useRef } from 'react';
 import { Download } from 'lucide-react';
 import { AndroidIcon, InstagramIcon } from '../ui/BrandIcons';
 import { LINKS } from '../../data/defaults';
+import { useUI } from '../../state/UIContext';
 
 /** بطاقة تطبيق الأندرويد وحقوق المطور بتصميم متناسق مع الهوية البصرية الفاخرة */
 export function AppCredits() {
+  const { setAdminModalOpen } = useUI();
+  const clicksRef = useRef(0);
+
+  const handleIconClick = () => {
+    clicksRef.current += 1;
+    if (clicksRef.current >= 5) {
+      clicksRef.current = 0;
+      setAdminModalOpen(true);
+    }
+    setTimeout(() => {
+      clicksRef.current = 0;
+    }, 1500);
+  };
   return (
     <div className="mt-3 grid gap-3">
       <a
@@ -31,7 +46,9 @@ export function AppCredits() {
             alt="Bahtak Logo"
             width={32}
             height={32}
-            className="size-8 shrink-0 rounded-lg object-contain shadow-xs border border-black/10 dark:border-white/10"
+            onClick={handleIconClick}
+            className="size-8 shrink-0 rounded-lg object-contain shadow-xs border border-black/10 dark:border-white/10 cursor-pointer select-none"
+            title="Bahtak"
           />
           <div className="leading-relaxed">
             <div className="font-bold text-zinc-900 dark:text-white">Bahtak — بحثك</div>

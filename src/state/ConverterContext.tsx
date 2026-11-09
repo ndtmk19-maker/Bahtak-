@@ -5,6 +5,7 @@ import { parseRawText, ParseError } from '../lib/parser';
 import { AI_LENGTHS, generateResearch, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
+import { trackEvent } from '../lib/analytics';
 
 export type ConverterMode = 'paste' | 'ai';
 
@@ -145,6 +146,15 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
           description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى خطوة التنسيق والمظهر...`,
         });
       }
+
+      // تسجيل عملية التوليد في الإحصائيات وسحابة Supabase
+      trackEvent({
+        event_type: 'generate',
+        topic: form.topic.trim(),
+        pages_count: count || undefined,
+        university: doc.coverState.universityName || undefined,
+      });
+
       // الانتقال التلقائي للخطوة الرابعة: المعاينة والإنهاء
       setTimeout(() => {
         ui.setWizardStep(4);

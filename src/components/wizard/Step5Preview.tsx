@@ -32,6 +32,7 @@ import { useUI } from '../../state/UIContext';
 import { downloadWordDocument } from '../../lib/wordExport';
 import { imageToDataUrl } from '../../lib/image';
 import { isIOS, isInAppBrowser, triggerPrintDocument } from '../../lib/printDocument';
+import { trackEvent } from '../../lib/analytics';
 
 export function Step5Preview() {
   const { doc, pagesVersion, addPage } = useDocument();
@@ -52,6 +53,12 @@ export function Step5Preview() {
         d = { ...doc, coverState: { ...cs, logoBase64: await imageToDataUrl(cs.logoUrl) } };
       }
       downloadWordDocument(d);
+      trackEvent({
+        event_type: 'export_word',
+        topic: doc.coverState.title || undefined,
+        pages_count: totalA4,
+        university: doc.coverState.universityName || undefined,
+      });
       toast('تم تصدير ملف Word بنجاح', { description: 'افتح الملف في Microsoft Word أو Google Docs.' });
       setTimeout(() => setFeedbackOpen(true), 1200);
     } catch (err) {
@@ -65,6 +72,12 @@ export function Step5Preview() {
     setMobileView('preview');
     // استدعاء متزامن ومباشر دون تأخير زمني لضمان فتح نافذة الطباعة في سفاري iOS
     const res = triggerPrintDocument(doc.coverState.title);
+    trackEvent({
+      event_type: 'export_pdf',
+      topic: doc.coverState.title || undefined,
+      pages_count: totalA4,
+      university: doc.coverState.universityName || undefined,
+    });
     if (res.inAppBrowser) {
       openIOSModal('inApp');
     } else if (isIOS()) {

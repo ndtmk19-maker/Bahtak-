@@ -52,6 +52,8 @@ interface UIApi {
   iosModal: { open: boolean; mode: 'guide' | 'inApp' };
   openIOSModal: (mode: 'guide' | 'inApp') => void;
   closeIOSModal: () => void;
+  adminModalOpen: boolean;
+  setAdminModalOpen: (v: boolean) => void;
   /** يطلب من المعاينة التمرير إلى صفحة محددة */
   focusPage: (domId: string) => void;
 }
@@ -88,6 +90,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [iosModal, setIosModal] = useState<{ open: boolean; mode: 'guide' | 'inApp' }>({ open: false, mode: 'guide' });
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   const openIOSModal = useCallback((mode: 'guide' | 'inApp') => {
     setIosModal({ open: true, mode });
@@ -173,9 +176,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
       iosModal,
       openIOSModal,
       closeIOSModal,
+      adminModalOpen,
+      setAdminModalOpen,
       focusPage,
     }),
-    [showLanding, setShowLanding, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, focusPage],
+    [showLanding, setShowLanding, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, adminModalOpen, setAdminModalOpen, focusPage],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

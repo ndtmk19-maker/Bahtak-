@@ -10,13 +10,30 @@ import { imageToDataUrl } from '../lib/image';
 import { LINKS } from '../data/defaults';
 import { SectionNav, useMediaQuery } from './Navigation';
 import { isIOS, isInAppBrowser, triggerPrintDocument } from '../lib/printDocument';
+import { trackEvent } from '../lib/analytics';
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery('(min-width: 1280px)');
   const { doc, saveStatus } = useDocument();
-  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen, openIOSModal } = useUI();
+  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen, openIOSModal, setAdminModalOpen } = useUI();
   const resetApp = useResetApp();
   const [exporting, setExporting] = useState(false);
+  const logoClicksRef = useRef(0);
+  const logoTimerRef = useRef<number | null>(null);
+
+  const handleLogoClick = () => {
+    logoClicksRef.current += 1;
+    if (logoTimerRef.current) clearTimeout(logoTimerRef.current);
+    if (logoClicksRef.current >= 5) {
+      logoClicksRef.current = 0;
+      setAdminModalOpen(true);
+      return;
+    }
+    logoTimerRef.current = window.setTimeout(() => {
+      logoClicksRef.current = 0;
+    }, 1500);
+    setShowLanding(true);
+  };
 
   const exportWord = async () => {
     setExporting(true);
@@ -27,6 +44,11 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
         d = { ...doc, coverState: { ...cs, logoBase64: await imageToDataUrl(cs.logoUrl) } };
       }
       downloadWordDocument(d);
+      trackEvent({
+        event_type: 'export_word',
+        topic: doc.coverState.title || undefined,
+        university: doc.coverState.universityName || undefined,
+      });
       toast('تم تصدير ملف Word', { description: 'افتح الملف في Microsoft Word واحفظه بصيغة .docx إذا رغبت.' });
       setTimeout(() => setFeedbackOpen(true), 1200);
     } catch (err) {
@@ -40,6 +62,11 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
     setMobileView('preview');
     // استدعاء متزامن ومباشر دون تأخير زمني لضمان فتح نافذة الطباعة في سفاري iOS
     const res = triggerPrintDocument(doc.coverState.title);
+    trackEvent({
+      event_type: 'export_pdf',
+      topic: doc.coverState.title || undefined,
+      university: doc.coverState.universityName || undefined,
+    });
     if (res.inAppBrowser) {
       openIOSModal('inApp');
     } else if (isIOS()) {
@@ -54,10 +81,10 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
     <header className="no-print relative z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 bg-white/85 dark:bg-neutral-950/85 backdrop-blur-md px-3 sm:px-5 lg:h-[68px]">
       <button
         type="button"
-        onClick={() => setShowLanding(true)}
-        className="flex min-w-0 shrink-0 items-center gap-3 text-right cursor-pointer transition hover:opacity-85"
+        onClick={handleLogoClick}
+        className="flex min-w-0 shrink-0 items-center gap-3 text-right cursor-pointer transition hover:opacity-85 select-none"
         aria-label="العودة لصفحة البداية والتعريف"
-        title="الصفحة الرئيسية والتعريف"
+        title="الصفحة الرئيسية (اضغط 5 مرات للوحة الإدارة)"
       >
         <img
           src="/app_icon.png"
@@ -138,6 +165,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
           viewMode={viewMode}
           onToggleView={() => setViewMode(viewMode === 'wizard' ? 'classic' : 'wizard')}
           onOpenLanding={() => setShowLanding(true)}
+          onOpenAdmin={() => setAdminModalOpen(true)}
         />
       </div>
     </header>
@@ -159,11 +187,13 @@ function MoreMenu({
   viewMode,
   onToggleView,
   onOpenLanding,
+  onOpenAdmin,
 }: {
   onReset: () => void;
   viewMode: 'wizard' | 'classic';
   onToggleView: () => void;
   onOpenLanding: () => void;
+  onOpenAdmin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -246,6 +276,23 @@ function MoreMenu({
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 text-[0.7rem] text-zinc-500 dark:text-zinc-400">
             <CloudUpload className="size-3.5" /> يُحفظ بحثك تلقائياً في هذا المتصفح
           </div>
+          <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onOpenAdmin();
+            }}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-[0.74rem] font-semibold text-zinc-500 dark:text-zinc-400 transition hover:bg-black/5 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-xs">🔒</span>
+              لوحة الإحصائيات السرية
+            </span>
+            <span className="rounded bg-black/5 dark:bg-white/10 px-1.5 py-0.5 font-mono text-[0.62rem] text-zinc-600 dark:text-zinc-300">
+              1919
+            </span>
+          </button>
         </div>
       )}
     </div>

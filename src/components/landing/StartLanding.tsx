@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BackgroundPaths } from '../ui/background-paths';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
@@ -22,9 +22,21 @@ const LAND_COORDINATES = [
 ];
 
 export function StartLanding() {
-  const { setShowLanding, setViewMode, setWizardStep, setFeedbackOpen } = useUI();
+  const { setShowLanding, setViewMode, setWizardStep, setFeedbackOpen, setAdminModalOpen } = useUI();
   const { doc } = useDocument();
   const [reviews, setReviews] = useState<GlobeTestimonial[]>(() => getStoredAndDefaultReviews());
+  const logoClicksRef = useRef(0);
+
+  const handleLogoClick = () => {
+    logoClicksRef.current += 1;
+    if (logoClicksRef.current >= 5) {
+      logoClicksRef.current = 0;
+      setAdminModalOpen(true);
+    }
+    setTimeout(() => {
+      logoClicksRef.current = 0;
+    }, 1500);
+  };
 
   // جلب التقييمات الحية من قاعدة بيانات Supabase لجميع الزوار
   const refreshReviews = useCallback(async () => {
@@ -96,6 +108,7 @@ export function StartLanding() {
       onStart={handleStart}
       hasSaved={hasSaved}
       onContinueSaved={handleContinue}
+      onLogoClick={handleLogoClick}
       extraContent={
         <div id="reviews-section" className="w-full py-6 sm:py-10">
           <TestimonialGlobe

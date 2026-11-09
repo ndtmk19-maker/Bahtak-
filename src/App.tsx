@@ -65,9 +65,11 @@ import { PartnerModal } from './components/modals/PartnerModal';
 import { ConfirmDialog, Toaster } from './components/modals/Feedback';
 import { FeedbackModal } from './components/modals/FeedbackModal';
 import { IOSPrintModal } from './components/modals/IOSPrintModal';
+import { AdminDashboardModal } from './components/modals/AdminDashboardModal';
 import { DocumentProvider } from './state/DocumentContext';
 import { UIProvider, useUI } from './state/UIContext';
 import { ConverterProvider } from './state/ConverterContext';
+import { trackEvent } from './lib/analytics';
 
 export default function App() {
   return (
@@ -81,6 +83,7 @@ export default function App() {
             <PartnerModal />
             <FeedbackModal />
             <IOSPrintModal />
+            <AdminDashboardModal />
             <ConfirmDialog />
             <Toaster />
           </ConverterProvider>
@@ -91,7 +94,24 @@ export default function App() {
 }
 
 function AppContent() {
-  const { showLanding } = useUI();
+  const { showLanding, setAdminModalOpen } = useUI();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // فحص الرابط إذا كان يحتوي على ?admin لفتح اللوحة السرية مباشرة
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('admin')) {
+      setAdminModalOpen(true);
+    }
+
+    // تسجيل الزيارة مرة واحدة في الجلسة
+    const sessionKey = 'bahtak_session_tracked';
+    if (!sessionStorage.getItem(sessionKey)) {
+      sessionStorage.setItem(sessionKey, '1');
+      trackEvent({ event_type: 'visit' });
+    }
+  }, [setAdminModalOpen]);
 
   return (
     <AnimatePresence mode="wait">

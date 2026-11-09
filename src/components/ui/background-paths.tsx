@@ -32,6 +32,7 @@ export interface BackgroundPathsProps {
   onContinueSaved?: () => void;
   hasSaved?: boolean;
   extraContent?: ReactNode;
+  onLogoClick?: () => void;
 }
 
 const SAMPLES = 64;
@@ -178,6 +179,7 @@ export function BackgroundPaths({
   onContinueSaved,
   hasSaved,
   extraContent,
+  onLogoClick,
 }: BackgroundPathsProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -361,7 +363,8 @@ export function BackgroundPaths({
                 alt="Bahtak Logo"
                 width={42}
                 height={42}
-                className="size-[42px] rounded-xl object-contain shadow-xs border border-black/10 dark:border-white/10"
+                onClick={onLogoClick}
+                className="size-[42px] rounded-xl object-contain shadow-xs border border-black/10 dark:border-white/10 cursor-pointer select-none"
               />
               <div className="text-right">
                 <span className="font-bold text-lg text-zinc-900 dark:text-zinc-100 block leading-tight font-serif">
