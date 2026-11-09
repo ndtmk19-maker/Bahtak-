@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://bahtek.site/sitemap.xml
+Sitemap: https://www.bahtek.site/sitemap.xml
