@@ -69,6 +69,8 @@ import { AdminDashboardModal } from './components/modals/AdminDashboardModal';
 import { DocumentProvider } from './state/DocumentContext';
 import { UIProvider, useUI } from './state/UIContext';
 import { ConverterProvider } from './state/ConverterContext';
+import { PresentationProvider } from './state/PresentationContext';
+import { PresentationStudio } from './components/slides/PresentationStudio';
 import { trackEvent } from './lib/analytics';
 
 export default function App() {
@@ -77,7 +79,9 @@ export default function App() {
       <UIProvider>
         <DocumentProvider>
           <ConverterProvider>
-            <AppContent />
+            <PresentationProvider>
+              <AppContent />
+            </PresentationProvider>
             <KeyGuideModal />
             <VideoModal />
             <PartnerModal />
@@ -143,7 +147,7 @@ function AppContent() {
 }
 
 function Workspace() {
-  const { section, mobileView, viewMode, wizardStep } = useUI();
+  const { section, mobileView, viewMode, wizardStep, product } = useUI();
   const panelRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
@@ -155,7 +159,10 @@ function Workspace() {
     <div className="print-shell flex h-dvh flex-col overflow-hidden bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <AppHeader isDesktop={isDesktop} />
 
-      {viewMode === 'wizard' ? (
+      {product === 'slides' ? (
+        /* نظام العروض التقديمية (PPTX) المبني على نفس محرك التحليل والتوليد */
+        <PresentationStudio isDesktop={isDesktop} />
+      ) : viewMode === 'wizard' ? (
         /* واجهة الخطوات المستقلة بهوية متناسقة تماماً مع الصفحة الترحيبية */
         <main
           ref={panelRef}
@@ -197,13 +204,13 @@ function Workspace() {
       )}
 
       {/* إبقاء عنصر PreviewPane متاحاً لمحرك الطباعة عند طباعة PDF من المعالج */}
-      {viewMode === 'wizard' && (
+      {product === 'research' && viewMode === 'wizard' && (
         <div className="print-only">
           <PreviewPane />
         </div>
       )}
 
-      {viewMode === 'classic' && <MobileViewBar />}
+      {product === 'research' && viewMode === 'classic' && <MobileViewBar />}
     </div>
   );
 }

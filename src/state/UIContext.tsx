@@ -4,6 +4,8 @@ export type SectionId = 'content' | 'cover' | 'plan' | 'pages' | 'style';
 export type MobileView = 'editor' | 'preview';
 export type ToastTone = 'success' | 'error' | 'info';
 export type ViewMode = 'wizard' | 'classic';
+/** النظامان المتكاملان في المنصة: إنشاء البحوث (Word/PDF) وإنشاء العروض التقديمية (PPTX) */
+export type Product = 'research' | 'slides';
 
 export interface Toast {
   id: number;
@@ -26,6 +28,8 @@ interface ConfirmState extends ConfirmOptions {
 interface UIApi {
   showLanding: boolean;
   setShowLanding: (v: boolean) => void;
+  product: Product;
+  setProduct: (p: Product) => void;
   viewMode: ViewMode;
   setViewMode: (m: ViewMode) => void;
   wizardStep: number;
@@ -72,6 +76,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   });
   const [wizardStep, setWizardStep] = useState<number>(1);
+  const [product, setProductState] = useState<Product>(() => {
+    try {
+      return localStorage.getItem('bahtak_product') === 'slides' ? 'slides' : 'research';
+    } catch {
+      return 'research';
+    }
+  });
+  const setProduct = useCallback((p: Product) => {
+    setProductState(p);
+    try {
+      localStorage.setItem('bahtak_product', p);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [section, setSection] = useState<SectionId>('content');
 
   const setViewMode = useCallback((m: ViewMode) => {
@@ -150,6 +169,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
     () => ({
       showLanding,
       setShowLanding,
+      product,
+      setProduct,
       viewMode,
       setViewMode,
       wizardStep,
@@ -180,7 +201,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       setAdminModalOpen,
       focusPage,
     }),
-    [showLanding, setShowLanding, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, adminModalOpen, setAdminModalOpen, focusPage],
+    [showLanding, setShowLanding, product, setProduct, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, adminModalOpen, setAdminModalOpen, focusPage],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

@@ -71,12 +71,16 @@ export interface GenerateOptions {
   onDraft: (text: string, totalWords: number) => void;
   onModel: (model: string) => void;
   onStage: (stage: 'plan' | 'writing' | 'done') => void;
+  /** توجيهات إضافية تُلحق بتعليمات المقدمة والمباحث والخاتمة (مثل تكييف الصياغة لشرائح العرض). لا تمس تعليمات الخطة. */
+  promptAddendum?: string;
+  /** تعديل الخطة بعد توليدها وقبل كتابة الأقسام (مثل فرض عدد ثابت من المباحث والمطالب). */
+  normalizePlan?: (plan: AiPlan) => AiPlan;
 }
 
 const countWords = (txt: string) => (txt ? txt.trim().split(/\s+/).filter(Boolean).length : 0);
 const cleanSection = (txt: string) => (txt ? txt.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim() : '');
 
-interface AiPlan {
+export interface AiPlan {
   title: string;
   problematic?: string;
   questions?: string[];
@@ -91,6 +95,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const elapsed = () => Math.round((Date.now() - started) / 100) / 10;
   const call = (prompt: string, onChunk: ((c: string, acc: string) => void) | null, opts: Record<string, unknown>) =>
     fetchAiText(o.provider, o.apiKey, prompt, onChunk, { ...opts, onModelSelect: o.onModel }, o.customUrl, o.customModel) as Promise<string>;
+  const withAddendum = (prompt: string) => (o.promptAddendum ? `${prompt}\n\n${o.promptAddendum}` : prompt);
 
   let sections: SectionProgress[] = [{ id: 'plan', label: 'خطة البحث', status: 'running', words: 0 }];
   const emit = () => o.onSections(sections.map((s) => ({ ...s })));
@@ -132,6 +137,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   }
   // إبقاء عنوان البحث مطابقاً حرفياً للعنوان الذي كتبه المستخدم ومنع الذكاء الاصطناعي من استبداله أو إعادة صياغته
   plan.title = exactUserTopic;
+  if (o.normalizePlan) plan = o.normalizePlan(plan);
   const p = plan;
 
   // شارات التوليد المتوازي اللحظي لكل الأقسام
@@ -202,7 +208,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       throw err;
     },
   };
-  const taskIntro = call(buildIntroPrompt(p, cfg), tIntro.onChunk, {
+  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg)), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
@@ -212,7 +218,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const taskMbs = p.mabahith.map(async (mb, idx) => {
     await waitMs(350 * (idx + 1));
     const t = track(`mb${idx}`, (v) => (mbTexts[idx] = v));
-    return call(buildMabhathPrompt(p, mb, perMb, cfg), t.onChunk, {
+    return call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg)), t.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.mabhathMaxTokens,
     }).then(t.done, t.fail);
@@ -222,7 +228,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tConc = track('conclusion', (v) => (conclusion = v));
   const taskConc = (async () => {
     await waitMs(350 * (p.mabahith.length + 1));
-    return call(buildConclusionPrompt(p, cfg), tConc.onChunk, {
+    return call(withAddendum(buildConclusionPrompt(p, cfg)), tConc.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.conclusionMaxTokens,
     }).then(tConc.done, tConc.fail);

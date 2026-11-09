@@ -32,6 +32,8 @@ export interface BackgroundPathsProps {
   onContinueSaved?: () => void;
   hasSaved?: boolean;
   extraContent?: ReactNode;
+  /** إجراء ثانوي يظهر أسفل زر البدء الرئيسي */
+  secondaryAction?: ReactNode;
   onLogoClick?: () => void;
 }
 
@@ -179,6 +181,7 @@ export function BackgroundPaths({
   onContinueSaved,
   hasSaved,
   extraContent,
+  secondaryAction,
   onLogoClick,
 }: BackgroundPathsProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -474,6 +477,8 @@ export function BackgroundPaths({
                     </span>
                   </Button>
                 </div>
+
+                {secondaryAction}
 
                 {hasSaved && (
                   <button

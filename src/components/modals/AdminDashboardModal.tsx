@@ -17,6 +17,7 @@ import {
   Lock,
   LogOut,
   Monitor,
+  Presentation,
   Printer,
   RefreshCw,
   Search,
@@ -284,7 +285,7 @@ export function AdminDashboardModal() {
 
           <div className="p-5 sm:p-6 flex flex-col gap-5 text-sm">
             {/* بطاقات الإحصائيات الكبرى */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
                 <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                   <Users className="size-3.5 text-zinc-600 dark:text-zinc-300" /> زوار الموقع
@@ -297,12 +298,12 @@ export function AdminDashboardModal() {
 
               <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
                 <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  <Sparkles className="size-3.5 text-zinc-600 dark:text-zinc-300" /> بحوث تم توليدها
+                  <Sparkles className="size-3.5 text-zinc-600 dark:text-zinc-300" /> بحوث مولدة
                 </span>
                 <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
                   {stats?.totalGenerations ?? 0}
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">بحث بالذكاء الاصطناعي</span>
+                <span className="text-[0.66rem] text-zinc-400">بالذكاء الاصطناعي</span>
               </div>
 
               <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
@@ -312,7 +313,7 @@ export function AdminDashboardModal() {
                 <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
                   {stats?.totalPdfExports ?? 0}
                 </div>
-                <span className="text-[0.66rem] text-zinc-400">عملية طباعة / حفظ</span>
+                <span className="text-[0.66rem] text-zinc-400">طباعة / حفظ PDF</span>
               </div>
 
               <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
@@ -323,6 +324,16 @@ export function AdminDashboardModal() {
                   {stats?.totalWordExports ?? 0}
                 </div>
                 <span className="text-[0.66rem] text-zinc-400">ملفات .doc محملة</span>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">
+                <span className="flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  <Presentation className="size-3.5 text-zinc-600 dark:text-zinc-300" /> PowerPoint
+                </span>
+                <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
+                  {stats?.totalPptxExports ?? 0}
+                </div>
+                <span className="text-[0.66rem] text-zinc-400">عروض .pptx محملة</span>
               </div>
             </div>
 
@@ -437,6 +448,7 @@ export function AdminDashboardModal() {
                     <option value="visit">زيارات</option>
                     <option value="export_pdf">تصدير PDF</option>
                     <option value="export_word">تصدير Word</option>
+                    <option value="export_pptx">تصدير PowerPoint</option>
                   </select>
                 </div>
               </div>
@@ -460,10 +472,12 @@ export function AdminDashboardModal() {
                                 ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
                                 : ev.event_type === 'export_pdf'
                                 ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+                                : ev.event_type === 'export_pptx'
+                                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
                                 : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                             }`}
                           >
-                            {ev.event_type === 'generate' ? '⚡' : ev.event_type === 'visit' ? '👁️' : ev.event_type === 'export_pdf' ? '📄' : '📝'}
+                            {ev.event_type === 'generate' ? '⚡' : ev.event_type === 'visit' ? '👁️' : ev.event_type === 'export_pdf' ? '📄' : ev.event_type === 'export_pptx' ? '📊' : '📝'}
                           </span>
 
                           <div className="min-w-0 flex-1">
@@ -471,7 +485,7 @@ export function AdminDashboardModal() {
                               {ev.topic || (ev.event_type === 'visit' ? 'زيارة جديدة للمنصة' : 'بدون عنوان')}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 text-[0.68rem] text-zinc-400">
-                              {ev.pages_count ? <span>{ev.pages_count} صفحة A4 ·</span> : null}
+                              {ev.pages_count ? <span>{ev.pages_count} {ev.event_type === 'export_pptx' ? 'شريحة' : 'صفحة A4'} ·</span> : null}
                               {ev.university ? <span className="truncate">{ev.university} ·</span> : null}
                               <span>جهاز: {ev.device || 'غير محدد'}</span>
                             </div>

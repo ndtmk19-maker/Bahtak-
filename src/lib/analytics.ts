@@ -3,7 +3,7 @@ import { isIOS } from './printDocument';
 
 export interface ResearchEvent {
   id?: string;
-  event_type: 'visit' | 'generate' | 'export_pdf' | 'export_word';
+  event_type: 'visit' | 'generate' | 'export_pdf' | 'export_word' | 'export_pptx';
   topic?: string;
   pages_count?: number;
   university?: string;
@@ -76,6 +76,7 @@ export interface AnalyticsStats {
   totalGenerations: number;
   totalPdfExports: number;
   totalWordExports: number;
+  totalPptxExports: number;
   devices: {
     ios: number;
     android: number;
@@ -136,6 +137,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
   const totalGenerations = events.filter((e) => e.event_type === 'generate').length;
   const totalPdfExports = events.filter((e) => e.event_type === 'export_pdf').length;
   const totalWordExports = events.filter((e) => e.event_type === 'export_word').length;
+  const totalPptxExports = events.filter((e) => e.event_type === 'export_pptx').length;
 
   const devices = {
     ios: events.filter((e) => e.device === 'iOS').length,
@@ -150,6 +152,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
     totalGenerations,
     totalPdfExports,
     totalWordExports,
+    totalPptxExports,
     devices,
   };
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Presentation } from 'lucide-react';
 import { BackgroundPaths } from '../ui/background-paths';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
@@ -22,7 +23,7 @@ const LAND_COORDINATES = [
 ];
 
 export function StartLanding() {
-  const { setShowLanding, setViewMode, setWizardStep, setFeedbackOpen, setAdminModalOpen } = useUI();
+  const { setShowLanding, setViewMode, setWizardStep, setFeedbackOpen, setAdminModalOpen, setProduct } = useUI();
   const { doc } = useDocument();
   const [reviews, setReviews] = useState<GlobeTestimonial[]>(() => getStoredAndDefaultReviews());
   const logoClicksRef = useRef(0);
@@ -81,13 +82,20 @@ export function StartLanding() {
   }, [refreshReviews]);
 
   const handleStart = () => {
+    setProduct('research');
     setViewMode('wizard');
     setWizardStep(1);
     setShowLanding(false);
   };
 
   const handleContinue = () => {
+    setProduct('research');
     setViewMode('wizard');
+    setShowLanding(false);
+  };
+
+  const handleSlides = () => {
+    setProduct('slides');
     setShowLanding(false);
   };
 
@@ -109,6 +117,19 @@ export function StartLanding() {
       hasSaved={hasSaved}
       onContinueSaved={handleContinue}
       onLogoClick={handleLogoClick}
+      secondaryAction={
+        <button
+          type="button"
+          onClick={handleSlides}
+          className="group inline-flex items-center gap-2.5 rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-900/70 px-5 py-3 text-[0.95rem] font-bold text-neutral-900 dark:text-neutral-100 shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white dark:hover:bg-neutral-900 cursor-pointer"
+        >
+          <span className="grid size-8 place-items-center rounded-xl bg-neutral-900 text-white dark:bg-white dark:text-neutral-900">
+            <Presentation className="size-4" />
+          </span>
+          <span>أو أنشئ عرضاً تقديمياً PowerPoint</span>
+          <span className="rounded-full bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[0.66rem] font-bold">جديد</span>
+        </button>
+      }
       extraContent={
         <div id="reviews-section" className="w-full py-6 sm:py-10">
           <TestimonialGlobe

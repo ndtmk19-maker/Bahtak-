@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CloudUpload, Compass, Download, FileDown, Home, LayoutGrid, Loader2, MoreVertical, Printer, RotateCcw } from 'lucide-react';
+import { Check, CloudUpload, Compass, Download, FileDown, FileText, Home, LayoutGrid, Loader2, MoreVertical, Presentation, Printer, RotateCcw } from 'lucide-react';
 import { Button } from './ui/Button';
 import { AndroidIcon } from './ui/BrandIcons';
 import { useDocument } from '../state/DocumentContext';
 import { useUI } from '../state/UIContext';
+import { usePresentation } from '../state/PresentationContext';
 import { useResetApp } from '../state/useResetApp';
 import { downloadWordDocument } from '../lib/wordExport';
 import { imageToDataUrl } from '../lib/image';
@@ -15,7 +16,9 @@ import { trackEvent } from '../lib/analytics';
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery('(min-width: 1280px)');
   const { doc, saveStatus } = useDocument();
-  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen, openIOSModal, setAdminModalOpen } = useUI();
+  const { toast, setMobileView, viewMode, setViewMode, setSection, setShowLanding, setFeedbackOpen, openIOSModal, setAdminModalOpen, product, setProduct } = useUI();
+  const presentation = usePresentation();
+  const isSlides = product === 'slides';
   const resetApp = useResetApp();
   const [exporting, setExporting] = useState(false);
   const logoClicksRef = useRef(0);
@@ -101,9 +104,24 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
         </div>
       </button>
 
-      <div className="flex min-w-0 flex-1 justify-center">
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
         {isDesktop &&
-          (viewMode === 'classic' ? (
+          (isSlides ? (
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-1 text-[0.78rem] font-bold text-neutral-800 dark:text-neutral-200 shadow-xs backdrop-blur-md">
+                <Presentation className="size-4 text-neutral-700 dark:text-neutral-300" />
+                <span>استوديو العروض التقديمية (PowerPoint)</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setProduct('research')}
+                className="flex h-8 items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-800/80 px-3 text-[0.76rem] font-semibold text-neutral-800 dark:text-neutral-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+              >
+                <FileText className="size-3.5" />
+                <span>نظام البحوث ➔</span>
+              </button>
+            </div>
+          ) : viewMode === 'classic' ? (
             <div className="flex items-center gap-2">
               <SectionNav compact={!isWide} />
               <button
@@ -137,28 +155,26 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <SaveIndicator status={saveStatus} />
+        {!isSlides && <SaveIndicator status={saveStatus} />}
 
-        <a
-          href={LINKS.charihatek}
-          target="_blank"
-          rel="noopener"
-          title="منصة شريحتك لتوليد عروض PowerPoint بالذكاء الاصطناعي"
-          className="hidden h-9 items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 py-1 ps-1.5 pe-3 text-[0.78rem] font-semibold text-zinc-800 dark:text-zinc-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 2xl:inline-flex"
-        >
-          <img src="/charihatek_logo.png" alt="" width={22} height={22} className="size-[22px] rounded-full grayscale opacity-80" />
-          شريحتك <span className="text-zinc-400">PowerPoint</span>
-          <span className="rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[0.62rem] font-bold text-zinc-700 dark:text-zinc-300">جديد</span>
-        </a>
         <span className="mx-1 hidden h-6 w-px bg-black/10 dark:bg-white/10 lg:block" />
 
-        <Button variant="secondary" icon={<FileDown className="size-4" />} loading={exporting} onClick={exportWord} title="تصدير البحث بصيغة Word (.doc)" className="max-sm:px-3">
-          <span className="max-sm:hidden">Word</span>
-        </Button>
-        <Button variant="primary" icon={<Printer className="size-4" />} onClick={print} title="طباعة أو حفظ البحث كملف PDF" className="max-sm:px-3">
-          <span className="max-sm:hidden">طباعة / PDF</span>
-          <span className="sm:hidden">PDF</span>
-        </Button>
+        {isSlides ? (
+          <Button variant="primary" icon={<Download className="size-4" />} loading={presentation.exporting} onClick={presentation.exportPptx} disabled={!presentation.laid.length} title="تحميل العرض بصيغة PowerPoint (.pptx)" className="max-sm:px-3">
+            <span className="max-sm:hidden">PowerPoint</span>
+            <span className="sm:hidden">PPTX</span>
+          </Button>
+        ) : (
+          <>
+            <Button variant="secondary" icon={<FileDown className="size-4" />} loading={exporting} onClick={exportWord} title="تصدير البحث بصيغة Word (.doc)" className="max-sm:px-3">
+              <span className="max-sm:hidden">Word</span>
+            </Button>
+            <Button variant="primary" icon={<Printer className="size-4" />} onClick={print} title="طباعة أو حفظ البحث كملف PDF" className="max-sm:px-3">
+              <span className="max-sm:hidden">طباعة / PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </Button>
+          </>
+        )}
 
         <MoreMenu
           onReset={resetApp}
@@ -166,6 +182,8 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
           onToggleView={() => setViewMode(viewMode === 'wizard' ? 'classic' : 'wizard')}
           onOpenLanding={() => setShowLanding(true)}
           onOpenAdmin={() => setAdminModalOpen(true)}
+          isSlides={isSlides}
+          onToggleProduct={() => setProduct(isSlides ? 'research' : 'slides')}
         />
       </div>
     </header>
@@ -188,12 +206,16 @@ function MoreMenu({
   onToggleView,
   onOpenLanding,
   onOpenAdmin,
+  isSlides,
+  onToggleProduct,
 }: {
   onReset: () => void;
   viewMode: 'wizard' | 'classic';
   onToggleView: () => void;
   onOpenLanding: () => void;
   onOpenAdmin: () => void;
+  isSlides: boolean;
+  onToggleProduct: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -223,21 +245,45 @@ function MoreMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              onToggleView();
+              onToggleProduct();
             }}
           >
-            {viewMode === 'wizard' ? (
+            {isSlides ? (
               <>
-                <LayoutGrid className="size-5 text-zinc-800 dark:text-zinc-200" />
-                الانتقال للمحرر الكامل
+                <FileText className="size-5 text-zinc-800 dark:text-zinc-200" />
+                الانتقال إلى نظام البحوث
               </>
             ) : (
               <>
-                <Compass className="size-5 text-zinc-800 dark:text-zinc-200" />
-                🧭 إعادة فتح المعالج
+                <Presentation className="size-5 text-zinc-800 dark:text-zinc-200" />
+                عروض PowerPoint (PPTX)
+                <span className="mr-auto rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[0.62rem] font-bold text-zinc-700 dark:text-zinc-300">جديد</span>
               </>
             )}
           </button>
+          {!isSlides && (
+            <button
+              type="button"
+              className={item}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onToggleView();
+              }}
+            >
+              {viewMode === 'wizard' ? (
+                <>
+                  <LayoutGrid className="size-5 text-zinc-800 dark:text-zinc-200" />
+                  الانتقال للمحرر الكامل
+                </>
+              ) : (
+                <>
+                  <Compass className="size-5 text-zinc-800 dark:text-zinc-200" />
+                  🧭 إعادة فتح المعالج
+                </>
+              )}
+            </button>
+          )}
           <button
             type="button"
             className={item}
@@ -251,11 +297,6 @@ function MoreMenu({
             صفحة البداية والتعريف
           </button>
           <div className="my-1 h-px bg-black/10 dark:bg-white/10" />
-          <a href={LINKS.charihatek} target="_blank" rel="noopener" className={`${item} 2xl:hidden`} role="menuitem" onClick={() => setOpen(false)}>
-            <img src="/charihatek_logo.png" alt="" className="size-5 rounded-full grayscale opacity-80" />
-            منصة شريحتك (PowerPoint)
-            <span className="mr-auto rounded-full bg-black/5 dark:bg-white/10 px-1.5 text-[0.62rem] font-bold text-zinc-700 dark:text-zinc-300">جديد</span>
-          </a>
           <a href={LINKS.apk} download="Bahtak.apk" className={item} role="menuitem" onClick={() => setOpen(false)}>
             <AndroidIcon className="size-5 text-zinc-800 dark:text-zinc-200" />
             تطبيق أندرويد (APK)

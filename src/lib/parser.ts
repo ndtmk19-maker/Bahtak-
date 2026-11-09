@@ -13,7 +13,153 @@ export interface ParseResult {
   planText: string;
 }
 
-export function parseRawText(rawInput: string): ParseResult {
+// ===== المرحلة الأولى: التحليل البنيوي المستقل عن صيغة الإخراج =====
+// تُستعمل هذه المرحلة كما هي في نظام البحوث (صفحات A4 / Word / PDF) وفي نظام العروض التقديمية (PPTX).
+
+export type AnalyzedItemType = 'subtitle' | 'bullet' | 'paragraph' | 'matlab_header';
+export interface AnalyzedCitation { origNum: number; text: string; newPageNum?: number }
+export interface AnalyzedItem { type: AnalyzedItemType; rawText: string; cleanText: string; heightMm: number; citations: AnalyzedCitation[] }
+export type AnalyzedSectionType = 'intro' | 'matlab' | 'conclusion' | 'references';
+export interface AnalyzedSection {
+  type: AnalyzedSectionType;
+  mabhathTitle: string;
+  matlabTitle: string;
+  items: AnalyzedItem[];
+  rawFootnotes: { num: number; text: string }[];
+}
+export interface ResearchAnalysis {
+  detectedTitle: string;
+  /** خطة مكتوبة مسبقاً داخل النص (إن وجدت) */
+  extractedPlan: string;
+  sections: AnalyzedSection[];
+}
+
+// تعبير منتظم لاكتشاف عبارات التمهيد للقوائم والنقاط (أهمها، عناصرها، خصائصها، أنواعها، مهامها، أهدافها، مميزاتها، كما يلي، كالاتي...)
+export const LIST_INTRO_REGEX = /(?:أهم|اهم|أبرز|ابرز|عناصر|العناصر|مكونات|المكونات|أنواع|انواع|الأنواع|الانواع|أقسام|اقسام|الأقسام|الاقسام|أصناف|اصناف|خصائص|الخصائص|مميزات|المميزات|سمات|السمات|مهام|مهمات|المهام|المهمات|وظائف|الوظائف|أهداف|اهداف|الأهداف|الاهداف|شروط|الشروط|ركائز|الركائز|مبادئ|المبادئ|أبعاد|ابعاد|الأبعاد|مراحل|المراحل|خطوات|الخطوات|متطلبات|المتطلبات|ما\s*يلي|كما\s*يلي|كالآتي|كالاتي|كالآتى|كالاتى|الآتي|الاتي|التالي|التالية|تتمثل\s+في|تتمثل\s+فى|تنقسم\s+إلى|تنقسم\s+الى|تتفرع\s+إلى|تتفرع\s+الى)[^:\n]{0,80}[:\-–—]/i;
+
+// دالة مساعدة لتفكيك القوائم المدمجة في نفس السطر (Inline Lists)
+export function splitInlineList(text) {
+    if (!text || typeof text !== 'string') return [text];
+
+    function extractSegments(str, matches) {
+        if (!matches || matches.length < 2) return null;
+        const starts = matches.map(m => {
+            const offset = m[0].search(/(?:[-*•–—]|\(?\d+|[أ-ي]|أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)/);
+            return m.index + (offset >= 0 ? offset : 0);
+        });
+
+        const parts = [];
+        const prefix = str.substring(0, starts[0]).trim();
+        if (prefix) parts.push(prefix);
+
+        for (let i = 0; i < starts.length; i++) {
+            const start = starts[i];
+            const end = (i + 1 < starts.length) ? starts[i + 1] : str.length;
+            let chunk = str.substring(start, end).trim();
+            chunk = chunk.replace(/^[.،؛!؟\s]+/, '').trim();
+            if (chunk) parts.push(chunk);
+        }
+        return parts;
+    }
+
+    function splitByMarkers(str) {
+        const ordMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/g)];
+        if (ordMatches.length >= 2) return extractSegments(str, ordMatches);
+
+        const numMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?\(?(\d+)\s*[\.\-\)/:]\s+/g)];
+        if (numMatches.length >= 2) {
+            const n1 = parseInt(numMatches[0][1], 10);
+            const n2 = parseInt(numMatches[1][1], 10);
+            if (n1 === 1 || n2 === n1 + 1) return extractSegments(str, numMatches);
+        }
+
+        const letterMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?([أ-ي])\s*[\.\-\)/:]\s+/g)];
+        if (letterMatches.length >= 2) return extractSegments(str, letterMatches);
+
+        const bulletMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)([-*•–—]\s+)/g)];
+        if (bulletMatches.length >= 2) return extractSegments(str, bulletMatches);
+
+        return null;
+    }
+
+    // أ) فحص وجود تمهيد صريح للقائمة مثل "ومن أهمها:" أو "عناصرها ما يلي:"
+    const introMatch = text.match(LIST_INTRO_REGEX);
+    if (introMatch) {
+        const introEndIdx = introMatch.index + introMatch[0].length;
+        const introPart = text.substring(0, introEndIdx).trim();
+        const restPart = text.substring(introEndIdx).trim();
+
+        if (restPart.length > 0) {
+            const subSplit = splitByMarkers(restPart);
+            if (subSplit && subSplit.length > 0) {
+                return [introPart, ...subSplit];
+            } else {
+                const commaItems = restPart.split(/[,،؛]\s+/).map(p => p.trim().replace(/^[-*•–—\s]+/, '')).filter(p => p.length > 0);
+                if (commaItems.length >= 2) {
+                    return [introPart, ...commaItems.map(ci => `• ${ci}`)];
+                }
+            }
+        }
+    }
+
+    // ب) فحص السطر ككل
+    const directSplit = splitByMarkers(text);
+    if (directSplit && directSplit.length > 1) return directSplit;
+
+    return [text];
+}
+
+// دالة لتنسيق عناصر القوائم والنقاط أكاديمياً (إبراز أولاً، 1-، أ- بخط عريض)
+export function formatBulletContent(text) {
+    const cleanSym = text.replace(/^[-*•–—]\s*/, '').trim();
+
+    // 1. تعداد ترتيبي (أولاً، ثانياً...)
+    const ordMatch = text.match(/^(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*([:/\-–—.]?)\s*(.*)$/);
+    if (ordMatch) {
+        const colon = ordMatch[2] ? (ordMatch[2] === ':' ? ':' : ` ${ordMatch[2]}`) : ':';
+        return `<strong>${ordMatch[1]}${colon}</strong> ${ordMatch[3]}`;
+    }
+
+    // 2. تعداد عددي (1-، 1.، (1)...)
+    const numMatch = text.match(/^(?:[-*•–—]\s*)?(\(?\d+[\.\-\)/:]|\d+\s*[\.\-\)/:])\s*(.*)$/);
+    if (numMatch) {
+        return `<strong>${numMatch[1]}</strong> ${numMatch[2]}`;
+    }
+
+    // 3. تعداد حرفي (أ-، ب-...)
+    const letMatch = text.match(/^(?:[-*•–—]\s*)?([أ-ي][\.\-\)/:])\s+(.*)$/);
+    if (letMatch) {
+        return `<strong>${letMatch[1]}</strong> ${letMatch[2]}`;
+    }
+
+    // 4. ترقيم مراجع ومصادر [1]، [2]...
+    const refNumMatch = text.match(/^(?:[-*•–—]\s*)?(\[\d+\]|\(\d+\))\s*(.*)$/);
+    if (refNumMatch) {
+        return `<strong>${refNumMatch[1]}</strong> ${refNumMatch[2]}`;
+    }
+
+    return cleanSym;
+}
+
+// دالة مساعدة لتقسيم الفقرات الضخمة جداً إن وجدت عند علامات الترقيم
+export function splitLongParagraph(text, maxChars = 750) {
+    if (text.length <= maxChars) return [text];
+    const sentences = text.split(/(?<=[.!?؟])\s+/);
+    const chunks = [];
+    let cur = '';
+    sentences.forEach(s => {
+        if ((cur + ' ' + s).trim().length > maxChars && cur) {
+            chunks.push(cur.trim());
+            cur = s;
+        } else {
+            cur = cur ? (cur + ' ' + s) : s;
+        }
+    });
+    if (cur.trim()) chunks.push(cur.trim());
+    return chunks.length > 0 ? chunks : [text];
+}
+
+export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             const rawText = (rawInput || '').trim();
             if (!rawText) {
                 throw new ParseError('الرجاء لصق نص البحث في المربع أولاً!');
@@ -215,131 +361,6 @@ export function parseRawText(rawInput: string): ParseResult {
             }
             if (curSection) rawSections.push(curSection);
 
-            // تعبير منتظم لاكتشاف عبارات التمهيد للقوائم والنقاط (أهمها، عناصرها، خصائصها، أنواعها، مهامها، أهدافها، مميزاتها، كما يلي، كالاتي...)
-            const LIST_INTRO_REGEX = /(?:أهم|اهم|أبرز|ابرز|عناصر|العناصر|مكونات|المكونات|أنواع|انواع|الأنواع|الانواع|أقسام|اقسام|الأقسام|الاقسام|أصناف|اصناف|خصائص|الخصائص|مميزات|المميزات|سمات|السمات|مهام|مهمات|المهام|المهمات|وظائف|الوظائف|أهداف|اهداف|الأهداف|الاهداف|شروط|الشروط|ركائز|الركائز|مبادئ|المبادئ|أبعاد|ابعاد|الأبعاد|مراحل|المراحل|خطوات|الخطوات|متطلبات|المتطلبات|ما\s*يلي|كما\s*يلي|كالآتي|كالاتي|كالآتى|كالاتى|الآتي|الاتي|التالي|التالية|تتمثل\s+في|تتمثل\s+فى|تنقسم\s+إلى|تنقسم\s+الى|تتفرع\s+إلى|تتفرع\s+الى)[^:\n]{0,80}[:\-–—]/i;
-
-            // دالة مساعدة لتفكيك القوائم المدمجة في نفس السطر (Inline Lists)
-            function splitInlineList(text) {
-                if (!text || typeof text !== 'string') return [text];
-
-                function extractSegments(str, matches) {
-                    if (!matches || matches.length < 2) return null;
-                    const starts = matches.map(m => {
-                        const offset = m[0].search(/(?:[-*•–—]|\(?\d+|[أ-ي]|أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)/);
-                        return m.index + (offset >= 0 ? offset : 0);
-                    });
-
-                    const parts = [];
-                    const prefix = str.substring(0, starts[0]).trim();
-                    if (prefix) parts.push(prefix);
-
-                    for (let i = 0; i < starts.length; i++) {
-                        const start = starts[i];
-                        const end = (i + 1 < starts.length) ? starts[i + 1] : str.length;
-                        let chunk = str.substring(start, end).trim();
-                        chunk = chunk.replace(/^[.،؛!؟\s]+/, '').trim();
-                        if (chunk) parts.push(chunk);
-                    }
-                    return parts;
-                }
-
-                function splitByMarkers(str) {
-                    const ordMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/g)];
-                    if (ordMatches.length >= 2) return extractSegments(str, ordMatches);
-
-                    const numMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?\(?(\d+)\s*[\.\-\)/:]\s+/g)];
-                    if (numMatches.length >= 2) {
-                        const n1 = parseInt(numMatches[0][1], 10);
-                        const n2 = parseInt(numMatches[1][1], 10);
-                        if (n1 === 1 || n2 === n1 + 1) return extractSegments(str, numMatches);
-                    }
-
-                    const letterMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)(?:[-*•–—]\s*)?([أ-ي])\s*[\.\-\)/:]\s+/g)];
-                    if (letterMatches.length >= 2) return extractSegments(str, letterMatches);
-
-                    const bulletMatches = [...str.matchAll(/(?:^|[\s.،؛!؟]+)([-*•–—]\s+)/g)];
-                    if (bulletMatches.length >= 2) return extractSegments(str, bulletMatches);
-
-                    return null;
-                }
-
-                // أ) فحص وجود تمهيد صريح للقائمة مثل "ومن أهمها:" أو "عناصرها ما يلي:"
-                const introMatch = text.match(LIST_INTRO_REGEX);
-                if (introMatch) {
-                    const introEndIdx = introMatch.index + introMatch[0].length;
-                    const introPart = text.substring(0, introEndIdx).trim();
-                    const restPart = text.substring(introEndIdx).trim();
-
-                    if (restPart.length > 0) {
-                        const subSplit = splitByMarkers(restPart);
-                        if (subSplit && subSplit.length > 0) {
-                            return [introPart, ...subSplit];
-                        } else {
-                            const commaItems = restPart.split(/[,،؛]\s+/).map(p => p.trim().replace(/^[-*•–—\s]+/, '')).filter(p => p.length > 0);
-                            if (commaItems.length >= 2) {
-                                return [introPart, ...commaItems.map(ci => `• ${ci}`)];
-                            }
-                        }
-                    }
-                }
-
-                // ب) فحص السطر ككل
-                const directSplit = splitByMarkers(text);
-                if (directSplit && directSplit.length > 1) return directSplit;
-
-                return [text];
-            }
-
-            // دالة لتنسيق عناصر القوائم والنقاط أكاديمياً (إبراز أولاً، 1-، أ- بخط عريض)
-            function formatBulletContent(text) {
-                const cleanSym = text.replace(/^[-*•–—]\s*/, '').trim();
-
-                // 1. تعداد ترتيبي (أولاً، ثانياً...)
-                const ordMatch = text.match(/^(?:[-*•–—]\s*)?(أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*([:/\-–—.]?)\s*(.*)$/);
-                if (ordMatch) {
-                    const colon = ordMatch[2] ? (ordMatch[2] === ':' ? ':' : ` ${ordMatch[2]}`) : ':';
-                    return `<strong>${ordMatch[1]}${colon}</strong> ${ordMatch[3]}`;
-                }
-
-                // 2. تعداد عددي (1-، 1.، (1)...)
-                const numMatch = text.match(/^(?:[-*•–—]\s*)?(\(?\d+[\.\-\)/:]|\d+\s*[\.\-\)/:])\s*(.*)$/);
-                if (numMatch) {
-                    return `<strong>${numMatch[1]}</strong> ${numMatch[2]}`;
-                }
-
-                // 3. تعداد حرفي (أ-، ب-...)
-                const letMatch = text.match(/^(?:[-*•–—]\s*)?([أ-ي][\.\-\)/:])\s+(.*)$/);
-                if (letMatch) {
-                    return `<strong>${letMatch[1]}</strong> ${letMatch[2]}`;
-                }
-
-                // 4. ترقيم مراجع ومصادر [1]، [2]...
-                const refNumMatch = text.match(/^(?:[-*•–—]\s*)?(\[\d+\]|\(\d+\))\s*(.*)$/);
-                if (refNumMatch) {
-                    return `<strong>${refNumMatch[1]}</strong> ${refNumMatch[2]}`;
-                }
-
-                return cleanSym;
-            }
-
-            // دالة مساعدة لتقسيم الفقرات الضخمة جداً إن وجدت عند علامات الترقيم
-            function splitLongParagraph(text, maxChars = 750) {
-                if (text.length <= maxChars) return [text];
-                const sentences = text.split(/(?<=[.!?؟])\s+/);
-                const chunks = [];
-                let cur = '';
-                sentences.forEach(s => {
-                    if ((cur + ' ' + s).trim().length > maxChars && cur) {
-                        chunks.push(cur.trim());
-                        cur = s;
-                    } else {
-                        cur = cur ? (cur + ' ' + s) : s;
-                    }
-                });
-                if (cur.trim()) chunks.push(cur.trim());
-                return chunks.length > 0 ? chunks : [text];
-            }
-
             // تجهيز عناصر كل قسم (استخراج الإحالات وتحديد الارتفاعات التقريبية)
             const processedSections = [];
             rawSections.forEach((sec) => {
@@ -491,6 +512,13 @@ export function parseRawText(rawInput: string): ParseResult {
                     rawFootnotes: rawFootnotes
                 });
             });
+
+            return { detectedTitle, extractedPlan, sections: processedSections };
+}
+
+// ===== المرحلة الثانية: التوزيع على صفحات A4 (خاص بإخراج البحث) =====
+export function parseRawText(rawInput: string): ParseResult {
+            const { detectedTitle, extractedPlan, sections: processedSections } = analyzeResearchText(rawInput);
 
             // خوارزمية التوزيع على الصفحات وفق القواعد الأكاديمية:
             // 1. الانتقال إلى مبحث جديد (أو مقدمة أو خاتمة أو مراجع) يستلزم الانتقال لصفحة جديدة دائماً!

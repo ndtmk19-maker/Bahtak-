@@ -350,6 +350,26 @@ export function downloadWordDocument(doc: DocumentState) {
   const { html, fileName } = buildWordHtml(doc);
   // علامة BOM حقيقية لضمان قراءة Word للنص العربي بترميز UTF-8
   const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+
+  const nativeBridge = (
+    window as unknown as {
+      AndroidNativeFile?: {
+        saveBase64File?: (b64: string, name: string, mime: string) => boolean;
+      };
+    }
+  ).AndroidNativeFile;
+  if (nativeBridge && typeof nativeBridge.saveBase64File === 'function') {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = typeof reader.result === 'string' ? reader.result : '';
+      const comma = res.indexOf(',');
+      const b64 = comma !== -1 ? res.slice(comma + 1) : res;
+      nativeBridge.saveBase64File?.(b64, fileName, 'application/msword');
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -357,5 +377,5 @@ export function downloadWordDocument(doc: DocumentState) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
