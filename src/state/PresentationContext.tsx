@@ -84,6 +84,7 @@ interface PresentationApi extends Persisted {
   exporting: boolean;
   reset: () => void;
   resetVersion: number;
+  completedVersion: number;
 }
 
 const KEY = "bahtak_presentation_v2";
@@ -153,6 +154,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
   });
   const [exporting, setExporting] = useState(false);
   const [resetVersion, setResetVersion] = useState(0);
+  const [completedVersion, setCompletedVersion] = useState(0);
   const runningRef = useRef(false);
   const runIdRef = useRef(0);
   const hasUserEditedRef = useRef(false);
@@ -291,6 +293,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       hasUserEditedRef.current = true;
       setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: topic } }));
       setRun((r) => ({ ...r, running: false, stage: "done" }));
+      setCompletedVersion((v) => v + 1);
       ui.toast("اكتمل توليد محتوى العرض", {
         description:
           "نُظّم المحتوى في شرائح. راجعه في المعاينة أو عدّله في المسودة ثم نزّل ملف PowerPoint.",
@@ -367,6 +370,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       exporting,
       reset,
       resetVersion,
+      completedVersion,
     }),
     [
       state,
@@ -383,6 +387,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       exporting,
       reset,
       resetVersion,
+      completedVersion,
     ],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

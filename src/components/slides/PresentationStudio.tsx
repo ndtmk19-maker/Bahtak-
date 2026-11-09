@@ -50,11 +50,31 @@ const KIND_LABEL: Record<Slide["kind"], string> = {
 };
 
 export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
-  const { resetVersion } = usePresentation();
+  const { resetVersion, completedVersion, laid } = usePresentation();
   const [view, setView] = useState<"editor" | "preview">("editor");
+  const stageScrollRef = useRef<HTMLDivElement>(null);
+  const lastHandledCompletedRef = useRef(completedVersion);
   useEffect(() => {
-    if (resetVersion > 0) setView("editor");
-  }, [resetVersion]);
+    if (resetVersion > 0) {
+      lastHandledCompletedRef.current = completedVersion;
+      setView("editor");
+    }
+  }, [resetVersion, completedVersion]);
+  useEffect(() => {
+    if (completedVersion <= lastHandledCompletedRef.current) return;
+    if (isDesktop) {
+      lastHandledCompletedRef.current = completedVersion;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      lastHandledCompletedRef.current = completedVersion;
+      setView("preview");
+      requestAnimationFrame(() => {
+        stageScrollRef.current?.scrollTo({ top: 0 });
+      });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [completedVersion, isDesktop]);
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950 lg:flex-row">
       {!isDesktop && (
@@ -67,7 +87,17 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
               { value: "editor", label: "الإعداد والمحتوى", icon: <Wand2 className="size-4" /> },
               {
                 value: "preview",
-                label: "معاينة الشرائح",
+                label:
+                  laid.length > 0 ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>معاينة الشرائح</span>
+                      <span className="rounded-full bg-zinc-900 dark:bg-white px-1.5 text-[0.66rem] font-bold text-white dark:text-zinc-950 tabular-nums">
+                        {laid.length}
+                      </span>
+                    </span>
+                  ) : (
+                    "معاينة الشرائح"
+                  ),
                 icon: <Presentation className="size-4" />,
               },
             ]}
@@ -88,7 +118,10 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
           <ResetPresentationSection />
         </div>
       </aside>
-      <Stage className={isDesktop || view === "preview" ? "flex" : "hidden"} />
+      <Stage
+        className={isDesktop || view === "preview" ? "flex" : "hidden"}
+        scrollRef={stageScrollRef}
+      />
     </div>
   );
 }
@@ -709,14 +742,23 @@ function ResetPresentationSection() {
   );
 }
 
-function Stage({ className }: { className: string }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion } =
+function Stage({
+  className,
+  scrollRef,
+}: {
+  className: string;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion } =
     usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
   useEffect(() => {
     if (resetVersion > 0) setSel(0);
   }, [resetVersion]);
+  useEffect(() => {
+    if (completedVersion > 0) setSel(0);
+  }, [completedVersion]);
   useEffect(() => {
     if (sel > count - 1) setSel(Math.max(0, count - 1));
   }, [count, sel]);
@@ -802,7 +844,7 @@ function Stage({ className }: { className: string }) {
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-thin">
           <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 sm:p-6">
             <div className="relative">
               <SlideCanvas
