@@ -12,7 +12,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "./Button";
+import { MetallicButton } from "./metallic-button";
 import { AndroidIcon, InstagramIcon } from "./BrandIcons";
 import { LINKS } from "@/data/defaults";
 
@@ -445,38 +445,53 @@ export function BackgroundPaths({
                 {description}
               </motion.p>
 
-              {/* زر ابدأ الآن الأصلي من المرجع */}
+              {/* زر ابدأ الآن الرئيسي بالمعدن السائل ثلاثي الأبعاد */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.65, duration: 0.5 }}
                 className="flex flex-col items-center gap-3.5"
               >
-                <div
-                  className="inline-block group relative bg-gradient-to-b from-black/10 to-white/10 
-                  dark:from-white/10 dark:to-black/10 p-px rounded-2xl backdrop-blur-lg 
-                  overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
+                <MetallicButton
+                  tone="primary"
+                  ariaLabel={buttonText}
+                  onClick={onStart}
+                  baseColor="#000000"
+                  sheenColor="#ffffff"
+                  bandCount={4}
+                  edgeBlur={0.45}
+                  flowAngle={45}
+                  zoom={8}
+                  redFringe={0.35}
+                  blueFringe={0.35}
+                  idleSpeed={0.65}
+                  hoverSpeed={1.15}
+                  clickSpeed={2.4}
+                  contentClassName="gap-3 px-7 sm:px-10 py-3.5 sm:py-4 text-lg sm:text-xl font-bold"
                 >
-                  <Button
-                    variant="ghost"
-                    onClick={onStart}
-                    className="rounded-[1.15rem] px-8 sm:px-10 py-5 sm:py-6 text-lg sm:text-xl font-bold backdrop-blur-md 
-                    bg-white/95 hover:bg-white/100 dark:bg-black/95 dark:hover:bg-black/100 
-                    text-black dark:text-white transition-all duration-300 
-                    group-hover:-translate-y-0.5 border border-black/10 dark:border-white/10
-                    hover:shadow-md dark:hover:shadow-neutral-800/50 cursor-pointer flex items-center justify-center gap-3"
-                  >
-                    <span className="opacity-90 group-hover:opacity-100 transition-opacity font-serif">
-                      {buttonText}
-                    </span>
-                    <span
-                      className="mr-2 opacity-70 group-hover:opacity-100 group-hover:-translate-x-1.5 
-                      transition-all duration-300 font-bold"
-                    >
-                      ←
-                    </span>
-                  </Button>
-                </div>
+                  {({ isHovered }) => (
+                    <>
+                      <span
+                        className={cn(
+                          "font-serif transition-opacity duration-300",
+                          isHovered ? "opacity-100" : "opacity-95"
+                        )}
+                      >
+                        {buttonText}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-bold transition-all duration-300",
+                          isHovered
+                            ? "-translate-x-1.5 opacity-100"
+                            : "translate-x-0 opacity-75"
+                        )}
+                      >
+                        ←
+                      </span>
+                    </>
+                  )}
+                </MetallicButton>
 
                 {secondaryAction}
 

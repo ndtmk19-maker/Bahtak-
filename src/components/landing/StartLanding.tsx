@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Presentation } from 'lucide-react';
 import { BackgroundPaths } from '../ui/background-paths';
+import { MetallicButton } from '../ui/metallic-button';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
 import { TestimonialGlobe, getStoredAndDefaultReviews, type GlobeTestimonial } from '../ui/testimonial-globe';
@@ -118,17 +119,39 @@ export function StartLanding() {
       onContinueSaved={handleContinue}
       onLogoClick={handleLogoClick}
       secondaryAction={
-        <button
-          type="button"
+        <MetallicButton
+          tone="secondary"
+          ariaLabel="أو أنشئ عرضاً تقديمياً PowerPoint جديد"
           onClick={handleSlides}
-          className="group inline-flex items-center gap-2.5 rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-neutral-900/70 px-5 py-3 text-[0.95rem] font-bold text-neutral-900 dark:text-neutral-100 shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white dark:hover:bg-neutral-900 cursor-pointer"
+          baseColor="#09090b"
+          sheenColor="#e4e4e7"
+          bandCount={3}
+          edgeBlur={0.55}
+          flowAngle={35}
+          zoom={8}
+          redFringe={0.22}
+          blueFringe={0.28}
+          idleSpeed={0.45}
+          hoverSpeed={0.95}
+          clickSpeed={2.2}
+          contentClassName="gap-2 sm:gap-2.5 px-4 sm:px-6 py-2.5 sm:py-3 text-[0.82rem] sm:text-[0.95rem] font-bold"
         >
-          <span className="grid size-8 place-items-center rounded-xl bg-neutral-900 text-white dark:bg-white dark:text-neutral-900">
-            <Presentation className="size-4" />
-          </span>
-          <span>أو أنشئ عرضاً تقديمياً PowerPoint</span>
-          <span className="rounded-full bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[0.66rem] font-bold">جديد</span>
-        </button>
+          {({ isHovered }) => (
+            <>
+              <span
+                className={`grid size-7 sm:size-8 shrink-0 place-items-center rounded-full bg-white text-zinc-950 shadow-xs transition-transform duration-300 ${
+                  isHovered ? 'scale-105' : 'scale-100'
+                }`}
+              >
+                <Presentation className="size-3.5 sm:size-4" />
+              </span>
+              <span className="text-zinc-100">أو أنشئ عرضاً تقديمياً PowerPoint</span>
+              <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[0.64rem] font-bold text-zinc-100">
+                جديد
+              </span>
+            </>
+          )}
+        </MetallicButton>
       }
       extraContent={
         <div id="reviews-section" className="w-full py-6 sm:py-10">
