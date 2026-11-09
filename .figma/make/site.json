@@ -1,7 +1,15 @@
 {
-  "description": "منصة عربية للطلاب والباحثين لإنشاء البحوث وتنسيقها وتحويل النصوص إلى أدوات قراءة، مع خدمات أكاديمية سهلة الاستخدام.",
+  "title": "بحثك - Bahtak | منصة إنشاء وتنسيق البحوث الجامعية",
+  "description": "منصة بحثك (Bahtak) لتنسيق وإنشاء البحوث الأكاديمية والجامعية تلقائياً، إعداد خطة البحث، صفحة الغلاف الرسمية، الهوامش والمراجع، والطباعة بصيغة A4 وWord وPDF.",
+  "language": "ar",
   "robots": {
-    "index": false
+    "index": true
+  },
+  "icons": {
+    "icon": "/favicon-48x48.png?v=2"
+  },
+  "openGraph": {
+    "image": "https://bahtek.site/app_icon.png?v=2"
   },
   "accessibility": {
     "addBypassLinks": false,
