@@ -47,7 +47,7 @@ const Ctx = createContext<ConverterApi | null>(null);
 const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
 
 export function ConverterProvider({ children }: { children: ReactNode }) {
-  const { applyParsed } = useDocument();
+  const { applyParsed, doc } = useDocument();
   const ui = useUI();
   const [mode, setMode] = useState<ConverterMode>('paste');
   const [rawText, setRawTextState] = useState(loadRawText);
@@ -147,13 +147,17 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // تسجيل عملية التوليد في الإحصائيات وسحابة Supabase
-      trackEvent({
-        event_type: 'generate',
-        topic: form.topic.trim(),
-        pages_count: count || undefined,
-        university: doc.coverState.universityName || undefined,
-      });
+      // تسجيل عملية التوليد في الإحصائيات وسحابة Supabase بأمان
+      try {
+        trackEvent({
+          event_type: 'generate',
+          topic: form.topic.trim(),
+          pages_count: count || undefined,
+          university: doc?.coverState?.universityName || undefined,
+        });
+      } catch (trackErr) {
+        console.warn('Analytics tracking error:', trackErr);
+      }
 
       // الانتقال التلقائي للخطوة الرابعة: المعاينة والإنهاء
       setTimeout(() => {
@@ -166,7 +170,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
     } finally {
       runningRef.current = false;
     }
-  }, [apiKey, form, parse, ui]);
+  }, [apiKey, doc, form, parse, ui]);
 
   const api = useMemo<ConverterApi>(
     () => ({ mode, setMode, rawText, setRawText: setRawTextState, apiKey, setApiKey, form, setForm, run, parse, generate }),
