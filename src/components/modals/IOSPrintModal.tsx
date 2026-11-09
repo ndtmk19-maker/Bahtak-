@@ -51,7 +51,7 @@ export function IOSPrintModal() {
         title={isInApp ? 'تنبيه لمستخدمي الآيفون (متصفح التطبيق)' : 'طريقة حفظ البحث كـ PDF على الآيفون'}
         subtitle={
           isInApp
-            ? 'متصفحات التطبيقات (انستغرام / تيك توك / فيسبوك) تمنع تصدير PDF'
+            ? 'متصفحات التطبيقات (انستغرام / تيك توك / فيسبوك) تمنع تحميل ملفات PDF'
             : 'دليل خطوات حفظ الـ PDF مباشرة عبر نافذة طباعة Safari'
         }
         icon={isInApp ? <Compass className="size-5" /> : <Smartphone className="size-5" />}
