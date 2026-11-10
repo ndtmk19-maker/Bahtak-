@@ -403,6 +403,18 @@ export function BackgroundPaths({
               transition={{ duration: 1.5 }}
               className="max-w-4xl mx-auto flex flex-col items-center"
             >
+              {/* تذكير بالصلاة على رسول الله ﷺ */}
+              <motion.div
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.6 }}
+                data-salawat-reminder="landing"
+                className="mb-3 inline-block max-w-full rounded-full border border-amber-500/25 dark:border-amber-400/25 bg-amber-500/[0.07] dark:bg-amber-400/[0.08] px-3 sm:px-4 py-1.5 text-center text-[0.70rem] sm:text-[0.84rem] font-semibold leading-relaxed text-amber-900 dark:text-amber-200 shadow-xs backdrop-blur-md"
+              >
+                <span aria-hidden="true" className="me-1.5 text-amber-600 dark:text-amber-400">🕌</span>
+                <span>صلِّ على رسول الله ﷺ — اللهم صلِّ وسلم وبارك على نبينا محمد</span>
+              </motion.div>
+
               {/* شارة التعريف العلوية متناسقة مع ألوان الخلفية والزجاج */}
               <motion.div
                 initial={{ opacity: 0, y: -12 }}

@@ -253,8 +253,15 @@ export function FeedbackModal() {
           )}
         </AnimatePresence>
 
-        {/* رسالة الدعاء وحقوق عمل التطبيق */}
-        <div className="mt-4 space-y-2.5 border-t border-black/10 dark:border-white/10 pt-3.5">
+        {/* رسالة التذكير بالصلاة على النبي ﷺ والدعاء وحقوق عمل التطبيق */}
+        <div className="mt-4 space-y-2 border-t border-black/10 dark:border-white/10 pt-3.5">
+          <div
+            data-salawat-reminder="review"
+            className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] dark:bg-amber-400/[0.08] px-3 py-2 text-center text-[0.72rem] sm:text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200"
+          >
+            🕌 صلِّ على رسول الله ﷺ — اللهم صلِّ وسلم وبارك على نبينا محمد
+          </div>
+
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] dark:bg-emerald-400/[0.08] px-3.5 py-2 text-center text-xs font-semibold leading-relaxed text-emerald-900 dark:text-emerald-200">
             🤲 إن أفادتكم المنصة ولو بالقليل، ادعوا لنا بالهداية والتوفيق ولكم بالمثل 🤍
           </div>
