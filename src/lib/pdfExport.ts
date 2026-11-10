@@ -2,7 +2,7 @@
 import type { DocumentState } from "../types";
 import { PLACEHOLDER_TITLE } from "../data/defaults";
 import { imageToDataUrl } from "./image";
-import { isInAppBrowser } from "./printDocument";
+import { isIOS, isInAppBrowser } from "./printDocument";
 
 export interface PdfExportResult {
   success: boolean;
@@ -10,6 +10,10 @@ export interface PdfExportResult {
   pagesCount?: number;
   inAppBrowser?: boolean;
   nativeAndroid?: boolean;
+  iosReady?: boolean;
+  blobUrl?: string;
+  pdfFile?: File | Blob;
+  fileSize?: number;
   error?: string;
 }
 
@@ -283,6 +287,17 @@ export async function exportDocumentPdf(
     }
 
     const pdfBlob = pdf.output("blob");
+    const createPdfFile = (blob: Blob, name: string): File | Blob => {
+      if (typeof File === "function") {
+        try {
+          return new File([blob], name, { type: "application/pdf" });
+        } catch {
+          /* fallback to typed Blob */
+        }
+      }
+      return new Blob([blob], { type: "application/pdf" });
+    };
+    const pdfFile = createPdfFile(pdfBlob, fileName);
 
     const nativeBridge = (
       window as unknown as {
@@ -293,23 +308,42 @@ export async function exportDocumentPdf(
     ).AndroidNativeFile;
 
     if (nativeBridge && typeof nativeBridge.saveBase64File === "function") {
-      const base64 = await blobToBase64(pdfBlob);
+      const base64 = await blobToBase64(pdfFile);
       if (nativeBridge.saveBase64File(base64, fileName, "application/pdf")) {
         return { success: true, fileName, pagesCount: clones.length, nativeAndroid: true };
       }
     }
 
-    const url = URL.createObjectURL(pdfBlob);
+    const url = URL.createObjectURL(pdfFile);
+
+    // متصفحات iOS (Safari وChrome على الآيفون) تلغي تنزيل <a download> البرمجي بعد العمليات غير المتزامنة الطويلة؛
+    // لذلك نُعيد الرابط والملف لفتحهما بنقرة مباشرة (Share / Save to Files / تنزيل مباشر)
+    if (isIOS()) {
+      return {
+        success: true,
+        fileName,
+        pagesCount: clones.length,
+        iosReady: true,
+        blobUrl: url,
+        pdfFile,
+        fileSize: pdfFile.size,
+      };
+    }
+
     const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
+    link.type = "application/pdf";
+    link.rel = "noopener";
     link.style.display = "none";
     document.body.appendChild(link);
     link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 60000);
 
-    return { success: true, fileName, pagesCount: clones.length };
+    return { success: true, fileName, pagesCount: clones.length, fileSize: pdfFile.size };
   } catch (err) {
     console.error("PDF export failed:", err);
     return {

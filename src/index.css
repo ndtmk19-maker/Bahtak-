@@ -300,3 +300,20 @@
     break-after: auto !important;
   }
 }
+
+/* إذا أضاف المتصفح أو الطابعة هوامش تلقائية تقلّص المساحة القابلة للطباعة، تتكيّف الورقة نسبياً لمنع انكسار الإطار إلى صفحة فارغة */
+@media print and (max-height: 293mm), print and (max-width: 206mm) {
+  .doc-stage .a4-page {
+    zoom: 0.89 !important;
+  }
+}
+@media print and (max-height: 274mm), print and (max-width: 186mm) {
+  .doc-stage .a4-page {
+    zoom: 0.82 !important;
+  }
+}
+@media print and (max-height: 250mm), print and (max-width: 170mm) {
+  .doc-stage .a4-page {
+    zoom: 0.72 !important;
+  }
+}

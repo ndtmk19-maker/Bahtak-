@@ -42,6 +42,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
     setShowLanding,
     setFeedbackOpen,
     openIOSModal,
+    openPdfReadyModal,
     setAdminModalOpen,
     product,
     setProduct,
@@ -116,6 +117,18 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
         toast("تعذر إنشاء ملف PDF", {
           tone: "error",
           description: res.error || "يمكنك المحاولة مجدداً أو استخدام خيار الطباعة من القائمة (⋮).",
+        });
+        return;
+      }
+      if (res.iosReady && res.blobUrl) {
+        openPdfReadyModal({
+          fileName: res.fileName || "بحث_أكاديمي_منسق.pdf",
+          pagesCount: res.pagesCount || totalA4,
+          blobUrl: res.blobUrl,
+          pdfFile: res.pdfFile,
+          fileSize: res.fileSize,
+          topic: doc.coverState.title || undefined,
+          university: doc.coverState.universityName || undefined,
         });
         return;
       }

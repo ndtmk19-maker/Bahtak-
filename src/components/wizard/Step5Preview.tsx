@@ -37,7 +37,7 @@ import { trackEvent } from "../../lib/analytics";
 
 export function Step5Preview() {
   const { doc, pagesVersion, addPage } = useDocument();
-  const { toast, setMobileView, setViewMode, setSection, setFeedbackOpen, openIOSModal } = useUI();
+  const { toast, setMobileView, setViewMode, setSection, setFeedbackOpen, openIOSModal, openPdfReadyModal } = useUI();
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ current: number; total: number } | null>(null);
@@ -93,6 +93,18 @@ export function Step5Preview() {
         toast("تعذر إنشاء ملف PDF", {
           tone: "error",
           description: res.error || "يمكنك المحاولة مجدداً أو استخدام خيار الطباعة أدناه.",
+        });
+        return;
+      }
+      if (res.iosReady && res.blobUrl) {
+        openPdfReadyModal({
+          fileName: res.fileName || "بحث_أكاديمي_منسق.pdf",
+          pagesCount: res.pagesCount || totalA4,
+          blobUrl: res.blobUrl,
+          pdfFile: res.pdfFile,
+          fileSize: res.fileSize,
+          topic: doc.coverState.title || undefined,
+          university: doc.coverState.universityName || undefined,
         });
         return;
       }

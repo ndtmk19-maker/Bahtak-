@@ -21,6 +21,17 @@ export interface ConfirmOptions {
   tone?: 'danger' | 'default';
 }
 
+export interface PdfReadyModalState {
+  open: boolean;
+  fileName: string;
+  pagesCount: number;
+  blobUrl: string;
+  pdfFile?: File | Blob;
+  fileSize?: number;
+  topic?: string;
+  university?: string;
+}
+
 interface ConfirmState extends ConfirmOptions {
   resolve: (v: boolean) => void;
 }
@@ -56,6 +67,9 @@ interface UIApi {
   iosModal: { open: boolean; mode: 'guide' | 'inApp' };
   openIOSModal: (mode: 'guide' | 'inApp') => void;
   closeIOSModal: () => void;
+  pdfReadyModal: PdfReadyModalState;
+  openPdfReadyModal: (data: Omit<PdfReadyModalState, 'open'>) => void;
+  closePdfReadyModal: () => void;
   adminModalOpen: boolean;
   setAdminModalOpen: (v: boolean) => void;
   /** يطلب من المعاينة التمرير إلى صفحة محددة */
@@ -109,6 +123,13 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [iosModal, setIosModal] = useState<{ open: boolean; mode: 'guide' | 'inApp' }>({ open: false, mode: 'guide' });
+  const [pdfReadyModal, setPdfReadyModal] = useState<PdfReadyModalState>({
+    open: false,
+    fileName: '',
+    pagesCount: 0,
+    blobUrl: '',
+  });
+  const pdfRevokeTimerRef = useRef<number | null>(null);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   const openIOSModal = useCallback((mode: 'guide' | 'inApp') => {
@@ -117,6 +138,44 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   const closeIOSModal = useCallback(() => {
     setIosModal((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  const openPdfReadyModal = useCallback((data: Omit<PdfReadyModalState, 'open'>) => {
+    if (pdfRevokeTimerRef.current) {
+      window.clearTimeout(pdfRevokeTimerRef.current);
+      pdfRevokeTimerRef.current = null;
+    }
+    setPdfReadyModal((prev) => {
+      if (prev.blobUrl && prev.blobUrl !== data.blobUrl) {
+        const oldUrl = prev.blobUrl;
+        window.setTimeout(() => {
+          try {
+            URL.revokeObjectURL(oldUrl);
+          } catch {
+            /* ignore */
+          }
+        }, 5000);
+      }
+      return { open: true, ...data };
+    });
+  }, []);
+
+  const closePdfReadyModal = useCallback(() => {
+    setPdfReadyModal((prev) => {
+      if (prev.blobUrl) {
+        const urlToRevoke = prev.blobUrl;
+        if (pdfRevokeTimerRef.current) window.clearTimeout(pdfRevokeTimerRef.current);
+        pdfRevokeTimerRef.current = window.setTimeout(() => {
+          try {
+            URL.revokeObjectURL(urlToRevoke);
+          } catch {
+            /* ignore */
+          }
+          pdfRevokeTimerRef.current = null;
+        }, 60000);
+      }
+      return { ...prev, open: false };
+    });
   }, []);
 
   useEffect(() => {
@@ -197,11 +256,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
       iosModal,
       openIOSModal,
       closeIOSModal,
+      pdfReadyModal,
+      openPdfReadyModal,
+      closePdfReadyModal,
       adminModalOpen,
       setAdminModalOpen,
       focusPage,
     }),
-    [showLanding, setShowLanding, product, setProduct, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, adminModalOpen, setAdminModalOpen, focusPage],
+    [showLanding, setShowLanding, product, setProduct, viewMode, setViewMode, wizardStep, setWizardStep, section, mobileView, toasts, toast, dismissToast, confirm, confirmState, closeConfirm, keyGuide, videoOpen, partnerOpen, feedbackOpen, setFeedbackOpen, iosModal, openIOSModal, closeIOSModal, pdfReadyModal, openPdfReadyModal, closePdfReadyModal, adminModalOpen, setAdminModalOpen, focusPage],
   );
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
