@@ -42,7 +42,6 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
     setShowLanding,
     setFeedbackOpen,
     openIOSModal,
-    openPdfReadyModal,
     setAdminModalOpen,
     product,
     setProduct,
@@ -108,6 +107,10 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
     try {
       const res = await exportDocumentPdf(doc, {
         onProgress: (current, total) => setPdfProgress({ current, total }),
+        onGenerated: () => {
+          setExportingPdf(false);
+          setPdfProgress(null);
+        },
       });
       if (res.inAppBrowser) {
         openIOSModal("inApp");
@@ -120,16 +123,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
         });
         return;
       }
-      if (res.iosReady && res.blobUrl) {
-        openPdfReadyModal({
-          fileName: res.fileName || "بحث_أكاديمي_منسق.pdf",
-          pagesCount: res.pagesCount || totalA4,
-          blobUrl: res.blobUrl,
-          pdfFile: res.pdfFile,
-          fileSize: res.fileSize,
-          topic: doc.coverState.title || undefined,
-          university: doc.coverState.universityName || undefined,
-        });
+      if (res.iosResult === "dismissed") {
         return;
       }
       trackEvent({
@@ -138,11 +132,25 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
         pages_count: res.pagesCount || totalA4,
         university: doc.coverState.universityName || undefined,
       });
-      toast("تم تحميل ملف PDF بنجاح", {
-        description: res.nativeAndroid
-          ? `تم حفظ ${res.fileName} في التنزيلات ومشاركته (${res.pagesCount} صفحة A4).`
-          : `${res.fileName} — ${res.pagesCount} صفحة A4 جاهزة للطباعة والتسليم.`,
-      });
+      if (res.iosResult === "shared") {
+        toast("تم حفظ ملف PDF بنجاح", {
+          description: `${res.fileName} — يمكنك فتحه الآن من تطبيق «الملفات».`,
+        });
+      } else if (res.iosResult === "downloaded") {
+        toast("تم بدء تنزيل ملف PDF", {
+          description: `${res.fileName} — ستجده في تطبيق «الملفات» ➔ «التنزيلات».`,
+        });
+      } else if (res.iosResult === "opened") {
+        toast("تم فتح ملف PDF للمعاينة", {
+          description: "اضغط على زر المشاركة (⎋) ثم اختر «حفظ في الملفات».",
+        });
+      } else {
+        toast("تم تحميل ملف PDF بنجاح", {
+          description: res.nativeAndroid
+            ? `تم حفظ ${res.fileName} في التنزيلات ومشاركته (${res.pagesCount} صفحة A4).`
+            : `${res.fileName} — ${res.pagesCount} صفحة A4 جاهزة للطباعة والتسليم.`,
+        });
+      }
       setTimeout(() => setFeedbackOpen(true), 1200);
     } finally {
       setExportingPdf(false);

@@ -1,197 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { Check, Compass, Copy, ExternalLink, FileDown, Info, Printer, Share2, Smartphone } from 'lucide-react';
+import { useState } from 'react';
+import { Check, Compass, Copy, Info, Printer, Smartphone } from 'lucide-react';
 import { Modal, ModalHeader } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
 import { triggerPrintDocument } from '../../lib/printDocument';
-import { trackEvent } from '../../lib/analytics';
-
-function formatFileSize(bytes?: number): string {
-  if (!bytes || bytes <= 0) return '';
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export function IOSPdfReadyModal() {
-  const { pdfReadyModal, closePdfReadyModal, toast, setFeedbackOpen } = useUI();
-  const [savedMode, setSavedMode] = useState<'share' | 'download' | 'open' | null>(null);
-  const trackedUrlRef = useRef<string>('');
-  const directDownloadRef = useRef<HTMLAnchorElement>(null);
-
-  useEffect(() => {
-    if (pdfReadyModal.open) {
-      setSavedMode(null);
-    }
-  }, [pdfReadyModal.open, pdfReadyModal.blobUrl]);
-
-  if (!pdfReadyModal.open || !pdfReadyModal.blobUrl) return null;
-
-  const shareFile =
-    pdfReadyModal.pdfFile && pdfReadyModal.pdfFile instanceof File
-      ? pdfReadyModal.pdfFile
-      : pdfReadyModal.pdfFile
-        ? new File([pdfReadyModal.pdfFile], pdfReadyModal.fileName, { type: 'application/pdf' })
-        : undefined;
-
-  const canShareFiles = (() => {
-    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function' || !shareFile) {
-      return false;
-    }
-    if (typeof navigator.canShare === 'function') {
-      try {
-        return navigator.canShare({ files: [shareFile] });
-      } catch {
-        return false;
-      }
-    }
-    return true;
-  })();
-
-  const markSavedOnce = (mode: 'share' | 'download' | 'open') => {
-    setSavedMode(mode);
-    if (trackedUrlRef.current !== pdfReadyModal.blobUrl) {
-      trackedUrlRef.current = pdfReadyModal.blobUrl;
-      trackEvent({
-        event_type: 'export_pdf',
-        topic: pdfReadyModal.topic || undefined,
-        pages_count: pdfReadyModal.pagesCount,
-        university: pdfReadyModal.university || undefined,
-      }).catch(() => {});
-      setTimeout(() => setFeedbackOpen(true), 1500);
-    }
-  };
-
-  const handleSharePdf = async () => {
-    if (canShareFiles && shareFile) {
-      try {
-        await navigator.share({
-          files: [shareFile],
-          title: pdfReadyModal.fileName,
-        });
-        markSavedOnce('share');
-        toast('تم إرسال ملف PDF بنجاح', {
-          description: `${pdfReadyModal.fileName} — يمكنك فتحه الآن من «الملفات».`,
-        });
-        closePdfReadyModal();
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        // في حال تعذرت المشاركة المباشرة في هذا المتصفح، ننتقل تلقائياً لرابط التنزيل المباشر
-      }
-    }
-    directDownloadRef.current?.click();
-    setTimeout(() => {
-      markSavedOnce('download');
-      toast('بدأ التنزيل المباشر', {
-        description: 'أكّد «تنزيل» إذا ظهر في الأسفل، وستجد الملف في تطبيق «الملفات» ➔ «التنزيلات».',
-      });
-    }, 350);
-  };
-
-  const sizeText = formatFileSize(pdfReadyModal.fileSize);
-
-  return (
-    <Modal
-      open={pdfReadyModal.open}
-      onClose={closePdfReadyModal}
-      labelledBy="ios-pdf-ready-title"
-      size="md"
-    >
-      <ModalHeader
-        id="ios-pdf-ready-title"
-        title="ملف PDF جاهز للحفظ على الآيفون"
-        subtitle={`${pdfReadyModal.fileName} · ${pdfReadyModal.pagesCount} صفحة A4${sizeText ? ` · ${sizeText}` : ''}`}
-        icon={<FileDown className="size-5" />}
-        onClose={closePdfReadyModal}
-      />
-
-      <div className="p-5 sm:p-6 flex flex-col gap-3.5 text-sm text-zinc-700 dark:text-zinc-300">
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 leading-relaxed">
-          تم تجهيز صفحات البحث كاملة بدون هوامش أو صفحات زائدة. لأن متصفحات الآيفون (Safari وChrome) تتطلب نقرة مباشرة لحفظ الملفات المولّدة، اضغط أحد الخيارات التالية:
-        </div>
-
-        {canShareFiles && (
-          <Button
-            variant="primary"
-            size="lg"
-            icon={<Share2 className="size-5" />}
-            onClick={handleSharePdf}
-            className="w-full justify-center !rounded-2xl !py-3.5"
-          >
-            حفظ في الملفات / مشاركة PDF (الأضمن)
-          </Button>
-        )}
-
-        <a
-          ref={directDownloadRef}
-          href={pdfReadyModal.blobUrl}
-          download={pdfReadyModal.fileName}
-          type="application/pdf"
-          rel="noopener"
-          onClick={() => {
-            setTimeout(() => {
-              markSavedOnce('download');
-              toast('أكّد حفظ الملف من شريط التنزيل', {
-                description: 'ستجد الملف في تطبيق «الملفات» ➔ «التنزيلات» أو سهم التنزيل (↓).',
-              });
-            }, 350);
-          }}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition ${
-            canShareFiles
-              ? 'border border-black/15 dark:border-white/15 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
-              : 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-sm hover:opacity-90'
-          }`}
-        >
-          <FileDown className="size-5" />
-          <span>تنزيل مباشر إلى «التنزيلات»</span>
-        </a>
-
-        <a
-          href={pdfReadyModal.blobUrl}
-          target="_blank"
-          rel="noopener"
-          onClick={() => {
-            setTimeout(() => {
-              markSavedOnce('open');
-            }, 350);
-          }}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.04] px-4 py-3 text-xs sm:text-sm font-semibold text-zinc-800 dark:text-zinc-200 transition hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
-        >
-          <ExternalLink className="size-4" />
-          <span>فتح ومعاينة الـ PDF (للحفظ من زر المشاركة ⎋)</span>
-        </a>
-
-        {savedMode && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-800 dark:text-emerald-200">
-            <Check className="size-4 shrink-0" />
-            <span>
-              {savedMode === 'download'
-                ? 'تم إرسال طلب التنزيل — إذا ظهرت رسالة "هل تريد تنزيل الملف؟" اضغط «تنزيل».'
-                : savedMode === 'open'
-                  ? 'تم فتح الملف للمعاينة — اضغط زر المشاركة (⎋) واختر «حفظ في الملفات».'
-                  : 'تم حفظ/مشاركة الملف بنجاح.'}
-            </span>
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="md"
-          onClick={closePdfReadyModal}
-          className="w-full justify-center !rounded-xl mt-1"
-        >
-          إغلاق
-        </Button>
-      </div>
-    </Modal>
-  );
-}
 
 export function IOSPrintModal() {
   const { iosModal, closeIOSModal, toast } = useUI();
   const { doc } = useDocument();
   const [copied, setCopied] = useState(false);
+
+  if (!iosModal.open) return null;
 
   const handleCopyLink = async () => {
     try {
@@ -220,14 +40,12 @@ export function IOSPrintModal() {
   const isInApp = iosModal.mode === 'inApp';
 
   return (
-    <>
-      {iosModal.open && (
-        <Modal
-          open={iosModal.open}
-          onClose={closeIOSModal}
-          labelledBy="ios-modal-title"
-          size="md"
-        >
+    <Modal
+      open={iosModal.open}
+      onClose={closeIOSModal}
+      labelledBy="ios-modal-title"
+      size="md"
+    >
       <ModalHeader
         id="ios-modal-title"
         title={isInApp ? 'تنبيه لمستخدمي الآيفون (متصفح التطبيق)' : 'طريقة حفظ البحث كـ PDF على الآيفون'}
@@ -380,8 +198,5 @@ export function IOSPrintModal() {
         )}
       </div>
     </Modal>
-      )}
-      <IOSPdfReadyModal />
-    </>
   );
 }

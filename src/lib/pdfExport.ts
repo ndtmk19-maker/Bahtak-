@@ -2,6 +2,7 @@
 import type { DocumentState } from "../types";
 import { PLACEHOLDER_TITLE } from "../data/defaults";
 import { imageToDataUrl } from "./image";
+import { isIOSDevice, showIOSPdfSaveSheet, type IOSPdfSaveResult } from "./iosPdfSave";
 import { isIOS, isInAppBrowser } from "./printDocument";
 
 export interface PdfExportResult {
@@ -10,15 +11,14 @@ export interface PdfExportResult {
   pagesCount?: number;
   inAppBrowser?: boolean;
   nativeAndroid?: boolean;
-  iosReady?: boolean;
-  blobUrl?: string;
-  pdfFile?: File | Blob;
+  iosResult?: IOSPdfSaveResult;
   fileSize?: number;
   error?: string;
 }
 
 export interface PdfExportOptions {
   onProgress?: (current: number, total: number) => void;
+  onGenerated?: () => void;
   scale?: number;
 }
 
@@ -27,10 +27,15 @@ const FALLBACK_LOGO = "/assets/univ_logos/MESRS.png";
 export function buildPdfFileName(title?: string): string {
   const clean =
     title && title !== PLACEHOLDER_TITLE && title.trim() ? title.trim() : "بحث_أكاديمي_منسق";
-  return `${clean
-    .replace(/[\\/:*?"<>|]+/g, "_")
+  const base = clean
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[\\/:*?"<>|#%&{}~$!'`=@+]+/g, "_")
+    .trim()
     .replace(/\s+/g, "_")
-    .slice(0, 90)}.pdf`;
+    .replace(/^[._]+|[._]+$/g, "")
+    .slice(0, 90)
+    .replace(/[._]+$/g, "");
+  return `${base || "بحث_أكاديمي_منسق"}.pdf`;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -314,22 +319,25 @@ export async function exportDocumentPdf(
       }
     }
 
-    const url = URL.createObjectURL(pdfFile);
-
     // متصفحات iOS (Safari وChrome على الآيفون) تلغي تنزيل <a download> البرمجي بعد العمليات غير المتزامنة الطويلة؛
-    // لذلك نُعيد الرابط والملف لفتحهما بنقرة مباشرة (Share / Save to Files / تنزيل مباشر)
-    if (isIOS()) {
+    // لذلك نعرض لوحة حفظ iOS بنقرة مباشرة (Web Share / رابط data: / فتح في تبويب جديد)
+    if (isIOSDevice() || isIOS()) {
+      options.onGenerated?.();
+      const iosResult = await showIOSPdfSaveSheet(pdfFile, fileName, {
+        pagesCount: clones.length,
+        title: "ملف PDF جاهز للحفظ على الآيفون",
+      });
       return {
         success: true,
         fileName,
         pagesCount: clones.length,
-        iosReady: true,
-        blobUrl: url,
-        pdfFile,
+        iosResult,
         fileSize: pdfFile.size,
       };
     }
 
+    options.onGenerated?.();
+    const url = URL.createObjectURL(pdfFile);
     const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
