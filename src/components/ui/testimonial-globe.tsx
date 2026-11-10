@@ -116,6 +116,11 @@ function toneOf(item: GlobeTestimonial, index: number): Tone {
   return item.tone ?? (((index % 5) + 1) as Tone);
 }
 
+export function hasReviewComment(quote?: string | null): boolean {
+  if (typeof quote !== "string") return false;
+  return quote.replace(/[\u200B-\u200D\uFEFF]/g, "").trim().length > 0;
+}
+
 function toCartesian(lat: number, lng: number): Vec3 {
   const la = (lat * Math.PI) / 180;
   const lo = (lng * Math.PI) / 180 - Math.PI;
@@ -369,7 +374,7 @@ const QuoteCard = React.memo(function QuoteCard({ item, index, tone, roomy, mode
           roomy ? "mt-3 text-[16px] sm:text-[17px] leading-7" : "mt-2 text-[14px] leading-[22px]",
         )}
       >
-        <p>«{item.quote}»</p>
+        <p>«{item.quote.trim()}»</p>
       </blockquote>
       <figcaption className={cx("relative mt-auto flex items-center gap-3 border-t border-black/5 dark:border-white/5", roomy ? "pt-5" : "pt-3")}>
         <span
@@ -503,7 +508,13 @@ export function TestimonialGlobe({
   ...rest
 }: TestimonialGlobeProps) {
   const text = { ...DEFAULT_LABELS, ...labels };
-  const count = items.length;
+  // احتساب جميع التقييمات المعتمدة في الإحصائيات، مع عرض التقييمات التي تحتوي على تعليق نصي فقط في الواجهة
+  const totalCount = items.length;
+  const visibleItems = React.useMemo(
+    () => items.filter((item) => hasReviewComment(item.quote)),
+    [items],
+  );
+  const visibleCount = visibleItems.length;
   const headingId = React.useId();
   const rootRef = React.useRef(null as HTMLElement | null);
   const stageRef = React.useRef(null as HTMLDivElement | null);
@@ -527,7 +538,7 @@ export function TestimonialGlobe({
   const [glVersion, setGlVersion] = React.useState(0);
   const [reduced, setReduced] = React.useState(false);
   const [visible, setVisible] = React.useState(true);
-  const [internal, setInternal] = React.useState<number | null>(count > 0 ? 0 : null);
+  const [internal, setInternal] = React.useState<number | null>(visibleCount > 0 ? 0 : null);
   const [pinned, setPinned] = React.useState(false);
   const [hoverPin, setHoverPin] = React.useState(null as number | null);
   const [cardHover, setCardHover] = React.useState(false);
@@ -538,16 +549,19 @@ export function TestimonialGlobe({
   const themeTick = useThemeTick();
   const dpr = useDevicePixelRatio();
 
-  // التأكد من تحديد أول تقييم مباشرة عند توفر العناصر ليظهر من البداية
+  // التأكد من تحديد أول تقييم بتعليق مباشرة عند توفر العناصر وتصحيح المؤشر إذا تقلصت القائمة
   React.useEffect(() => {
-    if (internal === null && count > 0) {
+    if (visibleCount === 0) {
+      if (internal !== null) setInternal(null);
+    } else if (internal === null || internal >= visibleCount) {
       setInternal(0);
     }
-  }, [count, internal]);
+  }, [visibleCount, internal]);
 
   const controlled = active !== undefined;
-  const requested = controlled ? active : (internal ?? (count > 0 ? 0 : null));
-  const featured = requested !== null && requested >= 0 && requested < count ? Math.floor(requested) : (count > 0 ? 0 : null);
+  const requested = controlled ? active : (internal ?? (visibleCount > 0 ? 0 : null));
+  const featured =
+    requested !== null && requested >= 0 && requested < visibleCount ? Math.floor(requested) : (visibleCount > 0 ? 0 : null);
 
   const pad = width >= 1024 ? 48 : width >= 620 ? 28 : width >= 420 ? 20 : 16;
   const inner = Math.max(0, Math.min(width, MAX_CONTENT) - pad * 2);
@@ -561,7 +575,7 @@ export function TestimonialGlobe({
   const roomy = wide && Math.min(inner - diameter - columnGap, 544) >= 420;
   const ready = glState !== "pending";
   const running =
-    autoplay && !reduced && count > 1 && !pinned && hoverPin === null && !cardHover && !keyboard && !interacting && visible;
+    autoplay && !reduced && visibleCount > 1 && !pinned && hoverPin === null && !cardHover && !keyboard && !interacting && visible;
 
   const live = React.useRef({
     phi: 0,
@@ -661,15 +675,17 @@ export function TestimonialGlobe({
 
   React.useLayoutEffect(() => {
     const s = live.current;
-    if (s.vectors.length !== items.length) {
+    if (s.vectors.length !== visibleItems.length) {
       s.front = -1;
-      s.depths.length = items.length;
+      s.depths.length = visibleItems.length;
+      pinRefs.current.length = visibleItems.length;
+      writtenRef.current.length = visibleItems.length;
     }
-    s.vectors = items.map((item) => toCartesian(item.lat, item.lng));
-    s.longitudes = items.map((item) => item.lng);
+    s.vectors = visibleItems.map((item) => toCartesian(item.lat, item.lng));
+    s.longitudes = visibleItems.map((item) => item.lng);
     if (!s.started && diameter > 0) {
       s.started = true;
-      const first = featured === null ? undefined : items[featured];
+      const first = featured === null ? undefined : visibleItems[featured];
       if (first) s.phi = facingPhi(first.lng);
       else s.phi = facingPhi(3.06); // البدء بتدوير الكرة الأرضية على الجزائر
     }
@@ -846,7 +862,7 @@ export function TestimonialGlobe({
 
   React.useLayoutEffect(() => {
     place(performance.now());
-  }, [place, diameter, pinSize, featured, wide, count]);
+  }, [place, diameter, pinSize, featured, wide, visibleCount]);
 
   const hasSize = diameter > 0;
 
@@ -992,14 +1008,14 @@ export function TestimonialGlobe({
   }, [ready, glVersion, themeTick]);
 
   React.useEffect(() => {
-    if (!running) return;
+    if (!running || visibleCount <= 1) return;
     const id = window.setTimeout(() => {
-      const next = ((live.current.featured ?? -1) + 1) % count;
+      const next = ((live.current.featured ?? -1) + 1) % visibleCount;
       setTarget(next);
       turnTo(next, true);
     }, Math.max(0, interval - TURN_MS));
     return () => window.clearTimeout(id);
-  }, [running, featured, interval, count, turnTo]);
+  }, [running, featured, interval, visibleCount, turnTo]);
 
   React.useEffect(() => {
     if (running) return;
@@ -1025,13 +1041,19 @@ export function TestimonialGlobe({
   }, [pinned, featured]);
 
   const [cards, setCards] = React.useState({
-    shown: featured ?? (count > 0 ? 0 : null),
+    shown: featured ?? (visibleCount > 0 ? 0 : null),
     leaving: null as number | null,
     key: 0,
   });
-  if (cards.shown !== featured && featured !== null) {
-    setCards({ shown: featured, leaving: reduced ? null : cards.shown, key: cards.key + 1 });
-  } else if (cards.shown === null && count > 0) {
+  if (featured === null && (cards.shown !== null || cards.leaving !== null)) {
+    setCards({ shown: null, leaving: null, key: cards.key + 1 });
+  } else if (cards.shown !== featured && featured !== null) {
+    setCards({
+      shown: featured,
+      leaving: reduced || cards.shown === null || cards.shown >= visibleCount ? null : cards.shown,
+      key: cards.key + 1,
+    });
+  } else if (cards.shown === null && visibleCount > 0) {
     setCards({ shown: 0, leaving: null, key: cards.key + 1 });
   }
   React.useLayoutEffect(() => {
@@ -1058,8 +1080,8 @@ export function TestimonialGlobe({
   }, [cards.key]);
 
   const step = (delta: number) => {
-    if (count === 0) return;
-    go((((featured ?? (delta > 0 ? -1 : 0)) + delta) % count + count) % count);
+    if (visibleCount === 0) return;
+    go((((featured ?? (delta > 0 ? -1 : 0)) + delta) % visibleCount + visibleCount) % visibleCount);
   };
 
   const registerPin = React.useCallback((index: number, el: HTMLButtonElement | null) => {
@@ -1151,8 +1173,8 @@ export function TestimonialGlobe({
     return (rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) / rated.length).toFixed(1);
   })();
   const universities = new Set(items.map((item) => item.company ?? item.city)).size;
-  const shownItem = cards.shown === null ? undefined : items[cards.shown];
-  const leavingItem = cards.leaving === null ? undefined : items[cards.leaving];
+  const shownItem = cards.shown === null ? undefined : visibleItems[cards.shown];
+  const leavingItem = cards.leaving === null ? undefined : visibleItems[cards.leaving];
   const headingSize = wide
     ? width >= 1024
       ? "text-3xl lg:text-4xl leading-tight font-serif"
@@ -1212,8 +1234,8 @@ export function TestimonialGlobe({
           <div className={cx("flex flex-wrap items-center gap-x-5 gap-y-2", wide ? "mt-4 justify-start" : "mt-3 justify-center")}>
             <dl className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
               <div className="flex items-baseline gap-1.5">
-                <dd className="order-1 m-0 font-bold tabular-nums text-zinc-900 dark:text-white text-base">{count}</dd>
-                <dt className="order-2">{count === 1 ? "تقييم طالب" : "تقييماً معتمداً"}</dt>
+                <dd className="order-1 m-0 font-bold tabular-nums text-zinc-900 dark:text-white text-base">{totalCount}</dd>
+                <dt className="order-2">{totalCount === 1 ? "تقييم طالب" : "تقييماً معتمداً"}</dt>
               </div>
               {avg !== null && (
                 <>
@@ -1352,7 +1374,7 @@ export function TestimonialGlobe({
           />
 
           <div className="pointer-events-none absolute inset-0">
-            {items.map((item, i) => (
+            {visibleItems.map((item, i) => (
               <Pin
                 key={item.id}
                 item={item}
@@ -1410,9 +1432,18 @@ export function TestimonialGlobe({
               swipeRef.current = null;
             }}
           >
-            {items.map((item, i) => (
+            {visibleItems.map((item, i) => (
               <QuoteCard key={`sizer-${item.id}`} item={item} index={i} tone={toneOf(item, i)} roomy={roomy} mode="sizer" />
             ))}
+            {visibleCount === 0 && (
+              <div className="col-start-1 row-start-1 rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-zinc-900/90 p-6 text-center text-sm text-zinc-600 dark:text-zinc-300 shadow-md backdrop-blur-md">
+                <p className="m-0 font-semibold">
+                  {totalCount > 0
+                    ? `تم تسجيل ${totalCount} تقييم بالنجوم — لم تُكتب تعليقات نصية لعرضها بعد.`
+                    : "لا توجد تعليقات نصية حالياً — كن أول من يشاركنا رأيه في منصة «بحثك»."}
+                </p>
+              </div>
+            )}
             {leavingItem && cards.leaving !== null && (
               <QuoteCard
                 key={`leaving-${cards.key}`}
@@ -1438,26 +1469,26 @@ export function TestimonialGlobe({
           </div>
 
           {/* شريط تنقل أنيق ومحدد بين التقييمات */}
-          {count > 1 && (
+          {visibleCount > 1 && (
             <div
               dir="rtl"
               className="mt-3.5 flex items-center justify-between rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-3.5 py-2 shadow-xs select-none"
             >
-              {/* التقييم الحالي وعدد التقييمات */}
+              {/* التقييم الحالي وعدد التقييمات ذات التعليق */}
               <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
                 <span>
-                  التقييم {(featured ?? 0) + 1} من {count}
+                  التقييم {(featured ?? 0) + 1} من {visibleCount}
                 </span>
               </div>
 
               {/* مؤشرات التقييمات التفاعلية (dots / pills) */}
               <div className="flex items-center gap-1.5 px-2">
-                {items.map((_, idx) => {
+                {visibleItems.map((item, idx) => {
                   const isActive = (featured ?? 0) === idx;
                   return (
                     <button
-                      key={`nav-dot-${idx}`}
+                      key={`nav-dot-${item.id || idx}`}
                       type="button"
                       onClick={() => go(idx)}
                       aria-label={`الانتقال إلى التقييم ${idx + 1}`}
@@ -1586,10 +1617,10 @@ export function getStoredAndDefaultReviews(): GlobeTestimonial[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // تحويل تقييمات المستخدمين إلى صيغة GlobeTestimonial مع إحداثيات الجزائر
+        // تحويل تقييمات المستخدمين إلى صيغة GlobeTestimonial مع الإبقاء على التعليق كما هو حتى يُحتسب الفارغ منها في الإحصاءات دون الظهور في الواجهة
         const userReviews: GlobeTestimonial[] = parsed.map((item, idx) => ({
           id: item.id || `user-rev-${idx}`,
-          quote: item.comment || "منصة ممتازة لتنسيق البحوث الأكاديمية",
+          quote: typeof item.comment === "string" ? item.comment.trim() : "",
           name: item.name || "طالب باحث",
           role: "تقييم طالب",
           company: item.university || "جامعة جزائرية",

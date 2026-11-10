@@ -26,7 +26,7 @@ export async function getSupabaseReviews(): Promise<DbReview[]> {
       .from('reviews')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(60);
+      .limit(250);
 
     if (error) {
       console.warn('Supabase fetch error:', error.message);

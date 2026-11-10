@@ -49,7 +49,7 @@ export function StartLanding() {
           const coord = LAND_COORDINATES[idx % LAND_COORDINATES.length];
           return {
             id: item.id,
-            quote: item.comment,
+            quote: typeof item.comment === 'string' ? item.comment.trim() : '',
             name: item.name,
             role: 'طالب باحث',
             company: item.university,
