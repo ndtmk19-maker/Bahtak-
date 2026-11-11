@@ -359,7 +359,7 @@ export function Step5Preview() {
           </button>
         </div>
 
-        {/* عرض المعاينة الحية لأوراق A4 مباشرة في الخطوة 5 */}
+        {/* عرض المعاينة الحية لأوراق A4 مباشرة في الخطوة 3 */}
         {activeTab === "preview" && (
           <div className="relative flex flex-col bg-zinc-100/90 dark:bg-zinc-950 p-4 sm:p-6">
             {/* شريط تكبير وتصغير المعاينة */}

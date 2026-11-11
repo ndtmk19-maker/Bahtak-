@@ -7,14 +7,12 @@ import {
   FileCheck,
   GraduationCap,
   LayoutGrid,
-  SlidersHorizontal,
   Wand2,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Step1Input } from './Step1Input';
 import { Step2Cover } from './Step2Cover';
-import { Step4Style } from './Step4Style';
 import { Step5Preview } from './Step5Preview';
 import { useUI } from '../../state/UIContext';
 
@@ -36,20 +34,13 @@ export const WIZARD_STEPS: WizardStepMeta[] = [
   },
   {
     id: 2,
-    label: 'التنسيق والمظهر',
-    title: 'الخطوط والإطارات والتخطيط',
-    desc: 'اضبط نوع الخط وحجمه وتباعد الأسطر ونمط الإطار وشريط معلومات الطالب.',
-    icon: SlidersHorizontal,
-  },
-  {
-    id: 3,
     label: 'توليد البحث',
     title: 'طريقة إدخال وتوليد البحث',
     desc: 'اختر بين الصياغة التلقائية بالذكاء الاصطناعي لموضوعك أو لصق مسودة جاهزة لتحليلها وتنسيقها.',
     icon: Wand2,
   },
   {
-    id: 4,
+    id: 3,
     label: 'المعاينة والإنهاء',
     title: 'المعاينة والإنهاء إلى المحرر الكامل',
     desc: 'راجع ملخص البحث، صدّر ملف Word أو حمّل ملف PDF مباشرة، أو انتقل لورقة A4 والمحرر الكامل.',
@@ -61,27 +52,28 @@ export function MultiStepWizard() {
   const { wizardStep, setWizardStep, setViewMode, setSection } = useUI();
   const [direction, setDirection] = useState<1 | -1>(1);
 
-  const currentIdx = wizardStep - 1;
+  const activeStep = Math.min(Math.max(wizardStep, 1), WIZARD_STEPS.length);
+  const currentIdx = activeStep - 1;
   const current = WIZARD_STEPS[currentIdx] || WIZARD_STEPS[0];
-  const progressPercent = (wizardStep / WIZARD_STEPS.length) * 100;
+  const progressPercent = (activeStep / WIZARD_STEPS.length) * 100;
 
   const goToStep = (stepNumber: number) => {
-    if (stepNumber === wizardStep) return;
-    setDirection(stepNumber > wizardStep ? 1 : -1);
+    if (stepNumber === activeStep) return;
+    setDirection(stepNumber > activeStep ? 1 : -1);
     setWizardStep(stepNumber);
   };
 
   const handlePrev = () => {
-    if (wizardStep > 1) {
+    if (activeStep > 1) {
       setDirection(-1);
-      setWizardStep((s) => s - 1);
+      setWizardStep(activeStep - 1);
     }
   };
 
   const handleNext = () => {
-    if (wizardStep < WIZARD_STEPS.length) {
+    if (activeStep < WIZARD_STEPS.length) {
       setDirection(1);
-      setWizardStep((s) => s + 1);
+      setWizardStep(activeStep + 1);
     } else {
       // إتمام المعالج والانتقال للمحرر الكامل
       setViewMode('classic');
@@ -98,7 +90,7 @@ export function MultiStepWizard() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3 py-1 text-[0.74rem] font-bold text-neutral-800 dark:text-neutral-200 backdrop-blur-md">
               <span className="size-1.5 rounded-full bg-neutral-900 dark:bg-white animate-pulse" />
-              الخطوة {wizardStep} من {WIZARD_STEPS.length}
+              الخطوة {activeStep} من {WIZARD_STEPS.length}
             </span>
             <span className="text-[0.76rem] font-semibold text-neutral-500 dark:text-neutral-400 max-sm:hidden">
               {current.label}
@@ -131,11 +123,11 @@ export function MultiStepWizard() {
           </div>
         </div>
 
-        {/* مؤشرات الخطوات الـ 4 القابلة للنقر بتصميم ناعم ومتناسق */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3" role="tablist" aria-label="خطوات المعالج">
+        {/* مؤشرات الخطوات الـ 3 القابلة للنقر بتصميم ناعم ومتناسق */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3" role="tablist" aria-label="خطوات المعالج">
           {WIZARD_STEPS.map((s) => {
-            const isCompleted = s.id < wizardStep;
-            const isCurrent = s.id === wizardStep;
+            const isCompleted = s.id < activeStep;
+            const isCurrent = s.id === activeStep;
             const Icon = s.icon;
 
             return (
@@ -187,16 +179,15 @@ export function MultiStepWizard() {
       <div className="relative min-h-[380px]">
         <AnimatePresence mode="wait">
           <motion.div
-            key={wizardStep}
+            key={activeStep}
             initial={{ opacity: 0, x: direction > 0 ? -20 : 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: direction > 0 ? 20 : -20 }}
             transition={{ duration: 0.24, ease: 'easeOut' }}
           >
-            {wizardStep === 1 && <Step2Cover />}
-            {wizardStep === 2 && <Step4Style />}
-            {wizardStep === 3 && <Step1Input />}
-            {wizardStep === 4 && <Step5Preview />}
+            {activeStep === 1 && <Step2Cover />}
+            {activeStep === 2 && <Step1Input />}
+            {activeStep === 3 && <Step5Preview />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -209,9 +200,9 @@ export function MultiStepWizard() {
         <button
           type="button"
           onClick={handlePrev}
-          disabled={wizardStep === 1}
+          disabled={activeStep === 1}
           className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[0.84rem] font-bold transition cursor-pointer ${
-            wizardStep === 1
+            activeStep === 1
               ? 'pointer-events-none border-transparent text-neutral-400 opacity-40'
               : 'border-black/10 dark:border-white/10 bg-white/90 dark:bg-neutral-900/90 text-neutral-800 dark:text-neutral-200 shadow-xs hover:bg-black/5 dark:hover:bg-white/5'
           }`}
@@ -221,13 +212,13 @@ export function MultiStepWizard() {
         </button>
 
         <div className="flex items-center gap-1.5 text-[0.78rem] font-bold text-neutral-500 dark:text-neutral-400 tabular-nums">
-          <span className="text-neutral-900 dark:text-white font-extrabold">{wizardStep}</span>
+          <span className="text-neutral-900 dark:text-white font-extrabold">{activeStep}</span>
           <span className="opacity-40">/</span>
           <span>{WIZARD_STEPS.length}</span>
         </div>
 
-        {wizardStep < WIZARD_STEPS.length ? (() => {
-          const nextStep = WIZARD_STEPS[wizardStep];
+        {activeStep < WIZARD_STEPS.length ? (() => {
+          const nextStep = WIZARD_STEPS[activeStep];
           const NextStepIcon = nextStep.icon;
           return (
             <Button

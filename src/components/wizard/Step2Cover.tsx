@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Building2, ImageUp, Landmark, Palette, Users, X } from 'lucide-react';
+import { ImageUp, Landmark, Palette, Users, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ChoiceCards, Segmented, Switch } from '../ui/Controls';
 import { SelectInput, TextArea, TextInput } from '../ui/Form';
@@ -143,14 +143,6 @@ export function Step2Cover() {
               رفع شعار من جهازك
             </Button>
           </div>
-        </Section>
-
-        {/* 4. بيانات الهيئة والكلية */}
-        <Section title="بيانات الهيئة والكلية" icon={<Building2 />}>
-          <TextInput label="الدولة والجمهورية" value={cs.country} onChange={(e) => updateCover({ country: e.target.value })} />
-          <TextInput label="الوزارة الوصية" value={cs.ministry} onChange={(e) => updateCover({ ministry: e.target.value })} />
-          <TextInput label="اسم الجامعة" hint="يُحدَّث تلقائياً عند اختيار الجامعة، ويمكنك تعديله." value={cs.universityName} placeholder="مثال: جامعة الجزائر 1 - بن يوسف بن خدة" onChange={(e) => updateCover({ universityName: e.target.value })} />
-          <TextInput label="الكلية / المعهد / القسم (اختياري)" value={cs.facultyName} placeholder="مثال: كلية الحقوق والعلوم السياسية - قسم القانون العام" onChange={(e) => updateCover({ facultyName: e.target.value })} />
         </Section>
       </div>
     </div>

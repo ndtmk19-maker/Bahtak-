@@ -168,7 +168,7 @@ function PasteModeFields() {
           icon={<Zap className="size-4.5" />}
           onClick={() => {
             const count = parse();
-            if (count) setWizardStep(4);
+            if (count) setWizardStep(3);
           }}
           disabled={!rawText.trim()}
         >
@@ -339,9 +339,9 @@ function AiProgress() {
             size="md"
             block
             icon={<ArrowLeft className="size-4" />}
-            onClick={() => setWizardStep(4)}
+            onClick={() => setWizardStep(3)}
           >
-            الانتقال إلى الخطوة 4: المعاينة وتحميل البحث
+            الانتقال إلى الخطوة 3: المعاينة وتحميل البحث
           </Button>
         </div>
       )}

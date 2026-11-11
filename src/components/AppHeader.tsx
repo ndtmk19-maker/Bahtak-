@@ -241,7 +241,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
             <div className="flex items-center gap-2.5">
               <span className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-1 text-[0.78rem] font-bold text-neutral-800 dark:text-neutral-200 shadow-xs backdrop-blur-md">
                 <Compass className="size-4 text-neutral-700 dark:text-neutral-300" />
-                <span>معالج إعداد وتنسيق البحث (4 خطوات)</span>
+                <span>معالج إعداد وتنسيق البحث (3 خطوات)</span>
               </span>
               <button
                 type="button"
