@@ -148,8 +148,9 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       saveRawText(finalText);
       const count = parse({ silent: true, text: finalText, overrideTitle: exactUserTopic });
       if (count) {
+        const hasCs = !!form.caseStudyCompany.trim();
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
-          description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
+          description: `${count} صفحة A4 منسقة (الهدف الأساسي: ${AI_LENGTHS[form.length].target}${hasCs ? ' + 1 إلى 3 صفحات لدراسة الحالة' : ''}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
         });
       }
 

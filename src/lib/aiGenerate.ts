@@ -573,7 +573,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   // 1. توليد خطة البحث الحقيقية بصيغة JSON من النموذج
   let planRaw = '';
   try {
-    planRaw = await call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg), null, {
+    planRaw = await call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg, caseCompany), null, {
       temperature: 0.25,
       maxTokens: 2400,
     });
@@ -760,7 +760,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         try {
           const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg)), tCs.onChunk, {
             temperature: 0.35,
-            maxTokens: 3600,
+            maxTokens: 4096,
           });
           const cleanedCs = sanitizeCaseStudyOutput(rawCs, caseCompany);
           return tCs.done(cleanedCs || rawCs);

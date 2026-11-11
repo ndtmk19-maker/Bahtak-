@@ -148,6 +148,7 @@ function PasteMode() {
 
 function AiMode() {
   const { form, setForm, run, generate } = useConverter();
+  const hasCaseStudy = !!form.caseStudyCompany.trim();
 
   return (
     <div className="flex animate-rise flex-col gap-3.5">
@@ -195,10 +196,19 @@ function AiMode() {
 
         <SelectInput
           label="حجم وعمق البحث"
-          aside={<Badge tone="brand">الهدف: {AI_LENGTHS[form.length].target}</Badge>}
+          aside={
+            <Badge tone="brand">
+              الهدف: {AI_LENGTHS[form.length].target}
+              {hasCaseStudy ? ' + (1–3 ص لدراسة الحالة)' : ''}
+            </Badge>
+          }
           value={form.length}
           onChange={(e) => setForm({ length: e.target.value as AiLength })}
-          hint="تُضبط ميزانية الكلمات وهيكل المباحث آلياً ليقترب الناتج من عدد الصفحات المحدد."
+          hint={
+            hasCaseStudy
+              ? 'مع إضافة دراسة حالة تسقط قاعدة التقيد الصارم بعدد الصفحات المحدد، وتُقبل زيادة 1 إلى 3 صفحات إضافية فوقه دون إنقاص المباحث.'
+              : 'تُضبط ميزانية الكلمات وهيكل المباحث آلياً ليقترب الناتج من عدد الصفحات المحدد.'
+          }
         >
           {(Object.keys(AI_LENGTHS) as AiLength[]).map((k) => (
             <option key={k} value={k}>
@@ -222,14 +232,14 @@ function AiMode() {
         <TextInput
           label="دراسة حالة حول شركة أو مؤسسة"
           aside={
-            <Badge tone={form.caseStudyCompany.trim() ? 'ok' : 'neutral'}>
-              {form.caseStudyCompany.trim() ? 'ستُضاف قبل الخاتمة' : 'اختياري'}
+            <Badge tone={hasCaseStudy ? 'ok' : 'neutral'}>
+              {hasCaseStudy ? 'ستُضاف قبل الخاتمة' : 'اختياري'}
             </Badge>
           }
           value={form.caseStudyCompany}
           onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
           placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
-          hint="تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (نحو صفحتين: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع فيها) دون تغيير عدد المباحث."
+          hint="تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث."
         />
 
         <Note icon={<CircleAlert />} tone="warn">
@@ -237,7 +247,7 @@ function AiMode() {
         </Note>
 
         <Button variant="magic" size="lg" block loading={run.running} icon={<Wand2 className="size-4.5" />} onClick={generate}>
-          {run.running ? `جاري التوليد (${AI_LENGTHS[form.length].target})...` : 'صياغة وتوليد وتنسيق البحث الأكاديمي'}
+          {run.running ? `جاري التوليد (${AI_LENGTHS[form.length].target}${hasCaseStudy ? ' + دراسة الحالة' : ''})...` : 'صياغة وتوليد وتنسيق البحث الأكاديمي'}
         </Button>
 
         {(run.running || run.stage === 'done') && <AiProgress />}
