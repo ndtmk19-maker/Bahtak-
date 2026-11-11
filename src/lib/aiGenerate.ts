@@ -760,7 +760,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         try {
           const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg)), tCs.onChunk, {
             temperature: 0.35,
-            maxTokens: 2800,
+            maxTokens: 3600,
           });
           const cleanedCs = sanitizeCaseStudyOutput(rawCs, caseCompany);
           return tCs.done(cleanedCs || rawCs);
