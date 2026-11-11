@@ -33,11 +33,6 @@ interface LogoAsset {
   heightPx: number;
 }
 
-interface FootnoteItem {
-  id: number;
-  text: string;
-}
-
 type InlinePiece =
   | { kind: 'text'; text: string; bold: boolean; italic: boolean; underline: boolean }
   | { kind: 'br' }
@@ -765,22 +760,37 @@ function buildPlanSectionXml(
   return { bodyXml: paragraphs.join(''), sectPrXml };
 }
 
+function buildFootnoteSeparatorTableXml(blockWidthDxa: number): string {
+  // جدول RTL بدون حدود خارجية لعرض خط فاصل قصير (38% من عرض الصفحة يميناً) مثل تصميم PDF
+  // متوافق كلياً مع Google Docs و Word Online و WPS Office و Microsoft Word
+  const sepW = Math.max(1200, Math.round(blockWidthDxa * 0.38));
+  const restW = Math.max(0, blockWidthDxa - sepW);
+  const noBorder = 'w:val="none" w:sz="0" w:space="0" w:color="auto"';
+  const emptyTblBorders = `<w:tblBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom ${noBorder}/><w:right ${noBorder}/><w:insideH ${noBorder}/><w:insideV ${noBorder}/></w:tblBorders>`;
+  const sepCellBorders = `<w:tcBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="333333"/><w:right ${noBorder}/></w:tcBorders>`;
+  const blankCellBorders = `<w:tcBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom ${noBorder}/><w:right ${noBorder}/></w:tcBorders>`;
+  const tinyPara = `<w:p><w:pPr><w:keepNext/><w:bidi/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
+
+  return `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${blockWidthDxa}" w:type="dxa"/>${emptyTblBorders}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${sepW}"/><w:gridCol w:w="${restW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="40" w:hRule="exact"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${sepW}" w:type="dxa"/>${sepCellBorders}</w:tcPr>${tinyPara}</w:tc><w:tc><w:tcPr><w:tcW w:w="${restW}" w:type="dxa"/>${blankCellBorders}</w:tcPr>${tinyPara}</w:tc></w:tr></w:tbl>`;
+}
+
 function buildContentSectionXml(
   doc: DocumentState,
   mainFont: string,
   footerRId: string,
   headerRId: string | null,
   isFirstSection: boolean,
-): { bodyXml: string; sectPrXml: string; footnotes: FootnoteItem[] } {
+): { bodyXml: string; sectPrXml: string } {
   const sideM = mm(17);
   const topM = doc.showStudentInfo ? mm(17.5) : mm(14);
   const bottomM = mm(16.5);
+  const usableW = A4_W_DXA - sideM * 2;
+  const fnBlockW =
+    doc.layoutMode === 'card' ? Math.floor((usableW - mm(8)) / 2) : usableW;
 
   const fontSize = doc.fontSize || 12.3;
   const lineSpacing = Math.round((doc.lineHeight || 1.62) * 240);
   const bodyChunks: string[] = [];
-  const footnotes: FootnoteItem[] = [];
-  let nextFnId = 1;
 
   const pages =
     doc.pages.length > 0
@@ -790,16 +800,7 @@ function buildContentSectionXml(
   pages.forEach((page, pageIndex) => {
     const pageBreakPending = { value: pageIndex > 0 };
     const pageFnList = Array.isArray(page.footnotes) ? page.footnotes : [];
-    const seenSupIndices = new Set<number>();
-    const allocatedPageFnIds = new Map<number, number>();
     let pageParagraphCount = 0;
-
-    // تخصيص معرفات حواشي Word لهذه الصفحة مسبقاً للحفاظ على الترتيب 1..N
-    for (let i = 0; i < pageFnList.length; i++) {
-      const id = nextFnId++;
-      allocatedPageFnIds.set(i + 1, id);
-      footnotes.push({ id, text: pageFnList[i] });
-    }
 
     const consumePageBreak = (): string => {
       if (pageBreakPending.value) {
@@ -842,17 +843,6 @@ function buildContentSectionXml(
             return '<w:r><w:br/></w:r>';
           }
           if (piece.kind === 'sup') {
-            const num = parseInt(piece.text.replace(/[^\d]/g, ''), 10);
-            if (
-              Number.isFinite(num) &&
-              num >= 1 &&
-              num <= pageFnList.length &&
-              !seenSupIndices.has(num)
-            ) {
-              seenSupIndices.add(num);
-              const fnId = allocatedPageFnIds.get(num)!;
-              return `<w:r>${buildRunPr({ font: mainFont, sizePt: baseSizePt, bold: true, color: '1E3A8A', superscript: true })}<w:footnoteReference w:id="${fnId}"/></w:r>`;
-            }
             return buildTextRun(piece.text, {
               font: mainFont,
               sizePt: baseSizePt,
@@ -903,48 +893,33 @@ function buildContentSectionXml(
       }
     }
 
-    // إلحاق أي هامش صفحة غير مربوط بـ <sup> داخل المتن تلقائياً بآخر فقرة لضمان عدم ضياع أي مرجع
-    const missingFnRefs: string[] = [];
-    for (let i = 1; i <= pageFnList.length; i++) {
-      if (!seenSupIndices.has(i)) {
-        const fnId = allocatedPageFnIds.get(i)!;
-        missingFnRefs.push(
-          `<w:r>${buildRunPr({ font: mainFont, sizePt: fontSize, bold: true, color: '1E3A8A', superscript: true })}<w:footnoteReference w:id="${fnId}"/></w:r>`,
+    // إظهار هوامش الصفحة مباشرة في محتوى الصفحة بتصميم مطابق لـ PDF (خط فاصل 38% + المراجع)
+    // لضمان ظهورها في Google Docs و Word Online و WPS Office وكل تطبيقات الهاتف والكمبيوتر
+    if (pageFnList.length > 0) {
+      if (pageBreakPending.value) {
+        const pb = consumePageBreak();
+        trailingPageParagraphs.push(
+          `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`,
         );
       }
-    }
-
-    if (
-      trailingPageParagraphs.length === 0 &&
-      (pageParagraphCount === 0 || missingFnRefs.length > 0)
-    ) {
+      trailingPageParagraphs.push(buildFootnoteSeparatorTableXml(fnBlockW));
+      pageFnList.forEach((fnRaw, fnIdx) => {
+        const fnText = (fnRaw || '').replace(/\r\n?/g, ' ').replace(/\n+/g, ' ').trim();
+        const keepNext = fnIdx < pageFnList.length - 1 ? '<w:keepNext/>' : '';
+        trailingPageParagraphs.push(
+          `<w:p><w:pPr>${keepNext}<w:keepLines/><w:bidi/><w:spacing w:before="${fnIdx === 0 ? 75 : 0}" w:after="40" w:line="280" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun(String(fnIdx + 1), { font: mainFont, sizePt: 9, bold: true, color: '1E3A8A', superscript: true })}${buildTextRun(` ${fnText}`, { font: mainFont, sizePt: 9, color: '222222' })}</w:p>`,
+        );
+      });
+    } else if (trailingPageParagraphs.length === 0 && pageParagraphCount === 0) {
       const pb = consumePageBreak();
-      trailingPageParagraphs.push(
-        `<w:p><w:pPr>${pb}<w:bidi/><w:jc w:val="both"/></w:pPr>${missingFnRefs.join('')}</w:p>`,
-      );
-    } else if (missingFnRefs.length > 0) {
-      if (trailingPageParagraphs.length > 0) {
-        const lastIdx = trailingPageParagraphs.length - 1;
-        trailingPageParagraphs[lastIdx] = trailingPageParagraphs[lastIdx].replace(
-          /<\/w:p>$/,
-          `${missingFnRefs.join('')}</w:p>`,
-        );
-      } else if (bodyChunks.length > 0) {
-        const lastIdx = bodyChunks.length - 1;
-        bodyChunks[lastIdx] = bodyChunks[lastIdx].replace(
-          /<\/w:p>$/,
-          `${missingFnRefs.join('')}</w:p>`,
-        );
-      }
+      trailingPageParagraphs.push(`<w:p><w:pPr>${pb}<w:bidi/><w:jc w:val="both"/></w:pPr></w:p>`);
     }
 
     bodyChunks.push(...trailingPageParagraphs);
   });
 
-  // ترتيب CT_SectPr: headerReference -> footerReference -> footnotePr -> type -> pgSz -> pgMar -> pgBorders -> pgNumType -> cols -> bidi
+  // ترتيب CT_SectPr: headerReference -> footerReference -> type -> pgSz -> pgMar -> pgBorders -> pgNumType -> cols -> bidi
   const headerRefXml = headerRId ? `<w:headerReference w:type="default" r:id="${headerRId}"/>` : '';
-  const footnotePrXml =
-    footnotes.length > 0 ? '<w:footnotePr><w:numRestart w:val="eachPage"/></w:footnotePr>' : '';
   const nextPageXml = isFirstSection ? '' : '<w:type w:val="nextPage"/>';
   const borderXml = buildPageBordersXml(doc.borderStyle);
   const colsXml =
@@ -952,23 +927,9 @@ function buildContentSectionXml(
       ? `<w:cols w:num="2" w:space="${mm(8)}" w:sep="1" w:equalWidth="1"/>`
       : '';
 
-  const sectPrXml = `<w:sectPr>${headerRefXml}<w:footerReference w:type="default" r:id="${footerRId}"/>${footnotePrXml}${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${topM}" w:right="${sideM}" w:bottom="${bottomM}" w:left="${sideM}" w:header="${doc.showStudentInfo ? mm(10) : 450}" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}<w:pgNumType w:start="1"/>${colsXml}<w:bidi/></w:sectPr>`;
+  const sectPrXml = `<w:sectPr>${headerRefXml}<w:footerReference w:type="default" r:id="${footerRId}"/>${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${topM}" w:right="${sideM}" w:bottom="${bottomM}" w:left="${sideM}" w:header="${doc.showStudentInfo ? mm(10) : 450}" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}<w:pgNumType w:start="1"/>${colsXml}<w:bidi/></w:sectPr>`;
 
-  return { bodyXml: bodyChunks.join(''), sectPrXml, footnotes };
-}
-
-function buildFootnotesXml(footnotes: FootnoteItem[], mainFont: string): string {
-  const sep = `<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>`;
-  const contSep = `<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>`;
-
-  const items = footnotes
-    .map(
-      (fn) =>
-        `<w:footnote w:id="${fn.id}"><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="40" w:line="320" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr><w:r>${buildRunPr({ font: mainFont, sizePt: 9, bold: true, color: '1E3A8A', superscript: true })}<w:footnoteRef/></w:r>${buildTextRun(' ', { font: mainFont, sizePt: 9 })}${buildTextRun(fn.text || '', { font: mainFont, sizePt: 9, color: '222222' })}</w:p></w:footnote>`,
-    )
-    .join('');
-
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${sep}${contSep}${items}</w:footnotes>`;
+  return { bodyXml: bodyChunks.join(''), sectPrXml };
 }
 
 function buildPlanFooterXml(): string {
@@ -993,14 +954,11 @@ function buildStylesXml(mainFont: string, fontSizePt: number, lineHeight: number
   const halfPts = Math.round((fontSizePt || 12.3) * 2);
   const line = Math.round((lineHeight || 1.62) * 240);
   // ترتيب CT_RPr: rFonts -> sz -> szCs -> lang
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/><w:lang w:val="en-US" w:bidi="ar-DZ"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:bidi/><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:bidi/><w:jc w:val="both"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="FootnoteText"><w:name w:val="footnote text"/><w:basedOn w:val="Normal"/><w:pPr><w:bidi/><w:spacing w:after="40" w:line="320" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:style><w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:rPr><w:b/><w:bCs/><w:color w:val="1E3A8A"/><w:vertAlign w:val="superscript"/></w:rPr></w:style></w:styles>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/><w:lang w:val="en-US" w:bidi="ar-DZ"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:bidi/><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:bidi/><w:jc w:val="both"/></w:pPr></w:style></w:styles>`;
 }
 
-function buildSettingsXml(hasFootnotes: boolean): string {
-  const fnPr = hasFootnotes
-    ? '<w:footnotePr><w:numRestart w:val="eachPage"/><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>'
-    : '';
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:defaultTabStop w:val="720"/>${fnPr}<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word/2013/wordml" w:val="15"/></w:compat></w:settings>`;
+function buildSettingsXml(): string {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:defaultTabStop w:val="720"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word/2013/wordml" w:val="15"/></w:compat></w:settings>`;
 }
 
 function buildNumberingXml(mainFont: string, fontSizePt: number): string {
@@ -1134,24 +1092,6 @@ export async function buildWordDocx(
   );
   builtSections.push({ bodyXml: contentResult.bodyXml, sectPrXml: contentResult.sectPrXml });
 
-  const hasFootnotes = contentResult.footnotes.length > 0;
-  if (hasFootnotes) {
-    const fnRId = allocRel();
-    rels.push({
-      id: fnRId,
-      type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes',
-      target: 'footnotes.xml',
-    });
-    overrides.push({
-      partName: '/word/footnotes.xml',
-      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml',
-    });
-    entries.push({
-      name: 'word/footnotes.xml',
-      data: buildFootnotesXml(contentResult.footnotes, mainFont),
-    });
-  }
-
   // تجميع جسم المستند: كل قسم غير أخير ينتهي بـ <w:p><w:pPr><w:sectPr/></w:pPr></w:p> والأخير بـ <w:sectPr/> مباشرة
   const bodyParts: string[] = [];
   for (let i = 0; i < builtSections.length; i++) {
@@ -1188,7 +1128,7 @@ export async function buildWordDocx(
       name: 'word/styles.xml',
       data: buildStylesXml(mainFont, doc.fontSize || 12.3, doc.lineHeight || 1.62),
     },
-    { name: 'word/settings.xml', data: buildSettingsXml(hasFootnotes) },
+    { name: 'word/settings.xml', data: buildSettingsXml() },
     { name: 'word/numbering.xml', data: buildNumberingXml(mainFont, doc.fontSize || 12.3) },
   );
 
