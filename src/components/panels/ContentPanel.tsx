@@ -195,6 +195,29 @@ function AiMode() {
           ))}
         </div>
 
+        <TextInput
+          label="دراسة حالة حول شركة أو مؤسسة"
+          aside={
+            <Badge tone={hasCaseStudy ? 'ok' : 'neutral'}>
+              {caseSpec.source === 'explicit'
+                ? 'ستُضاف قبل الخاتمة'
+                : hasCaseStudy
+                  ? 'مكتشفة من العنوان'
+                  : 'اختياري'}
+            </Badge>
+          }
+          value={form.caseStudyCompany}
+          onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
+          placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+          hint={
+            caseSpec.source === 'title-named'
+              ? `تم رصد دراسة الحالة حول «${caseSpec.company}» تلقائياً (ستُضاف قبل الخاتمة ولن تظهر عبارة دراسة حالة في عنوان الغلاف).`
+              : caseSpec.source === 'title-inferred'
+                ? 'تم رصد طلب دراسة حالة من العنوان؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة قبل الخاتمة دون إظهار «دراسة حالة» في عنوان الغلاف، أو اكتب اسماً محدداً هنا.'
+                : 'تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث.'
+          }
+        />
+
         <SelectInput
           label="حجم وعمق البحث"
           aside={
@@ -229,29 +252,6 @@ function AiMode() {
             <option value="3">3 مطالب</option>
           </SelectInput>
         </div>
-
-        <TextInput
-          label="دراسة حالة حول شركة أو مؤسسة"
-          aside={
-            <Badge tone={hasCaseStudy ? 'ok' : 'neutral'}>
-              {caseSpec.source === 'explicit'
-                ? 'ستُضاف قبل الخاتمة'
-                : hasCaseStudy
-                  ? 'مكتشفة من العنوان'
-                  : 'اختياري'}
-            </Badge>
-          }
-          value={form.caseStudyCompany}
-          onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
-          placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
-          hint={
-            caseSpec.source === 'title-named'
-              ? `تم رصد دراسة الحالة حول «${caseSpec.company}» تلقائياً (ستُضاف قبل الخاتمة ولن تظهر عبارة دراسة حالة في عنوان الغلاف).`
-              : caseSpec.source === 'title-inferred'
-                ? 'تم رصد طلب دراسة حالة من العنوان؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة قبل الخاتمة دون إظهار «دراسة حالة» في عنوان الغلاف، أو اكتب اسماً محدداً هنا.'
-                : 'تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث.'
-          }
-        />
 
         <Note icon={<CircleAlert />} tone="warn">
           يكتب الذكاء الاصطناعي إحالات وهوامش ومراجع مقترحة. <strong>راجع كل مرجع وتحقق من وجوده</strong> قبل التسليم، فالنماذج قد تقترح مراجع غير دقيقة.
