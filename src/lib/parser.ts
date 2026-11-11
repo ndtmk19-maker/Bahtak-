@@ -37,6 +37,20 @@ export interface ResearchAnalysis {
 // تعبير منتظم لأرقام وترتيب المباحث والمطالب (يدعم الهمزات والأرقام العربية والهندية)
 const ARABIC_STRUCT_ORD = '(?:الأول|الاول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\\s+عشر|الثاني\\s+عشر|[\\d٠-٩]+)';
 
+function stripDisplayMarkdown(line: string): string {
+    const s = (line || '')
+        .trim()
+        .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
+        .replace(/\*\*|__/g, '')
+        .replace(/^\*+|\*+$/g, '')
+        .trim();
+
+    const numberedStructMatch = s.match(
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا).*)$/i,
+    );
+    return numberedStructMatch ? numberedStructMatch[1].trim() : s;
+}
+
 function stripStructuralMarkdown(line: string): string {
     let s = (line || '')
         .trim()
@@ -48,7 +62,7 @@ function stripStructuralMarkdown(line: string): string {
 
     // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" فقط إذا سبق عنواناً هيكلياً صريحاً
     const numberedStructMatch = s.match(
-        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر).*)$/i,
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة).*)$/i,
     );
     if (numberedStructMatch) {
         s = numberedStructMatch[1].trim();
@@ -191,9 +205,9 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             // 1. تنظيف النص من الرموز الخفية وتطويل الحروف والرموز الخاصة بمحررات النصوص
             let cleanText = rawText.replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ');
             cleanText = cleanText.replace(/\\([.&_*\\#\-\(\)\[\]])/g, '$1');
-            cleanText = cleanText.replace(/ـ+/g, '');
+            cleanText = cleanText.replace(/ـ+(?=[\u0621-\u064A])/g, '');
             cleanText = cleanText.replace(
-                new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:المبحث|المطلب)\\s+${ARABIC_STRUCT_ORD}\\s*[:\\-–—])`, 'g'),
+                new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:(?:المبحث|المطلب)\\s+${ARABIC_STRUCT_ORD}|دراسة\\s+حالة)\\s*[:\\-–—])`, 'g'),
                 '$1\n\n',
             );
 
@@ -261,7 +275,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                                     break;
                                 }
                             }
-                            if (nextNonEmpty && !/^(?:المبحث|مبحث|المطلب|مطلب|خاتمة|الخاتمة|مراجع|المراجع)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
+                            if (nextNonEmpty && !/^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|خاتمة|الخاتمة|مراجع|المراجع)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
                                 bodyStartIndexInLines = i;
                                 break;
                             }
@@ -273,7 +287,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                         const validPlanLines = [];
                         planBlockLines.forEach(pl => {
                             const tr = stripStructuralMarkdown(pl);
-                            if (tr && /^(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع)/i.test(tr)) {
+                            if (tr && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع)/i.test(tr)) {
                                 validPlanLines.push(tr);
                             }
                         });
@@ -293,7 +307,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                         const secondIdx = matches[1].index;
                         const between = bodyText.substring(firstIdx, secondIdx);
                         const betweenLines = between.split('\n').map(l => stripStructuralMarkdown(l)).filter(l => l);
-                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:المبحث|مبحث|المطلب|مطلب|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة)/i.test(l));
+                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة)/i.test(l));
                         if (isOutlineOnly) {
                             extractedPlan = betweenLines.join('\n');
                             bodyText = bodyText.substring(0, firstIdx) + '\n' + bodyText.substring(secondIdx);
@@ -308,7 +322,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             }
 
             let titleLineToSkip = '';
-            const isStructuralHeading = /^(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
+            const isStructuralHeading = /^(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
 
             if (!detectedTitle && rawLines.length > 0) {
                 const firstLine = rawLines[0].trim();
@@ -319,7 +333,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 }
             }
 
-            // تجميع النص في أقسام أكاديمية رئيسية (المقدمة، المباحث، المطالب، الخاتمة، المراجع)
+            // تجميع النص في أقسام أكاديمية رئيسية (المقدمة، المباحث، المطالب، دراسة الحالة، الخاتمة، المراجع)
             const rawSections = [];
             let curSection = null;
 
@@ -335,9 +349,22 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
             const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
             const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+            const caseFirstHeadingRe = /^(?:أولاً|أولا)\s*[:\-–—\.]+/i;
+            const caseSecondHeadingRe = /^(?:ثانياً|ثانيا)\s*[:\-–—\.]+/i;
 
             let pendingMabhath = '';
             let pendingPreambleLines = [];
+            let inCaseStudy = false;
+            let seenCaseFirst = false;
+            let seenCaseSecond = false;
+            let hasUnmatchedInnerFirst = false;
+
+            function resetCaseStudyState() {
+                inCaseStudy = false;
+                seenCaseFirst = false;
+                seenCaseSecond = false;
+                hasUnmatchedInnerFirst = false;
+            }
 
             function flushPendingMabhathIfOrphaned() {
                 if (pendingMabhath) {
@@ -352,6 +379,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
             for (let i = 0; i < rawLines.length; i++) {
                 let line = rawLines[i].trim();
+                const isBulletPrefixed = /^[-*•]\s*/.test(line);
                 const headingLine = stripStructuralMarkdown(line);
 
                 if (/^(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث)\s*[:\-]/i.test(headingLine)) {
@@ -369,6 +397,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     startNewSection('intro', 'المقدمة', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
+                    resetCaseStudyState();
                     continue;
                 }
 
@@ -378,6 +407,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     startNewSection('conclusion', 'الخــاتـمـــة', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
+                    resetCaseStudyState();
                     continue;
                 }
 
@@ -387,6 +417,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     startNewSection('references', 'قائمة المصادر والمراجع', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
+                    resetCaseStudyState();
                     continue;
                 }
 
@@ -395,7 +426,59 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     flushPendingMabhathIfOrphaned();
                     pendingMabhath = headingLine;
                     pendingPreambleLines = [];
+                    resetCaseStudyState();
                     continue;
+                }
+
+                // دراسة حالة (قسم مستقل قبل الخاتمة بدون تسميته كمبحث)
+                const isExplicitCaseStudyColon = /^(?:دراسة\s+حالة|الجانب\s+التطبيقي\s*[:\-–—]?\s*دراسة\s+حالة)\s*[:\-–—]/i.test(headingLine);
+                const isStandaloneCaseStudyTitle = /^دراسة\s+حالة(?:\s+(?:ميدانية|تطبيقية))?(?:\s+(?:حول|عن)\s+.+)?$/i.test(headingLine) && headingLine.length <= 75 && !/[.،؟!]$/.test(headingLine);
+                if (!isBulletPrefixed && headingLine.length <= 140 && (isExplicitCaseStudyColon || isStandaloneCaseStudyTitle)) {
+                    flushPendingMabhathIfOrphaned();
+                    pendingMabhath = stripDisplayMarkdown(line);
+                    pendingPreambleLines = [];
+                    inCaseStudy = true;
+                    seenCaseFirst = false;
+                    seenCaseSecond = false;
+                    hasUnmatchedInnerFirst = false;
+                    continue;
+                }
+
+                // العنوانان الفرعيان داخل دراسة الحالة (أولاً: التعريف بالمؤسسة / ثانياً: الموضوع في المؤسسة)
+                if (inCaseStudy) {
+                    if (!seenCaseFirst && !isBulletPrefixed && caseFirstHeadingRe.test(headingLine) && headingLine.length <= 130 && !/[.،؟!]$/.test(headingLine)) {
+                        startNewSection('matlab', pendingMabhath, stripDisplayMarkdown(line));
+                        if (pendingPreambleLines.length > 0) {
+                            curSection.lines.push(...pendingPreambleLines);
+                            pendingPreambleLines = [];
+                        }
+                        pendingMabhath = '';
+                        seenCaseFirst = true;
+                        hasUnmatchedInnerFirst = false;
+                        continue;
+                    }
+                    if (!seenCaseSecond) {
+                        if (seenCaseFirst && caseFirstHeadingRe.test(headingLine)) {
+                            hasUnmatchedInnerFirst = true;
+                        } else if (caseSecondHeadingRe.test(headingLine)) {
+                            const prevNonEmpty = [...(curSection?.lines || [])].reverse().find(l => l.trim());
+                            const prevClean = prevNonEmpty ? stripStructuralMarkdown(prevNonEmpty) : '';
+                            const prevIsListIntro = prevClean && (LIST_INTRO_REGEX.test(prevClean) || (prevClean.endsWith(':') && prevClean.length < 85));
+                            if (!isBulletPrefixed && !hasUnmatchedInnerFirst && !prevIsListIntro && headingLine.length <= 110 && !/[.،؟!]$/.test(headingLine)) {
+                                startNewSection('matlab', pendingMabhath, stripDisplayMarkdown(line));
+                                if (pendingPreambleLines.length > 0) {
+                                    curSection.lines.push(...pendingPreambleLines);
+                                    pendingPreambleLines = [];
+                                }
+                                pendingMabhath = '';
+                                seenCaseSecond = true;
+                                continue;
+                            }
+                            if (hasUnmatchedInnerFirst) {
+                                hasUnmatchedInnerFirst = false;
+                            }
+                        }
+                    }
                 }
 
                 // المطلب (مع دعم الماركداون والشرطات والنقاط والأرقام)

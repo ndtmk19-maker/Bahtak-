@@ -21,6 +21,7 @@ export function parsePlanRows(itemsText: string): PlanRow[] {
       const isMain =
         title.startsWith('المبحث') ||
         title.startsWith('مبحث') ||
+        title.startsWith('دراسة حالة') ||
         title.startsWith('المقدمة') ||
         title.startsWith('مقدمة') ||
         title.includes('الخاتمة') ||
@@ -176,7 +177,7 @@ export function autoFixPlanPageNumbers(itemsText: string): string {
     .map((line) => {
       const title = line.split('|')[0].trim();
       const pageStr = `ص ${pad(cur)}`;
-      cur += title.startsWith('المبحث') ? 2 : 1;
+      cur += (title.startsWith('المبحث') || title.startsWith('دراسة حالة')) ? 2 : 1;
       return `${title} | ${pageStr}`;
     })
     .join('\n');

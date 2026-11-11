@@ -20,7 +20,7 @@ import {
 import { Button } from '../ui/Button';
 import { Badge, Chip } from '../ui/Controls';
 import { YouTubeIcon } from '../ui/BrandIcons';
-import { Field, SelectInput, TextArea } from '../ui/Form';
+import { Field, SelectInput, TextArea, TextInput } from '../ui/Form';
 import { Note, Section } from '../ui/Section';
 import { useConverter } from '../../state/ConverterContext';
 import { useUI } from '../../state/UIContext';
@@ -254,6 +254,19 @@ function AiModeFields() {
             <option value="3">3 مطالب</option>
           </SelectInput>
         </div>
+
+        <TextInput
+          label="دراسة حالة حول شركة أو مؤسسة"
+          aside={
+            <Badge tone={form.caseStudyCompany.trim() ? 'ok' : 'neutral'}>
+              {form.caseStudyCompany.trim() ? 'ستُضاف قبل الخاتمة' : 'اختياري'}
+            </Badge>
+          }
+          value={form.caseStudyCompany}
+          onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
+          placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+          hint="تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (نحو صفحتين: تعريف بالمؤسسة ثم تطبيق الموضوع فيها) دون تغيير عدد المباحث."
+        />
 
         <Note icon={<CircleAlert />} tone="warn">
           يكتب الذكاء الاصطناعي إحالات وهوامش ومراجع مقترحة. <strong>راجع كل مرجع وتحقق من وجوده</strong> قبل التسليم، فالنماذج قد تقترح مراجع غير دقيقة.

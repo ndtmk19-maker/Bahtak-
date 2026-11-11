@@ -7,6 +7,7 @@ import {
   buildIntroPrompt,
   buildMabhathPrompt,
   buildMissingMatalibPrompt,
+  buildCaseStudyPrompt,
   buildConclusionPrompt,
   cleanIntroText,
   fetchAiText,
@@ -68,6 +69,8 @@ export interface GenerateOptions {
   length: AiLength;
   mabhathCount: string;
   matlabCount: string;
+  /** اسم الشركة أو المؤسسة لإضافة قسم «دراسة حالة» قبل الخاتمة (اتركه فارغاً لتجاوزه). */
+  caseStudyCompany?: string;
   customUrl?: string;
   customModel?: string;
   onSections: (sections: SectionProgress[]) => void;
@@ -104,6 +107,22 @@ const ORDINAL_INDEX_MAP: Record<string, number> = {
   'السادس': 5, '6': 5, '٦': 5,
 };
 
+function stripHeadingDisplayMarkdown(line: string): string {
+  const s = (line || '')
+    .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ')
+    .trim()
+    .replace(/^(?:#+\s*|[-*•–—>\s]+)+/, '')
+    .replace(/\*\*|__/g, '')
+    .replace(/^\*+|\*+$/g, '')
+    .replace(/^["«']+|["»']+$/g, '')
+    .trim();
+
+  const numberedStructMatch = s.match(
+    /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا).*)$/i,
+  );
+  return numberedStructMatch ? numberedStructMatch[1].trim() : s;
+}
+
 function stripHeadingMarkdown(line: string): string {
   let s = (line || '')
     .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ')
@@ -117,7 +136,7 @@ function stripHeadingMarkdown(line: string): string {
 
   // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" أو "(3) المطلب" أو "ثالثاً: المطلب" فقط عندما يسبق عنواناً هيكلياً
   const numberedStructMatch = s.match(
-    /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر).*)$/i,
+    /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة).*)$/i,
   );
   if (numberedStructMatch) {
     s = numberedStructMatch[1].trim();
@@ -446,6 +465,92 @@ function trimTrailingEmptyMatlabStub(text: string): string {
   return lines.join('\n').trim();
 }
 
+/**
+ * تنظيف نص «دراسة حالة» وتثبيت عنوانها الرئيسي بصيغة «دراسة حالة: [اسم المؤسسة]»
+ * مع استبعاد أي تسمية كمبحث أو تسرب للخاتمة أو المراجع النهائية.
+ */
+export function sanitizeCaseStudyOutput(rawText: string, company: string): string {
+  const cleanCompany = (company || '').trim();
+  if (!cleanCompany) return cleanSection(rawText);
+  const canonicalHeader = `دراسة حالة: ${cleanCompany}`;
+  const cleanedRaw = splitInlineStructuralHeadings(cleanSection(rawText).replace(/\r\n/g, '\n'));
+  if (!cleanedRaw) return '';
+
+  const accidentalMabhathRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const caseLineRe = /^(?:دراسة\s+حالة|الجانب\s+التطبيقي\s*[:\-–—]?\s*دراسة\s+حالة)(?:[\s:\-–—]|$)/i;
+  const stopLeakRe = /^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث|قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع)\s*[:\-]?$/i;
+  const footnotesHeadingRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i;
+  const firstSubRe = /^(?:أولاً|أولا)\s*[:\-–—\.]+/i;
+  const secondSubRe = /^(?:ثانياً|ثانيا)\s*[:\-–—\.]+/i;
+
+  const lines = cleanedRaw.split('\n');
+  const out: string[] = [];
+  let seenCaseHeader = false;
+  let seenFirst = false;
+  let seenSecond = false;
+  let hasInnerFirst = false;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      out.push('');
+      continue;
+    }
+
+    const stripped = stripHeadingMarkdown(trimmed);
+    const displayStripped = stripHeadingDisplayMarkdown(trimmed);
+    const isBulletPrefixed = /^[-*•]\s*/.test(trimmed);
+
+    if (stopLeakRe.test(stripped) && (seenFirst || seenSecond)) {
+      break;
+    }
+
+    // ضمان تثبيت العنوان الأول بصيغة «دراسة حالة: ...» ومنع وصفه كمبحث
+    if (!seenCaseHeader && (caseLineRe.test(stripped) || accidentalMabhathRe.test(stripped))) {
+      out.push(canonicalHeader);
+      seenCaseHeader = true;
+      continue;
+    }
+
+    if (seenCaseHeader && caseLineRe.test(stripped) && stripped.length <= 140) {
+      continue;
+    }
+
+    if (!seenFirst && !isBulletPrefixed && firstSubRe.test(stripped) && stripped.length <= 130 && !/[.،؟!]$/.test(stripped)) {
+      out.push(displayStripped);
+      seenFirst = true;
+      hasInnerFirst = false;
+      continue;
+    }
+
+    if (seenFirst && !seenSecond) {
+      if (firstSubRe.test(stripped)) {
+        hasInnerFirst = true;
+      } else if (secondSubRe.test(stripped)) {
+        if (!isBulletPrefixed && !hasInnerFirst && stripped.length <= 110 && !/[.،؟!]$/.test(stripped)) {
+          out.push(displayStripped);
+          seenSecond = true;
+          continue;
+        }
+        hasInnerFirst = false;
+      }
+    }
+
+    if (footnotesHeadingRe.test(stripped)) {
+      out.push(stripped.endsWith(':') ? stripped : `${stripped}:`);
+      continue;
+    }
+
+    out.push(trimmed);
+  }
+
+  let res = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (res && !seenCaseHeader) {
+    res = `${canonicalHeader}\n\n${res}`;
+  }
+  return res;
+}
+
 export async function generateResearch(o: GenerateOptions): Promise<string> {
   const cfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
   const started = Date.now();
@@ -453,6 +558,8 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const call = (prompt: string, onChunk: ((c: string, acc: string) => void) | null, opts: Record<string, unknown>) =>
     fetchAiText(o.provider, o.apiKey, prompt, onChunk, { ...opts, onModelSelect: o.onModel }, o.customUrl, o.customModel) as Promise<string>;
   const withAddendum = (prompt: string) => (o.promptAddendum ? `${prompt}\n\n${o.promptAddendum}` : prompt);
+  const caseCompany = (o.caseStudyCompany || '').trim();
+  const hasCaseStudy = caseCompany.length > 0;
 
   let sections: SectionProgress[] = [{ id: 'plan', label: 'خطة البحث', status: 'running', words: 0 }];
   const emit = () => o.onSections(sections.map((s) => ({ ...s })));
@@ -491,23 +598,32 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     { id: 'plan', label: 'خطة البحث', status: 'done', words: 0, seconds: elapsed() },
     { id: 'intro', label: 'المقدمة', status: 'running', words: 0 },
     ...p.mabahith.map((_, i) => ({ id: `mb${i}`, label: `المبحث ${i + 1}`, status: 'running' as const, words: 0 })),
+    ...(hasCaseStudy ? [{ id: 'casestudy', label: 'دراسة حالة', status: 'running' as const, words: 0 }] : []),
     { id: 'conclusion', label: 'الخاتمة والمراجع', status: 'running', words: 0 },
   ];
   emit();
   o.onStage('writing');
 
-  // 2. التوليد المتوازي الحقيقي للمقدمة والمباحث والخاتمة بالتزامن عبر Promise.all
+  // 2. التوليد المتوازي الحقيقي للمقدمة والمباحث ودراسة الحالة (إن وجدت) والخاتمة بالتزامن عبر Promise.all
   let intro = '';
   const mbTexts: string[] = new Array(p.mabahith.length).fill('');
+  let caseStudy = '';
   let conclusion = '';
 
   const refreshDraft = () => {
     const cleanedIntro = cleanIntroText(intro);
-    const total = countWords(cleanedIntro) + countWords(conclusion) + mbTexts.reduce((a, t) => a + countWords(t), 0);
+    const total =
+      countWords(cleanedIntro) +
+      mbTexts.reduce((a, t) => a + countWords(t), 0) +
+      (hasCaseStudy ? countWords(caseStudy) : 0) +
+      countWords(conclusion);
     let draft = `بحث بعنوان: ${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
     p.mabahith.forEach((mb, i) => {
       draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
+    if (hasCaseStudy) {
+      draft += caseStudy ? caseStudy.trim() + '\n\n' : `دراسة حالة: ${caseCompany}\n(جاري تحرير دراسة الحالة بالتوازي...)\n\n`;
+    }
     draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
     o.onDraft(draft, total);
   };
@@ -554,7 +670,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       throw err;
     },
   };
-  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg)), tIntro.onChunk, {
+  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany)), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
@@ -636,28 +752,47 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     }
   });
 
+  // مهمة دراسة الحالة التطبيقية (تُنَفَّذ فقط عند إدخال اسم شركة/مؤسسة) وتوضع بعد المباحث وقبل الخاتمة
+  const taskCaseStudy = hasCaseStudy
+    ? (async () => {
+        await waitMs(350 * (p.mabahith.length + 1));
+        const tCs = track('casestudy', (v) => (caseStudy = v));
+        try {
+          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg)), tCs.onChunk, {
+            temperature: 0.35,
+            maxTokens: 2800,
+          });
+          const cleanedCs = sanitizeCaseStudyOutput(rawCs, caseCompany);
+          return tCs.done(cleanedCs || rawCs);
+        } catch (err) {
+          return tCs.fail(err);
+        }
+      })()
+    : Promise.resolve('');
+
   // مهمة الخاتمة والمراجع مع إرجاء زمني خفيف
   const tConc = track('conclusion', (v) => (conclusion = v));
   const taskConc = (async () => {
-    await waitMs(350 * (p.mabahith.length + 1));
-    return call(withAddendum(buildConclusionPrompt(p, cfg)), tConc.onChunk, {
+    await waitMs(350 * (p.mabahith.length + (hasCaseStudy ? 2 : 1)));
+    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany)), tConc.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.conclusionMaxTokens,
     }).then(tConc.done, tConc.fail);
   })();
 
   // تنفيذ جميع الأقسام بالتوازي التام
-  await Promise.all([taskIntro, ...taskMbs, taskConc]);
+  await Promise.all([taskIntro, ...taskMbs, taskCaseStudy, taskConc]);
   o.onStage('done');
 
   const cleanedIntro = cleanIntroText(intro);
-  const finalText =
-    `بحث بعنوان: ${p.title.replace(/^#+\s*/, '').trim()}\n\n` +
-    cleanSection(cleanedIntro) +
-    '\n\n' +
-    mbTexts.map(cleanSection).join('\n\n') +
-    '\n\n' +
-    cleanSection(conclusion);
+  const parts = [
+    `بحث بعنوان: ${p.title.replace(/^#+\s*/, '').trim()}`,
+    cleanSection(cleanedIntro),
+    ...mbTexts.map(cleanSection),
+    ...(hasCaseStudy ? [cleanSection(sanitizeCaseStudyOutput(caseStudy, caseCompany))] : []),
+    cleanSection(conclusion),
+  ].filter(Boolean);
+  const finalText = parts.join('\n\n');
   o.onDraft(finalText, countWords(finalText));
   return finalText;
 }
