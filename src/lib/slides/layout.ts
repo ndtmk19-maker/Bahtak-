@@ -392,7 +392,6 @@ function chrome(
   th: SlideTheme,
   kicker: string,
   title: string,
-  deckTitle: string,
   n: number,
   total: number,
 ): Chrome {
@@ -420,18 +419,6 @@ function chrome(
   const uy = 0.82 + th1 + 0.1;
   prims.push({ t: "rect", x: BX + BW - 1.1, y: uy, w: 1.1, h: 0.06, fill: c.accent });
   prims.push({ t: "rect", x: BX, y: 6.86, w: BW, h: 0.012, fill: c.line });
-  prims.push(
-    text(
-      BX + 1.3,
-      6.93,
-      BW - 1.3,
-      0.3,
-      [para(deckTitle, 10, c.muted)],
-      th.fonts.body,
-      "footer",
-      "middle",
-    ),
-  );
   prims.push(
     text(
       BX,
@@ -636,7 +623,6 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
 function agendaSlide(
   s: Extract<Slide, { kind: "agenda" }>,
   th: SlideTheme,
-  deckTitle: string,
   n: number,
   total: number,
 ): LaidSlide {
@@ -645,7 +631,6 @@ function agendaSlide(
     th,
     s.parts > 1 ? `خطة العرض · ${s.part}/${s.parts}` : "هيكل العرض",
     s.title,
-    deckTitle,
     n,
     total,
   );
@@ -784,7 +769,6 @@ function sectionSlide(s: Extract<Slide, { kind: "section" }>, th: SlideTheme): L
 function questionSlide(
   s: Extract<Slide, { kind: "question" }>,
   th: SlideTheme,
-  deckTitle: string,
   n: number,
   total: number,
 ): LaidSlide {
@@ -846,18 +830,6 @@ function questionSlide(
       [para(`${n} / ${total}`, 10, c.muted, { align: "left", rtl: false })],
       th.fonts.body,
       "number",
-      "middle",
-    ),
-  );
-  prims.push(
-    text(
-      BX + 1.3,
-      6.93,
-      BW - 1.3,
-      0.3,
-      [para(deckTitle, 10, c.muted)],
-      th.fonts.body,
-      "footer",
       "middle",
     ),
   );
@@ -998,14 +970,13 @@ function contentSlide(
   s: Extract<Slide, { kind: "content" }>,
   th: SlideTheme,
   opts: DeckOptions,
-  deckTitle: string,
   n: number,
   total: number,
 ): LaidSlide {
   const c = th.colors;
   const m = DENSITY_METRICS[opts.density];
   const kicker = s.parts > 1 ? `${s.kicker} · ${s.part}/${s.parts}` : s.kicker;
-  const ch = chrome(th, kicker, s.title, deckTitle, n, total);
+  const ch = chrome(th, kicker, s.title, n, total);
   const prims = ch.prims;
   const top = ch.bodyTop;
   const avail = BODY_BOTTOM - top;
@@ -1069,7 +1040,6 @@ function contentSlide(
 function referencesSlide(
   s: Extract<Slide, { kind: "references" }>,
   th: SlideTheme,
-  deckTitle: string,
   n: number,
   total: number,
 ): LaidSlide {
@@ -1078,7 +1048,6 @@ function referencesSlide(
     th,
     s.parts > 1 ? `المراجع · ${s.part}/${s.parts}` : "المراجع",
     s.title,
-    deckTitle,
     n,
     total,
   );
@@ -1154,15 +1123,15 @@ export function layoutDeck(deck: SlideDeck, th: SlideTheme, opts: DeckOptions): 
       case "cover":
         return coverSlide(s, th);
       case "agenda":
-        return agendaSlide(s, th, deck.title, n, total);
+        return agendaSlide(s, th, n, total);
       case "section":
         return sectionSlide(s, th);
       case "question":
-        return questionSlide(s, th, deck.title, n, total);
+        return questionSlide(s, th, n, total);
       case "content":
-        return contentSlide(s, th, opts, deck.title, n, total);
+        return contentSlide(s, th, opts, n, total);
       case "references":
-        return referencesSlide(s, th, deck.title, n, total);
+        return referencesSlide(s, th, n, total);
       case "closing":
         return closingSlide(s, th);
     }

@@ -38,7 +38,12 @@ import { useUI } from "../../state/UIContext";
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from "../../data/defaults";
 import { SLIDE_THEMES, type Slide, type SlideTheme } from "../../lib/slides";
 import { SLIDE_AI_SIZES, type SlideAiSize } from "../../lib/slides/ai";
-import { analyzeStudentTopic } from "../../lib/aiGenerate";
+import {
+  analyzeStudentTopic,
+  isStructuralTitleOnly,
+  looksLikePlanLeak,
+  sanitizeCoverTitleFromPlanLeak,
+} from "../../lib/aiGenerate";
 import { TopicAnalysisCard } from "../ui/TopicAnalysisCard";
 
 const KIND_LABEL: Record<Slide["kind"], string> = {
@@ -585,6 +590,12 @@ function LogoPicker() {
 
 function CoverFields() {
   const { meta, setMeta, deck } = usePresentation();
+  const titleHasLeak =
+    Boolean(meta.title.trim()) &&
+    (looksLikePlanLeak(meta.title) || isStructuralTitleOnly(meta.title));
+  const cleanSuggestion = titleHasLeak
+    ? sanitizeCoverTitleFromPlanLeak(meta.title).cleaned
+    : "";
   return (
     <Section title="شريحة الغلاف" icon={<GraduationCap />}>
       <TextInput
@@ -594,6 +605,22 @@ function CoverFields() {
         placeholder={deck?.title || "يُستخرج تلقائياً من المسودة"}
         hint="اتركه فارغاً لاستعمال العنوان المكتشف في المسودة."
       />
+      {titleHasLeak && (
+        <Note icon={<CircleAlert />} tone="warn">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              يبدو أن هذا الحقل يحتوي على عناصر خطة (المقدمة/المبحث/المطلب) وليس عنواناً مختصراً — تم حجبها عن شريحة الغلاف تلقائياً.
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setMeta({ title: cleanSuggestion || "" })}
+            >
+              {cleanSuggestion ? `اعتماد «${cleanSuggestion}»` : "تفريغ الحقل"}
+            </Button>
+          </div>
+        </Note>
+      )}
       <TextInput
         label="نوع العمل"
         value={meta.subtitle}

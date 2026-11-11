@@ -3,6 +3,7 @@
 // الخوارزمية منقولة كما هي من المشروع الأصلي (parseRawTextToDocument) مع فصلها عن واجهة DOM
 // لتصبح دالة نقية تُرجع النتيجة بدلاً من تعديل الحالة مباشرة.
 import { escapeHtml } from './escape';
+import { isStructuralTitleOnly, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak } from './aiGenerate';
 import type { ResearchPage } from '../types';
 
 export class ParseError extends Error {}
@@ -225,6 +226,14 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 }
             }
 
+            if (detectedTitle && (looksLikePlanLeak(detectedTitle) || isStructuralTitleOnly(detectedTitle))) {
+                const sanitized = sanitizeCoverTitleFromPlanLeak(detectedTitle);
+                detectedTitle =
+                    sanitized.cleaned && !looksLikePlanLeak(sanitized.cleaned) && !isStructuralTitleOnly(sanitized.cleaned)
+                        ? sanitized.cleaned
+                        : '';
+            }
+
             // 3. عزل وتجريد خطة البحث المكتوبة مسبقاً لمنع تكرارها كصفحات مستقلة في متن البحث
             let extractedPlan = '';
             let bodyText = cleanText;
@@ -327,7 +336,12 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             if (!detectedTitle && rawLines.length > 0) {
                 const firstLine = rawLines[0].trim();
                 const firstHeading = stripStructuralMarkdown(firstLine);
-                if (!isStructuralHeading.test(firstHeading) && firstLine.length <= 250) {
+                if (
+                    !isStructuralHeading.test(firstHeading) &&
+                    firstLine.length <= 250 &&
+                    !looksLikePlanLeak(firstHeading) &&
+                    !isStructuralTitleOnly(firstHeading)
+                ) {
                     detectedTitle = firstHeading.replace(/^[:"«'\s]+|[:"»'\s]+$/g, '').trim();
                     titleLineToSkip = firstLine;
                 }

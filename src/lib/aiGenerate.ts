@@ -820,7 +820,15 @@ function splitTopicIntoPlanLines(rawInput: string): string[] {
     'g',
   );
   const inlineIntroConcRe =
-    /\s*[-–—،؛|/]+\s*(?=(?:(?:ال)?مقدمة|(?:ال)?خاتمة|دراسة\s+حالة|قائمة\s+(?:المصادر\s+و)?المراجع)(?=$|\s|[-–—:]))/g;
+    /\s*[-–—،؛|/.]+\s*(?=(?:(?:ال)?مقدمة(?:\s+(?:عامة|البحث|الدراسة|العرض))?|(?:ال)?خاتمة(?:\s+(?:عامة|البحث|الدراسة|العرض))?|دراسة\s+حالة|قائمة\s+(?:المصادر\s+و)?(?:المصادر\s+والمراجع|المراجع)|المصادر\s+والمراجع)(?=$|\s|[.،؛|/: \-–—]))/g;
+  const unpunctuatedIntroBeforeStructRe = new RegExp(
+    `(^|\\s+|[:：\\-–—،؛|/.]+\\s*)((?:(?:ال)?مقدمة(?:\\s+(?:عامة|البحث|الدراسة|العرض))?|مدخل\\s+عام)(?=\\s*[:：\\-–—.]*(?:\\n|$)|\\s+(?:ال)?(?:مبحث|محور|فصل|باب|مطلب)\\s+${ordPat}))`,
+    'gi',
+  );
+  const unpunctuatedTailConcRe =
+    /(\s+|(?:\s*[.،؛|/\-–—]+\s*))((?:(?:ال)?خاتمة(?:\s+(?:عامة|البحث|الدراسة|العرض))?)(?:\s*[:：\-–—.]*)?)(?=\s*$|\s+(?:قائمة\s+(?:المصادر\s+و)?المراجع|المصادر\s+والمراجع)\s*$)/i;
+  const passiveMutaqaddimaRe =
+    /(?:الخدمات|الخدمه|الخدمة|المنتجات|السلع|البيانات|المعلومات|التسهيلات|الاستشارات|المساعدات|المساعده|المساعدة|الضمانات|الدروس|العروض|الأدلة|الادله|الأدله|البرامج|الشهادات|الشهاده|الشهادة|الأوراق|الاوراق|الوثائق|الوثيقه|الوثيقة|الحلول|المقترحات|التوصيات|التقارير|الملاحظات|المواد|المنح|القروض|الحوافز|الاستمارات|الملفات|المشاريع|الأعمال|الاعمال|الدراسات|الأبحاث|الابحاث)\s*$/;
 
   for (const rawLine of lines) {
     let line = rawLine.trim();
@@ -838,7 +846,24 @@ function splitTopicIntoPlanLines(rawInput: string): string[] {
     const hasExplicitSectionKeyword = new RegExp(`(?:المبحث|مبحث|المطلب|مطلب|المحور|محور|الفصل|فصل)\\s+${ordPat}`, 'i').test(split);
     if (hasExplicitSectionKeyword) {
       split = split.replace(inlineIntroConcRe, '\n');
-      split = split.replace(/\s*[-–—]*\s*(?=دراسة\s+حالة\s*:)/g, '\n');
+      split = split.replace(unpunctuatedIntroBeforeStructRe, (full, sep, introToken, offset, str) => {
+        const prefix = String(str).slice(0, offset);
+        const hasPunctSep = /[:：\-–—،؛|/.]/.test(sep);
+        const prevIsBareStructLabel = new RegExp(
+          `(?:^|[\\s\\n])(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}\\s*$`,
+          'i',
+        ).test(prefix);
+        if (prevIsBareStructLabel) {
+          return full;
+        }
+        if (!hasPunctSep && offset > 0 && passiveMutaqaddimaRe.test(prefix)) {
+          return full;
+        }
+        return `${offset === 0 ? '' : '\n'}${introToken}`;
+      });
+      split = split.replace(unpunctuatedTailConcRe, (_full, _sep, concToken) => `\n${concToken}`);
+      split = split.replace(/\s*[.\-–—،؛|/]*\s*(?=دراسة\s+حالة\s*:)/g, '\n');
+      split = split.replace(/\s*[.\-–—،؛|/]*\s*(?=قائمة\s+(?:المصادر\s+و)?المراجع|المصادر\s+والمراجع(?:\s*[:：\-–—.]*)?$)/g, '\n');
     } else if (
       /(?:^|[\s:：\-–—،])(?:1|١)\s*[.\-\)/]\s*[\u0600-\u06FF]/.test(split) &&
       /\s(?:2|٢)\s*[.\-\)/]\s*[\u0600-\u06FF]/.test(split)
@@ -1014,19 +1039,27 @@ function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
 }
 
 function deriveTitleFromCustomPlan(customMabahith: CustomPlanMabhath[]): string {
+  const genericLeadNoun =
+    '(?:ماهيه|ماهية|مفهوم|تعريف|مفاهيم|اهميه|أهمية|أهميه|أهداف|اهداف|خصائص|سمات|مميزات|مقومات|مبادئ|اركان|أركان|شروط|عناصر|مكونات|انواع|أنواع|اساليب|أساليب|انماط|أنماط|طرق|تطور|نشاه|نشأة|تاريخ|اساسيات|أساسيات|اليات|آليات|ادوات|أدوات|وسائل|خطوات|مراحل|اجراءات|إجراءات|معوقات|مشكلات|تحديات|افاق|آفاق|استراتيجيات|سبل)';
+  const genericPairConj = `(?:\\s+(?:و|أو|او)${genericLeadNoun})*`;
+  const leadOpenerRe = new RegExp(`^${genericLeadNoun}${genericPairConj}\\s+`, 'i');
+
   const cleanedSubs = customMabahith
     .map((m) => stripStructuralPrefix(m.title, 'مبحث'))
     .map((s) =>
       s
         .replace(
-          /^(?:الاطار|الإطار)\s+(?:النظري|المفاهيمي|العام|القانوني|المؤسسي)(?:\s+و(?:النظري|المفاهيمي|التطبيقي))?\s+(?:لـ?\s*|حول\s+|في\s+)?/i,
+          /^(?:الاطار|الإطار)\s+(?:النظري|المفاهيمي|العام|القانوني|المؤسسي)(?:\s+و(?:النظري|المفاهيمي|التطبيقي|المؤسسي))?\s+(?:لـ\s*|حول\s+|في\s+|عن\s+)?/i,
           '',
         )
-        .replace(/^(?:ماهيه|ماهية|مفهوم|تطور|نشاه|نشأة|اساسيات|أساسيات|اليات|آليات|ادوات|أدوات|تحديات(?:\s+و[آا]فاق)?|دراسة\s+تحليلية\s+لـ?)\s+/i, '')
+        .replace(/^دراسة\s+تحليلية\s+(?:لـ\s*|حول\s+|عن\s+)?/i, '')
+        .replace(leadOpenerRe, '')
+        .replace(/^(?:لـ+\s*|حول\s+|عن\s+)/i, '')
+        .replace(/^لل(?=[أ-ي\u0621-\u064A]{2,})/i, 'ال')
         .replace(/^(?:ال)?موضوع(?:\s+الدراسه)?$/i, '')
         .trim(),
     )
-    .filter((s) => s.length >= 4 && !/دراسة\s+حال[ةه]/.test(s));
+    .filter((s) => s.length >= 4 && !/دراسة\s+حال[ةه]/.test(s) && !isStructuralTitleOnly(s));
 
   if (cleanedSubs.length === 0) return 'دراسة أكاديمية وفق الخطة المحددة';
   const first = cleanedSubs[0];
@@ -1348,9 +1381,39 @@ const PLAN_LEAK_PRIMARY_RE = new RegExp(
 );
 
 const PLAN_LEAK_SECONDARY_RE = new RegExp(
-  `(?:^|[\\s:\\-–—،؛(/\\\\|])(?:(?:ال)?(?:فصل|باب)\\s+${PLAN_LEAK_ORD_NORM}\\s*[:：\\-–—]|(?:خطه\\s+(?:البحث|العرض)|المقدمه|الخاتمه|قائمه\\s+(?:المصادر\\s+و)?المراجع)\\s*[:：\\-–—])|(?:^|\\s)(?:1|١)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF][\\s\\S]*\\s(?:2|٢)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF]`,
+  `(?:^|[\\s:\\-–—،؛(/\\\\|])(?:(?:ال)?(?:فصل|باب)\\s+${PLAN_LEAK_ORD_NORM}\\s*[:：\\-–—]|(?:خطه\\s+(?:البحث|العرض)|المقدمه|الخاتمه|قائمه\\s+(?:المصادر\\s+و)?المراجع)\\s*[:：\\-–—]|(?:(?:ال)?مقدمه(?:\\s+(?:عامه|البحث|الدراسه|العرض))?|مدخل\\s+عام)\\s+(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${PLAN_LEAK_ORD_NORM})|(?:^|\\s)(?:1|١)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF][\\s\\S]*\\s(?:2|٢)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF]`,
   'i',
 );
+
+const STRUCTURAL_TITLE_ONLY_RE = new RegExp(
+  `^(?:` +
+    `(?:ال)?مقدمه(?:\\s+(?:عامه|البحث|الدراسه|العرض))?|مدخل\\s+عام|تمهيد` +
+    `|(?:ال)?خاتمه(?:\\s+(?:عامه|البحث|الدراسه|العرض))?|الخـ?اتـ?مـ+ه` +
+    `|قائمه\\s+(?:ال)?مصادر(?:\\s+والمراجع)?|(?:ال)?مصادر\\s+والمراجع|قائمه\\s+(?:ال)?مراجع|(?:ال)?مراجع(?:\\s+والمصادر)?|ثبت\\s+المصادر` +
+    `|خطه\\s+(?:هذا\\s+)?(?:ال)?(?:بحث|دراسه|عرض(?:\\s+تقديمي)?|شرائح)|الخطه(?:\\s+(?:المقترحه|التاليه|الاتيه|المرفقه|المذكوره))?|(?:هيكل|مخطط|عناصر|محتويات|فهرس)\\s+(?:البحث|العرض|المحتويات)|فهرس` +
+    `|(?:ال)?(?:مبحث|مطلب|محور|فصل|باب|فرع)(?:\\s+${PLAN_LEAK_ORD_NORM})?` +
+    `|(?:عنوان|موضوع|اسم)\\s+(?:ال)?(?:بحث|دراسه|عرض(?:\\s+تقديمي)?|مذكره)` +
+    `|صغ\\s+عنوانا(?:\\s+.*)?` +
+    `)$`,
+  'i',
+);
+
+/** التحقق إن كان العنوان مجرد كلمة هيكلية أو عنصر خطة صرف (مثل المقدمة / الخاتمة / المبحث الأول) ولا يصلح عنواناً للغلاف */
+export function isStructuralTitleOnly(titleCandidate: string): boolean {
+  const s = (titleCandidate || '')
+    .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ')
+    .replace(/^[\s"'«»()[\]:：\-–—.*]+|[\s"'«»()[\]:：\-–—.*]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return false;
+  if (/^\[.*\]$/.test(s)) return true;
+  const { norm } = mapNormalizedToOriginal(s);
+  const normDigit = normalizeIndicDigits(norm)
+    .replace(/^[\s:：\-–—.*]+|[\s:：\-–—.*]+$/g, '')
+    .trim();
+  if (!normDigit) return true;
+  return STRUCTURAL_TITLE_ONLY_RE.test(normDigit);
+}
 
 export function looksLikePlanLeak(titleCandidate: string): boolean {
   const s = (titleCandidate || '').trim();
@@ -1378,11 +1441,25 @@ export function sanitizeCoverTitleFromPlanLeak(
     return { cleaned: '', hadLeak: false, extractedPrefix: false };
   }
 
-  if (!looksLikePlanLeak(trimmed)) {
+  const resolveFallbackTitle = () => {
+    if (fallbackMabahith?.length) return deriveTitleFromCustomPlan(fallbackMabahith);
+    const parsed = extractPlanFromTopicInput(trimmed);
+    return parsed.customMabahith.length ? deriveTitleFromCustomPlan(parsed.customMabahith) : '';
+  };
+
+  const withoutWrapper = stripTopicChatWrappers(trimmed, { allowEmpty: true, planPreamble: true }).cleaned;
+  const hasLeak = looksLikePlanLeak(trimmed);
+  const structuralOnly = isStructuralTitleOnly(trimmed) || (Boolean(withoutWrapper) && isStructuralTitleOnly(withoutWrapper));
+
+  if (!hasLeak && !structuralOnly) {
     return { cleaned: trimmed, hadLeak: false, extractedPrefix: true };
   }
 
-  // استخراج الجزء الواقع قبل بداية أول علامة خطة متسربة (مثل المبحث/المطلب/1.)
+  if (structuralOnly && !hasLeak) {
+    return { cleaned: resolveFallbackTitle(), hadLeak: true, extractedPrefix: false };
+  }
+
+  // استخراج الجزء الواقع قبل بداية أول علامة خطة متسربة (مثل المبحث/المطلب/المقدمة المبحث الأول/1.)
   const singleLine = trimmed.replace(/\r\n?/g, '\n');
   const rawLines = singleLine.split('\n').map((l) => l.trim()).filter(Boolean);
   let leadingCandidate = '';
@@ -1422,14 +1499,35 @@ export function sanitizeCoverTitleFromPlanLeak(
     leadingCandidate = leadingCandidate.replace(/[\s:：\-–—،؛/|]+$/, '').trim();
     leadingCandidate = stripTopicChatWrappers(leadingCandidate, { allowEmpty: true, planPreamble: true }).cleaned;
     leadingCandidate = leadingCandidate.replace(/[\s:：\-–—،؛/|]+$/, '').trim();
+    // إزالة كلمة «المقدمة» أو «مدخل عام» العالقة في آخر السطر قبل المبحث (مع حماية نحو «جودة الخدمات المقدمة»)
+    const trailingIntroMatch = leadingCandidate.match(
+      /^(.*?)(\s+|[\s:：\-–—،؛|/.]+)((?:ال)?مقدمة(?:\s+(?:عامة|البحث|الدراسة|العرض))?|مدخل\s+عام)$/i,
+    );
+    if (trailingIntroMatch) {
+      const beforeIntro = trailingIntroMatch[1].trim();
+      const sep = trailingIntroMatch[2];
+      const hasPunct = /[:：\-–—،؛|/.]/.test(sep);
+      const isPassiveCollocation =
+        /(?:الخدمات|الخدمه|الخدمة|المنتجات|السلع|البيانات|المعلومات|التسهيلات|الاستشارات|المساعدات|المساعده|المساعدة|الضمانات|الدروس|العروض|الأدلة|الأدله|البرامج|الشهادات|الشهاده|الشهادة|الأوراق|الوثائق|الوثيقه|الوثيقة|الحلول|المقترحات|التوصيات|التقارير|الملاحظات)\s*$/.test(
+          beforeIntro,
+        );
+      if (hasPunct || !isPassiveCollocation) {
+        leadingCandidate = beforeIntro.replace(/[\s:：\-–—،؛/|]+$/, '').trim();
+      }
+    }
   }
 
-  if (leadingCandidate && leadingCandidate.length >= 3 && leadingCandidate.length <= 145 && !looksLikePlanLeak(leadingCandidate)) {
+  if (
+    leadingCandidate &&
+    leadingCandidate.length >= 3 &&
+    leadingCandidate.length <= 145 &&
+    !looksLikePlanLeak(leadingCandidate) &&
+    !isStructuralTitleOnly(leadingCandidate)
+  ) {
     return { cleaned: leadingCandidate, hadLeak: true, extractedPrefix: true };
   }
 
-  const derived = fallbackMabahith?.length ? deriveTitleFromCustomPlan(fallbackMabahith) : '';
-  return { cleaned: derived, hadLeak: true, extractedPrefix: false };
+  return { cleaned: resolveFallbackTitle(), hadLeak: true, extractedPrefix: false };
 }
 
 /**
@@ -1478,10 +1576,14 @@ export function analyzeStudentTopic(rawInput: string, explicitCaseStudyCompany?:
       ? titleLeakCheck.cleaned
       : ''
     : preSanitizedTitle;
-  const hasExplicitTitle = Boolean(rawRemainingTitle);
+  const safeRemainingTitle =
+    rawRemainingTitle && !isStructuralTitleOnly(rawRemainingTitle) && !looksLikePlanLeak(rawRemainingTitle)
+      ? rawRemainingTitle
+      : '';
+  const hasExplicitTitle = Boolean(safeRemainingTitle);
 
   const effectiveTitleSource = hasExplicitTitle
-    ? rawRemainingTitle
+    ? safeRemainingTitle
     : deriveTitleFromCustomPlan(planRes.customMabahith);
 
   let caseStudy = resolveCaseStudySpec(effectiveTitleSource, explicitCaseStudyCompany);
@@ -1687,6 +1789,7 @@ export function normalizeResearchPlan(
       candidate.length > 140 ||
       candidate.startsWith('[') ||
       looksLikePlanLeak(candidate) ||
+      isStructuralTitleOnly(candidate) ||
       /^(?:ال)?(?:مبحث|مطلب|محور|فصل|خطه|عنوان|موضوع|صغ\s+عنوانا|عرض\s+تقديمي|عرض\s+باوربوينت)/.test(normCand);
     if (!isStructuralOrPlaceholder) {
       finalTitle = candidate;

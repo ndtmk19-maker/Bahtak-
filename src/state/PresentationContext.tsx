@@ -17,6 +17,7 @@ import { trackEvent } from "../lib/analytics";
 import { isIOS } from "../lib/printDocument";
 import {
   analyzeStudentTopic,
+  isStructuralTitleOnly,
   looksLikePlanLeak,
   sanitizeCoverTitleFromPlanLeak,
   type SectionProgress,
@@ -133,17 +134,61 @@ function load(): Persisted | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Persisted>;
-    return {
+    const rawMeta = { ...EMPTY_META, ...(p.meta || {}) };
+    const aiTopic = p.aiTopic || "";
+    const caseStudyCompany = p.caseStudyCompany || "";
+    let cleanMetaTitle = rawMeta.title || "";
+    if (cleanMetaTitle && (looksLikePlanLeak(cleanMetaTitle) || isStructuralTitleOnly(cleanMetaTitle))) {
+      const draftHead =
+        (p.draftText || "").match(
+          /(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث)\s*[:\-]?\s*["«]?([^"\n\r»]+)["»]?/i,
+        )?.[1]?.trim() || "";
+      const draftSan =
+        draftHead && !looksLikePlanLeak(draftHead) && !isStructuralTitleOnly(draftHead)
+          ? draftHead
+          : "";
+      const topicAnalysis = aiTopic ? analyzeStudentTopic(aiTopic, caseStudyCompany) : null;
+      const san = sanitizeCoverTitleFromPlanLeak(
+        cleanMetaTitle,
+        topicAnalysis?.hasCustomPlan ? topicAnalysis.customMabahith : undefined,
+      );
+      cleanMetaTitle =
+        draftSan ||
+        (topicAnalysis &&
+        !topicAnalysis.hasCustomPlan &&
+        topicAnalysis.caseStudy.coverTitle &&
+        !looksLikePlanLeak(topicAnalysis.caseStudy.coverTitle) &&
+        !isStructuralTitleOnly(topicAnalysis.caseStudy.coverTitle)
+          ? topicAnalysis.caseStudy.coverTitle
+          : "") ||
+        (san.cleaned && !looksLikePlanLeak(san.cleaned) && !isStructuralTitleOnly(san.cleaned)
+          ? san.cleaned
+          : "") ||
+        (topicAnalysis?.cleanedTopic &&
+        !looksLikePlanLeak(topicAnalysis.cleanedTopic) &&
+        !isStructuralTitleOnly(topicAnalysis.cleanedTopic)
+          ? topicAnalysis.cleanedTopic
+          : "");
+    }
+    const next: Persisted = {
       mode: p.mode === "ai" ? "ai" : "draft",
       draftText: p.draftText || "",
-      meta: { ...EMPTY_META, ...(p.meta || {}) },
+      meta: { ...rawMeta, title: cleanMetaTitle },
       themeId: p.themeId || DEFAULT_THEME_ID,
       autoTheme: p.autoTheme ?? true,
       options: { ...DEFAULT_DECK_OPTIONS, ...(p.options || {}) },
-      aiTopic: p.aiTopic || "",
+      aiTopic,
       aiSize: p.aiSize || "standard",
-      caseStudyCompany: p.caseStudyCompany || "",
+      caseStudyCompany,
     };
+    if (cleanMetaTitle !== (rawMeta.title || "")) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next));
+      } catch {
+        /* ignore quota errors */
+      }
+    }
+    return next;
   } catch {
     return null;
   }
@@ -282,7 +327,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       ? analysis.caseStudy.coverTitle || analysis.cleanedTopic
       : "";
     const provisionalLiveTitle =
-      provisionalCandidate && !looksLikePlanLeak(provisionalCandidate)
+      provisionalCandidate &&
+      !looksLikePlanLeak(provisionalCandidate) &&
+      !isStructuralTitleOnly(provisionalCandidate)
         ? provisionalCandidate
         : "";
     const myRunId = ++runIdRef.current;
@@ -309,7 +356,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
               analysis.hasCustomPlan ? analysis.customMabahith : undefined,
             );
             const safeLiveTitle =
-              liveSanitized.cleaned && !looksLikePlanLeak(liveSanitized.cleaned)
+              liveSanitized.cleaned &&
+              !looksLikePlanLeak(liveSanitized.cleaned) &&
+              !isStructuralTitleOnly(liveSanitized.cleaned)
                 ? liveSanitized.cleaned
                 : "";
             if (safeLiveTitle) {
@@ -340,13 +389,13 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         rawCandidateCoverTitle,
         analysis.hasCustomPlan ? analysis.customMabahith : undefined,
       );
+      const pickSafe = (v?: string) =>
+        v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : "";
       const cleanCoverTitle =
-        (sanitizedCover.cleaned && !looksLikePlanLeak(sanitizedCover.cleaned)
-          ? sanitizedCover.cleaned
-          : "") ||
-        analysis.caseStudy.coverTitle ||
-        analysis.cleanedTopic ||
-        (looksLikePlanLeak(topic) ? "عرض تقديمي أكاديمي" : topic);
+        pickSafe(sanitizedCover.cleaned) ||
+        pickSafe(analysis.caseStudy.coverTitle) ||
+        pickSafe(analysis.cleanedTopic) ||
+        (looksLikePlanLeak(topic) || isStructuralTitleOnly(topic) ? "عرض تقديمي أكاديمي" : topic);
       hasUserEditedRef.current = true;
       setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: cleanCoverTitle } }));
       setRun((r) => ({ ...r, running: false, stage: "done" }));

@@ -3,6 +3,7 @@
 import {
   analyzeStudentTopic,
   generateResearch,
+  isStructuralTitleOnly,
   looksLikePlanLeak,
   sanitizeCoverTitleFromPlanLeak,
   type AiLength,
@@ -56,7 +57,9 @@ export function enforceSlidePlan(plan: AiPlan, topic: string): AiPlan {
     analysis.cleanedTopic ||
     sanitizeCoverTitleFromPlanLeak(plan.title || topic).cleaned;
   const cleanFallbackTopic =
-    candidateTopic && !looksLikePlanLeak(candidateTopic) ? candidateTopic : "موضوع العرض";
+    candidateTopic && !looksLikePlanLeak(candidateTopic) && !isStructuralTitleOnly(candidateTopic)
+      ? candidateTopic
+      : "موضوع العرض";
   const fb = buildFallbackPlan(cleanFallbackTopic, SLIDE_MABHATH_COUNT, SLIDE_MATLAB_COUNT, "short") as AiPlan;
   const mabahith = Array.from({ length: SLIDE_MABHATH_COUNT }, (_, i) => {
     const src = plan.mabahith?.[i] || fb.mabahith[i];
@@ -97,7 +100,11 @@ export function generatePresentationDraft({ size, ...rest }: SlideAiOptions): Pr
     analysis.cleanedTopic ||
     sanitizeCoverTitleFromPlanLeak(rest.topic).cleaned;
   const cleanFallbackTopic =
-    fallbackCandidate && !looksLikePlanLeak(fallbackCandidate) ? fallbackCandidate : "موضوع العرض";
+    fallbackCandidate &&
+    !looksLikePlanLeak(fallbackCandidate) &&
+    !isStructuralTitleOnly(fallbackCandidate)
+      ? fallbackCandidate
+      : "موضوع العرض";
   return generateResearch({
     ...rest,
     length: SLIDE_AI_SIZES[size].length,

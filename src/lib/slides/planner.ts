@@ -7,6 +7,12 @@ import {
   type AnalyzedSection,
   type ResearchAnalysis,
 } from "../parser";
+import {
+  isStructuralTitleOnly,
+  looksLikePlanLeak,
+  sanitizeCoverTitleFromPlanLeak,
+  type CustomPlanMabhath,
+} from "../aiGenerate";
 import { BODY_BOX, DENSITY_METRICS, pointHeight, pointText, type BodyMetrics } from "./metrics";
 import type {
   AgendaEntry,
@@ -190,6 +196,11 @@ export function buildOutline(a: ResearchAnalysis): Outline {
   };
   const seenFn = new Set<string>();
 
+  const safeDetectedTitle =
+    a.detectedTitle && !looksLikePlanLeak(a.detectedTitle) && !isStructuralTitleOnly(a.detectedTitle)
+      ? a.detectedTitle
+      : "";
+
   a.sections.forEach((sec) => {
     sec.rawFootnotes.forEach((f) => {
       const t = f.text.trim();
@@ -216,7 +227,7 @@ export function buildOutline(a: ResearchAnalysis): Outline {
         const n = o.mabahith.length;
         o.mabahith.push({
           kicker: h.kicker || `المحور ${ORDINALS[n] || n + 1}`,
-          title: h.title || a.detectedTitle || "محاور العرض",
+          title: h.title || safeDetectedTitle || "محاور العرض",
           matalib: [],
         });
       }
@@ -342,13 +353,70 @@ function splitBalanced<T>(items: T[], maxPer: number): T[][] {
   return out;
 }
 
+function pickCleanTitle(raw: string): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "";
+  return !looksLikePlanLeak(trimmed) && !isStructuralTitleOnly(trimmed) ? trimmed : "";
+}
+
+function resolveDeckTitle(
+  rawMetaTitle: string,
+  rawDetectedTitle: string,
+  o: Outline,
+): string {
+  for (const cand of [rawMetaTitle, rawDetectedTitle]) {
+    const clean = pickCleanTitle(cand);
+    if (clean) return clean;
+    const trimmed = (cand || "").trim();
+    if (trimmed) {
+      const san = sanitizeCoverTitleFromPlanLeak(trimmed);
+      if (
+        san.hadLeak &&
+        san.extractedPrefix &&
+        san.cleaned &&
+        !looksLikePlanLeak(san.cleaned) &&
+        !isStructuralTitleOnly(san.cleaned)
+      ) {
+        return san.cleaned;
+      }
+    }
+  }
+
+  const outlineMabahith = o.mabahith
+    .map((mb): CustomPlanMabhath | null => {
+      const t = (mb.title || "").trim();
+      return t && !looksLikePlanLeak(t) && !isStructuralTitleOnly(t)
+        ? { title: mb.kicker ? `${mb.kicker}: ${t}` : t, matalib: [] }
+        : null;
+    })
+    .filter((x): x is CustomPlanMabhath => x !== null);
+
+  for (const cand of [rawMetaTitle, rawDetectedTitle]) {
+    const trimmed = (cand || "").trim();
+    if (!trimmed) continue;
+    const san = sanitizeCoverTitleFromPlanLeak(
+      trimmed,
+      outlineMabahith.length ? outlineMabahith : undefined,
+    );
+    if (
+      san.cleaned &&
+      !looksLikePlanLeak(san.cleaned) &&
+      !isStructuralTitleOnly(san.cleaned)
+    ) {
+      return san.cleaned;
+    }
+  }
+
+  return "عرض تقديمي";
+}
+
 export function planDeck(
   a: ResearchAnalysis,
   meta: CoverMeta,
   opts: DeckOptions = DEFAULT_DECK_OPTIONS,
 ): SlideDeck {
   const o = buildOutline(a);
-  const title = meta.title.trim() || a.detectedTitle || "عرض تقديمي";
+  const title = resolveDeckTitle(meta.title, a.detectedTitle, o);
   const slides: Slide[] = [{ kind: "cover", meta: { ...meta, title } }];
 
   const refs: Point[] = o.references.length

@@ -4,6 +4,7 @@ import { createDefaultDocument } from '../data/defaults';
 import { clearSavedDocument, loadSavedDocument, saveDocument } from '../lib/storage';
 import { imageToDataUrl } from '../lib/image';
 import { pageHtmlToText, textToPageHtml } from '../lib/pageText';
+import { isStructuralTitleOnly, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak } from '../lib/aiGenerate';
 import type { ParseResult } from '../lib/parser';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved';
@@ -134,12 +135,24 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   );
 
   const applyParsed = useCallback((r: ParseResult) => {
-    setDoc((d) => ({
-      ...d,
-      pages: r.pages,
-      coverState: { ...d.coverState, subtitle: '', ...(r.detectedTitle ? { title: r.detectedTitle } : {}) },
-      planState: { ...d.planState, itemsText: r.planText, researchTitle: '' },
-    }));
+    const rawDet = (r.detectedTitle || '').trim();
+    const sanDet =
+      rawDet && (looksLikePlanLeak(rawDet) || isStructuralTitleOnly(rawDet))
+        ? sanitizeCoverTitleFromPlanLeak(rawDet).cleaned
+        : rawDet;
+    const safeDetectedTitle =
+      sanDet && !looksLikePlanLeak(sanDet) && !isStructuralTitleOnly(sanDet) ? sanDet : '';
+    setDoc((d) => {
+      const existingTitle = d.coverState.title || '';
+      const existingBad = looksLikePlanLeak(existingTitle) || isStructuralTitleOnly(existingTitle);
+      const nextTitle = safeDetectedTitle || (existingBad ? 'بحث أكاديمي منسق' : existingTitle);
+      return {
+        ...d,
+        pages: r.pages,
+        coverState: { ...d.coverState, subtitle: '', title: nextTitle },
+        planState: { ...d.planState, itemsText: r.planText, researchTitle: '' },
+      };
+    });
     bump();
   }, []);
 

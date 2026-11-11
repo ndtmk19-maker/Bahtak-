@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useDocument } from './DocumentContext';
 import { useUI } from './UIContext';
 import { parseRawText, ParseError } from '../lib/parser';
-import { AI_LENGTHS, analyzeStudentTopic, generateResearch, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
+import { AI_LENGTHS, analyzeStudentTopic, generateResearch, isStructuralTitleOnly, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
@@ -156,11 +156,12 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         rawCandidateCoverTitle,
         analysis.hasCustomPlan ? analysis.customMabahith : undefined,
       );
+      const pickSafe = (v?: string) => (v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : '');
       const cleanCoverTitle =
-        (sanitizedCover.cleaned && !looksLikePlanLeak(sanitizedCover.cleaned) ? sanitizedCover.cleaned : '') ||
-        analysis.caseStudy.coverTitle ||
-        analysis.cleanedTopic ||
-        (looksLikePlanLeak(exactUserTopic) ? 'بحث أكاديمي منسق' : exactUserTopic);
+        pickSafe(sanitizedCover.cleaned) ||
+        pickSafe(analysis.caseStudy.coverTitle) ||
+        pickSafe(analysis.cleanedTopic) ||
+        (looksLikePlanLeak(exactUserTopic) || isStructuralTitleOnly(exactUserTopic) ? 'بحث أكاديمي منسق' : exactUserTopic);
       const count = parse({ silent: true, text: finalText, overrideTitle: cleanCoverTitle });
       if (count) {
         const hasCs = analysis.caseStudy.hasCaseStudy;

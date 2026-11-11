@@ -1,5 +1,6 @@
 import type { DocumentState } from '../types';
 import { createDefaultDocument, DEFAULT_STUDENTS_TEXT, LEGACY_STUDENTS_TEXT } from '../data/defaults';
+import { isStructuralTitleOnly, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak } from './aiGenerate';
 
 // نفس مفاتيح التخزين المستخدمة في النسخة الأصلية للحفاظ على التوافق
 const DOC_KEY = 'saved_baht_document';
@@ -40,10 +41,23 @@ export function loadSavedDocument(): DocumentState | null {
     const rawStudents = saved.coverState?.studentsText;
     const studentsText =
       rawStudents == null || rawStudents === '' || rawStudents === LEGACY_STUDENTS_TEXT ? DEFAULT_STUDENTS_TEXT : rawStudents;
+    let coverTitle = saved.coverState?.title;
+    if (coverTitle && (looksLikePlanLeak(coverTitle) || isStructuralTitleOnly(coverTitle))) {
+      const san = sanitizeCoverTitleFromPlanLeak(coverTitle);
+      coverTitle =
+        san.cleaned && !looksLikePlanLeak(san.cleaned) && !isStructuralTitleOnly(san.cleaned)
+          ? san.cleaned
+          : base.coverState.title;
+    }
     return {
       ...base,
       ...saved,
-      coverState: { ...base.coverState, ...(saved.coverState || {}), studentsText },
+      coverState: {
+        ...base.coverState,
+        ...(saved.coverState || {}),
+        ...(coverTitle !== undefined ? { title: coverTitle } : {}),
+        studentsText,
+      },
       planState: { ...base.planState, ...(saved.planState || {}) },
       pages: Array.isArray(saved.pages) ? saved.pages : base.pages,
     };
