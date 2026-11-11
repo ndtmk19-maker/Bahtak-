@@ -5,10 +5,13 @@ import { Badge } from './Controls';
 export function TopicAnalysisCard({
   analysis,
   matlabCount,
+  variant = 'research',
 }: {
   analysis: StudentTopicAnalysis;
   matlabCount: string;
+  variant?: 'research' | 'slides';
 }) {
+  const isSlides = variant === 'slides';
   const cleanCoverTitle = analysis.caseStudy.coverTitle || analysis.cleanedTopic;
 
   if (!analysis.hasCustomPlan && !analysis.hadWrapperNoise) {
@@ -23,7 +26,9 @@ export function TopicAnalysisCard({
       >
         <Sparkles className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div className="flex-1 leading-relaxed">
-          <span className="font-semibold text-emerald-800 dark:text-emerald-300">العنوان المعتمد للغلاف: </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+            {isSlides ? 'العنوان المعتمد لشريحة الغلاف: ' : 'العنوان المعتمد للغلاف: '}
+          </span>
           <strong className="font-bold">«{cleanCoverTitle}»</strong>
           <span className="mr-1.5 text-[0.71rem] text-emerald-700/90 dark:text-emerald-300/80">
             (تم استبعاد العبارات الإضافية تلقائياً)
@@ -35,8 +40,15 @@ export function TopicAnalysisCard({
 
   const missingIntro = !analysis.hasIntroInPlan;
   const missingConclusion = !analysis.hasConclusionInPlan;
-  const autoFrameNote =
-    missingIntro && missingConclusion
+  const autoFrameNote = isSlides
+    ? missingIntro && missingConclusion
+      ? 'لم تذكر «المقدمة» أو «الخاتمة» في خطتك — سيتم إنشاؤهما تلقائياً (شرائح المقدمة والإشكالية في البداية، وشرائح الخاتمة والنتائج والمراجع في النهاية) بما ينسجم مع مباحث خطتك.'
+      : missingIntro
+        ? 'لم تذكر «المقدمة» في خطتك — سيتم إنشاؤها تلقائياً في بداية العرض متضمنةً شريحة التمهيد وشريحة الإشكالية الرئيسية.'
+        : missingConclusion
+          ? 'لم تذكر «الخاتمة» في خطتك — سيتم إنشاؤها تلقائياً في نهاية العرض مع شرائح النتائج والتوصيات وقائمة المصادر والمراجع.'
+          : ''
+    : missingIntro && missingConclusion
       ? 'لم تذكر «المقدمة» أو «الخاتمة» في خطتك — سيتم إنشاؤهما تلقائياً (المقدمة في البداية، والخاتمة وقائمة المراجع في النهاية) بما ينسجم مع مباحث خطتك.'
       : missingIntro
         ? 'لم تذكر «المقدمة» في خطتك — سيتم إنشاؤها تلقائياً في بداية البحث متضمنةً التمهيد والإشكالية الرئيسية.'
@@ -57,7 +69,11 @@ export function TopicAnalysisCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 font-bold text-emerald-900 dark:text-emerald-200">
           <ListChecks className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <span>تم رصد خطة بحث مخصصة — سيُبنى البحث وفق خطتك حرفياً</span>
+          <span>
+            {isSlides
+              ? 'تم رصد خطة عرض مخصصة — ستُبنى الشرائح وفق خطتك حرفياً'
+              : 'تم رصد خطة بحث مخصصة — سيُبنى البحث وفق خطتك حرفياً'}
+          </span>
         </div>
         <Badge tone="ok">
           {analysis.customMabahith.length === 1
@@ -71,7 +87,9 @@ export function TopicAnalysisCard({
       <div className="rounded-lg border border-emerald-500/15 bg-white/75 px-2.5 py-1.5 text-[0.74rem] leading-relaxed dark:border-emerald-400/15 dark:bg-zinc-900/50">
         {analysis.hasExplicitTitle ? (
           <>
-            <span className="font-semibold text-zinc-600 dark:text-zinc-300">العنوان المعتمد للغلاف: </span>
+            <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+              {isSlides ? 'العنوان المعتمد لشريحة الغلاف: ' : 'العنوان المعتمد للغلاف: '}
+            </span>
             <strong className="font-bold text-zinc-900 dark:text-white">«{cleanCoverTitle}»</strong>
             {analysis.hadWrapperNoise && (
               <span className="mr-1.5 text-[0.7rem] text-emerald-700 dark:text-emerald-300">(منقّى تلقائياً)</span>
@@ -79,7 +97,9 @@ export function TopicAnalysisCard({
           </>
         ) : (
           <span className="font-semibold text-emerald-800 dark:text-emerald-300">
-            لم يُكتب عنوان منفصل — سيُصاغ عنوان أكاديمي موجز ومعبّر لخطة بحثك تلقائياً على الغلاف.
+            {isSlides
+              ? 'لم يُكتب عنوان منفصل — سيُصاغ عنوان أكاديمي موجز ومعبّر لخطة عرضك تلقائياً على شريحة الغلاف.'
+              : 'لم يُكتب عنوان منفصل — سيُصاغ عنوان أكاديمي موجز ومعبّر لخطة بحثك تلقائياً على الغلاف.'}
           </span>
         )}
       </div>

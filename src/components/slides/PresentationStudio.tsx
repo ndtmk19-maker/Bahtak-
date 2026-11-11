@@ -38,6 +38,8 @@ import { useUI } from "../../state/UIContext";
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from "../../data/defaults";
 import { SLIDE_THEMES, type Slide, type SlideTheme } from "../../lib/slides";
 import { SLIDE_AI_SIZES, type SlideAiSize } from "../../lib/slides/ai";
+import { analyzeStudentTopic } from "../../lib/aiGenerate";
+import { TopicAnalysisCard } from "../ui/TopicAnalysisCard";
 
 const KIND_LABEL: Record<Slide["kind"], string> = {
   cover: "الغلاف",
@@ -256,12 +258,21 @@ function ContentInput() {
         </span>
         <span className="tabular-nums">{words.toLocaleString("ar")} كلمة</span>
       </div>
-      {p.deck && !(p.deck.structure.length === 3 && p.deck.structure.every((n) => n === 3)) && (
+      {p.deck && (p.deck.structure.length === 0 || p.deck.structure.some((n) => n === 0)) ? (
         <Note icon={<ListTree />} tone="warn">
-          الهيكل المعتمد للعرض: 3 مباحث × 3 مطالب. مسودتك الحالية فيها {p.deck.structure.length}{" "}
-          مباحث ({p.deck.structure.map((n) => `${n} مطالب`).join("، ") || "دون مطالب"}). أكمل
-          المسودة، أو ولّد العرض بالذكاء الاصطناعي ليُبنى بهذا الهيكل تلقائياً.
+          مسودتك الحالية فيها {p.deck.structure.length} مباحث (
+          {p.deck.structure.map((n) => `${n} مطالب`).join("، ") || "دون مطالب"}). أكمل المباحث
+          والمطالب، أو ولّد العرض بالذكاء الاصطناعي.
         </Note>
+      ) : (
+        p.deck &&
+        !(p.deck.structure.length === 3 && p.deck.structure.every((n) => n === 3)) && (
+          <Note icon={<ListTree />} tone="brand">
+            بنية المسودة الحالية: {p.deck.structure.length} محاور/مباحث (
+            {p.deck.structure.map((n) => `${n} مطالب`).join("، ")}). (الهيكل القياسي 3 مباحث × 3
+            مطالب، أو وفق خطتك المخصصة).
+          </Note>
+        )
       )}
       {p.error && (
         <Note icon={<CircleAlert />} tone="warn">
@@ -274,19 +285,37 @@ function ContentInput() {
 
 function AiFields() {
   const p = usePresentation();
+  const topicAnalysis = analyzeStudentTopic(p.aiTopic, p.caseStudyCompany);
+  const caseSpec = topicAnalysis.caseStudy;
+  const hasCaseStudy = caseSpec.hasCaseStudy;
+
+  const depthHint = topicAnalysis.hasCustomPlan
+    ? p.aiSize === "brief"
+      ? `وفق مباحث خطتك (${topicAnalysis.customMabahith.length}) بصياغة مركزة مختصرة في كل شريحة.`
+      : p.aiSize === "extended"
+        ? `وفق مباحث خطتك (${topicAnalysis.customMabahith.length}) بتفصيل معمق وأفكار موسعة لكل مطلب.`
+        : `وفق مباحث خطتك (${topicAnalysis.customMabahith.length}) بتفصيل متوازن في كل شريحة.`
+    : SLIDE_AI_SIZES[p.aiSize].hint;
+
   return (
     <Section
-      title="موضوع العرض"
+      title="موضوع وخطة العرض"
       icon={<BookOpenCheck />}
-      description="يُستعمل محرك التوليد الأكاديمي نفسه (خطة ← مقدمة ومباحث وخاتمة بالتوازي) مع توجيه الصياغة لتناسب الشرائح."
+      description="اكتب عنوان العرض أو ألصق خطة العرض كاملة؛ وسيُستعمل محرك التوليد الأكاديمي لتنظيمها في شرائح متوازنة."
     >
       <TextArea
         id="slides-ai-topic"
-        label="عنوان أو موضوع العرض"
+        label={
+          <>
+            موضوع أو عنوان العرض (أو ألصق خطة العرض كاملة) <span className="text-danger">*</span>
+          </>
+        }
         value={p.aiTopic}
         onChange={(e) => p.setAiTopic(e.target.value)}
-        placeholder="مثال: أثر التحول الرقمي على أداء المؤسسات الجامعية"
-        className="min-h-[84px]"
+        placeholder={
+          "اكتب عنوان العرض مباشرة مثل: «أثر التحول الرقمي على أداء المؤسسات الجامعية»\nأو ألصق هنا خطة العرض كاملة (المبحث الأول / المحور الأول، المطلب الأول... أو 1، 2...) ليُبنى العرض وفقها حرفياً."
+        }
+        className="min-h-[104px]"
       />
       <div className="-mt-1 flex flex-wrap gap-1.5">
         <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">
@@ -302,15 +331,59 @@ function AiFields() {
           </Chip>
         ))}
       </div>
+
+      <TopicAnalysisCard analysis={topicAnalysis} matlabCount="3" variant="slides" />
+
+      <TextInput
+        id="slides-case-study-company"
+        label="دراسة حالة حول شركة أو مؤسسة"
+        aside={
+          <Badge tone={hasCaseStudy || topicAnalysis.caseStudyInPlanMabhath ? "ok" : "neutral"}>
+            {caseSpec.source === "explicit"
+              ? "ستُضاف قبل الخاتمة"
+              : hasCaseStudy
+                ? topicAnalysis.hasCustomPlan
+                  ? "مكتشفة تلقائياً"
+                  : "مكتشفة من العنوان"
+                : topicAnalysis.caseStudyInPlanMabhath
+                  ? "مضمّنة في خطتك"
+                  : "اختياري"}
+          </Badge>
+        }
+        value={p.caseStudyCompany}
+        onChange={(e) => p.setCaseStudyCompany(e.target.value)}
+        placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+        hint={
+          topicAnalysis.caseStudyInPlanMabhath
+            ? "أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ ستُعرض شرائحه في موضعه دون تكرار، أو اكتب اسماً محدداً هنا لإفراد شرائح تطبيقية مستقلة."
+            : caseSpec.source === "title-named"
+              ? `تم رصد دراسة الحالة حول «${caseSpec.company}» تلقائياً (ستُضاف شرائحها قبل الخاتمة ولن تظهر عبارة دراسة حالة في عنوان شريحة الغلاف).`
+              : caseSpec.source === "title-inferred"
+                ? "تم رصد طلب دراسة حالة تلقائياً؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة قبل الخاتمة دون إظهار «دراسة حالة» في عنوان الغلاف، أو اكتب اسماً محدداً هنا."
+                : "تُضاف بعد المباحث وقبل الخاتمة في شرائح مستقلة باسم «دراسة حالة» (تعريف موجز بالمؤسسة ثم تطبيق الموضوع فيها) دون تغيير المباحث."
+        }
+      />
+
       <Note icon={<ListTree />} tone="brand">
-        هيكل ثابت في كل عرض: <strong>3 مباحث، في كل مبحث 3 مطالب</strong>، إضافة إلى المقدمة
-        والإشكالية والخاتمة والمراجع.
+        {topicAnalysis.hasCustomPlan ? (
+          <>
+            هيكل هذا العرض: <strong>وفق خطتك المخصصة ({topicAnalysis.customMabahith.length} مباحث)</strong>
+            {hasCaseStudy ? " + شرائح دراسة الحالة قبل الخاتمة" : ""}، مع إضافة المقدمة والإشكالية
+            والخاتمة والمراجع تلقائياً عند الحاجة.
+          </>
+        ) : (
+          <>
+            هيكل العرض القياسي: <strong>3 مباحث، في كل مبحث 3 مطالب</strong>
+            {hasCaseStudy ? " + شرائح دراسة الحالة قبل الخاتمة" : ""}، إضافة إلى المقدمة والإشكالية
+            والخاتمة والمراجع.
+          </>
+        )}
       </Note>
       <SelectInput
         label="عمق الصياغة"
         value={p.aiSize}
         onChange={(e) => p.setAiSize(e.target.value as SlideAiSize)}
-        hint={SLIDE_AI_SIZES[p.aiSize].hint}
+        hint={depthHint}
       >
         {(Object.keys(SLIDE_AI_SIZES) as SlideAiSize[]).map((k) => (
           <option key={k} value={k}>

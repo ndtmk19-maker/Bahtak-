@@ -15,7 +15,12 @@ import { ParseError } from "../lib/parser";
 import { getEffectiveGeminiKey } from "../lib/aiKeys";
 import { trackEvent } from "../lib/analytics";
 import { isIOS } from "../lib/printDocument";
-import type { SectionProgress } from "../lib/aiGenerate";
+import {
+  analyzeStudentTopic,
+  looksLikePlanLeak,
+  sanitizeCoverTitleFromPlanLeak,
+  type SectionProgress,
+} from "../lib/aiGenerate";
 import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
@@ -56,6 +61,7 @@ interface Persisted {
   options: DeckOptions;
   aiTopic: string;
   aiSize: SlideAiSize;
+  caseStudyCompany: string;
 }
 
 export interface SlidesRun {
@@ -75,6 +81,7 @@ interface PresentationApi extends Persisted {
   setOptions: (p: Partial<DeckOptions>) => void;
   setAiTopic: (t: string) => void;
   setAiSize: (s: SlideAiSize) => void;
+  setCaseStudyCompany: (c: string) => void;
   deck: SlideDeck | null;
   laid: LaidSlide[];
   theme: SlideTheme;
@@ -113,6 +120,7 @@ function createDefaultPersisted(): Persisted {
     options: { ...DEFAULT_DECK_OPTIONS },
     aiTopic: "",
     aiSize: "standard",
+    caseStudyCompany: "",
   };
 }
 
@@ -134,6 +142,7 @@ function load(): Persisted | null {
       options: { ...DEFAULT_DECK_OPTIONS, ...(p.options || {}) },
       aiTopic: p.aiTopic || "",
       aiSize: p.aiSize || "standard",
+      caseStudyCompany: p.caseStudyCompany || "",
     };
   } catch {
     return null;
@@ -212,10 +221,15 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     }
   }, [draft, coverMeta, state.options]);
 
+  const cleanTopicHint = useMemo(() => {
+    const a = analyzeStudentTopic(state.aiTopic, state.caseStudyCompany);
+    return a.caseStudy.coverTitle || a.cleanedTopic || state.aiTopic;
+  }, [state.aiTopic, state.caseStudyCompany]);
+
   const theme = useMemo(
     () =>
-      state.autoTheme ? suggestTheme(deck?.title || state.aiTopic, draft) : getTheme(state.themeId),
-    [state.autoTheme, state.themeId, deck?.title, state.aiTopic, draft],
+      state.autoTheme ? suggestTheme(deck?.title || cleanTopicHint, draft) : getTheme(state.themeId),
+    [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
   const laid = useMemo(
     () => (deck ? layoutDeck(deck, theme, state.options) : []),
@@ -262,18 +276,47 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       document.getElementById("slides-ai-topic")?.focus();
       return;
     }
+    const caseCompany = state.caseStudyCompany.trim();
+    const analysis = analyzeStudentTopic(topic, caseCompany);
+    const provisionalCandidate = analysis.hasExplicitTitle
+      ? analysis.caseStudy.coverTitle || analysis.cleanedTopic
+      : "";
+    const provisionalLiveTitle =
+      provisionalCandidate && !looksLikePlanLeak(provisionalCandidate)
+        ? provisionalCandidate
+        : "";
     const myRunId = ++runIdRef.current;
     runningRef.current = true;
     hasUserEditedRef.current = true;
+    setState((s) => ({ ...s, meta: { ...s.meta, title: provisionalLiveTitle } }));
     setRun({ running: true, stage: "plan", sections: [], words: 0, model: "" });
     try {
+      let resolvedPlanTitle = "";
       const text = await generatePresentationDraft({
         provider,
         apiKey: key,
         topic,
+        caseStudyCompany: caseCompany,
         size: state.aiSize,
         customUrl,
         customModel,
+        onResolvedPlan: (resolvedPlan) => {
+          if (runIdRef.current !== myRunId) return;
+          if (resolvedPlan?.title) {
+            resolvedPlanTitle = resolvedPlan.title;
+            const liveSanitized = sanitizeCoverTitleFromPlanLeak(
+              resolvedPlan.title,
+              analysis.hasCustomPlan ? analysis.customMabahith : undefined,
+            );
+            const safeLiveTitle =
+              liveSanitized.cleaned && !looksLikePlanLeak(liveSanitized.cleaned)
+                ? liveSanitized.cleaned
+                : "";
+            if (safeLiveTitle) {
+              setState((s) => ({ ...s, meta: { ...s.meta, title: safeLiveTitle } }));
+            }
+          }
+        },
         onSections: (sections) => {
           if (runIdRef.current === myRunId) setRun((r) => ({ ...r, sections }));
         },
@@ -291,15 +334,33 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         },
       });
       if (runIdRef.current !== myRunId) return;
+      const rawCandidateCoverTitle =
+        resolvedPlanTitle || analysis.caseStudy.coverTitle || analysis.cleanedTopic;
+      const sanitizedCover = sanitizeCoverTitleFromPlanLeak(
+        rawCandidateCoverTitle,
+        analysis.hasCustomPlan ? analysis.customMabahith : undefined,
+      );
+      const cleanCoverTitle =
+        (sanitizedCover.cleaned && !looksLikePlanLeak(sanitizedCover.cleaned)
+          ? sanitizedCover.cleaned
+          : "") ||
+        analysis.caseStudy.coverTitle ||
+        analysis.cleanedTopic ||
+        (looksLikePlanLeak(topic) ? "عرض تقديمي أكاديمي" : topic);
       hasUserEditedRef.current = true;
-      setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: topic } }));
+      setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: cleanCoverTitle } }));
       setRun((r) => ({ ...r, running: false, stage: "done" }));
       setCompletedVersion((v) => v + 1);
       ui.toast("اكتمل توليد محتوى العرض", {
-        description:
-          "نُظّم المحتوى في شرائح. راجعه في المعاينة أو عدّله في المسودة ثم نزّل ملف PowerPoint.",
+        description: analysis.hasCustomPlan
+          ? `نُظّم المحتوى وفق خطتك (${analysis.customMabahith.length} مباحث${
+              !analysis.hasIntroInPlan || !analysis.hasConclusionInPlan
+                ? " + المقدمة والخاتمة تلقائياً"
+                : ""
+            }${analysis.caseStudy.hasCaseStudy ? " + دراسة حالة" : ""}). راجعه في المعاينة ثم نزّل ملف PowerPoint.`
+          : `نُظّم المحتوى في شرائح${analysis.caseStudy.hasCaseStudy ? " مع قسم دراسة الحالة" : ""}. راجعه في المعاينة أو عدّله في المسودة ثم نزّل ملف PowerPoint.`,
       });
-      trackEvent({ event_type: "generate", topic: `[PPTX] ${topic}` }).catch(() => {});
+      trackEvent({ event_type: "generate", topic: `[PPTX] ${cleanCoverTitle}` }).catch(() => {});
     } catch (err) {
       if (runIdRef.current !== myRunId) return;
       setRun((r) => ({ ...r, running: false, stage: "idle" }));
@@ -312,7 +373,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         runningRef.current = false;
       }
     }
-  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, ui]);
+  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, state.caseStudyCompany, ui]);
 
   const exportPptx = useCallback(async () => {
     if (!deck || !laid.length) {
@@ -377,6 +438,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setOptions,
       setAiTopic: (aiTopic) => patch({ aiTopic }),
       setAiSize: (aiSize) => patch({ aiSize }),
+      setCaseStudyCompany: (caseStudyCompany) => patch({ caseStudyCompany }),
       deck,
       laid,
       theme,

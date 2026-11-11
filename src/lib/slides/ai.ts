@@ -1,11 +1,19 @@
 // تكييف محرك التوليد الأكاديمي الموجود (generateResearch) لإنتاج محتوى مناسب للشرائح.
 // نفس المراحل: خطة JSON ← مقدمة ومباحث وخاتمة بالتوازي ← نص بنفس الصيغة الأكاديمية يقرؤه المحلل المشترك.
-import { generateResearch, type AiLength, type AiPlan, type GenerateOptions } from "../aiGenerate";
+import {
+  analyzeStudentTopic,
+  generateResearch,
+  looksLikePlanLeak,
+  sanitizeCoverTitleFromPlanLeak,
+  type AiLength,
+  type AiPlan,
+  type GenerateOptions,
+} from "../aiGenerate";
 import { buildFallbackPlan } from "../aiEngine";
 
 export type SlideAiSize = "brief" | "standard" | "extended";
 
-/** هيكل العرض ثابت دائماً: 3 مباحث، في كل مبحث 3 مطالب. الحجم يتحكم في عمق الصياغة فقط. */
+/** هيكل العرض القياسي (عند عدم لصق خطة مخصصة): 3 مباحث، في كل مبحث 3 مطالب. الحجم يتحكم في عمق الصياغة فقط. */
 export const SLIDE_MABHATH_COUNT = 3;
 export const SLIDE_MATLAB_COUNT = 3;
 
@@ -36,9 +44,20 @@ const stripPrefix = (t: string, word: string) =>
     .replace(new RegExp(`^\\s*(?:ال)?${word}\\s+[^:：\\-–—]{1,20}?\\s*[:：\\-–—]\\s*`), "")
     .trim();
 
-/** فرض هيكل 3 × 3 على الخطة المولدة: يُكمَّل الناقص من الخطة المنهجية البديلة ويُحذف الزائد، مع إعادة الترقيم */
+/** فرض هيكل 3 × 3 على الخطة المولدة للمواضيع العادية: تُحترم خطة الطالب المخصصة إن وُجدت، ويُبنى البديل من العنوان المنقّى لا النص الخام */
 export function enforceSlidePlan(plan: AiPlan, topic: string): AiPlan {
-  const fb = buildFallbackPlan(topic, SLIDE_MABHATH_COUNT, SLIDE_MATLAB_COUNT, "short") as AiPlan;
+  const analysis = analyzeStudentTopic(topic);
+  if (analysis.hasCustomPlan && analysis.customMabahith.length > 0) {
+    return plan;
+  }
+  const candidateTopic =
+    analysis.caseStudy.coreTopic ||
+    analysis.caseStudy.coverTitle ||
+    analysis.cleanedTopic ||
+    sanitizeCoverTitleFromPlanLeak(plan.title || topic).cleaned;
+  const cleanFallbackTopic =
+    candidateTopic && !looksLikePlanLeak(candidateTopic) ? candidateTopic : "موضوع العرض";
+  const fb = buildFallbackPlan(cleanFallbackTopic, SLIDE_MABHATH_COUNT, SLIDE_MATLAB_COUNT, "short") as AiPlan;
   const mabahith = Array.from({ length: SLIDE_MABHATH_COUNT }, (_, i) => {
     const src = plan.mabahith?.[i] || fb.mabahith[i];
     const title = stripPrefix(src.title, "مبحث") || stripPrefix(fb.mabahith[i].title, "مبحث");
@@ -70,12 +89,23 @@ export type SlideAiOptions = Omit<
 > & { size: SlideAiSize };
 
 export function generatePresentationDraft({ size, ...rest }: SlideAiOptions): Promise<string> {
+  const analysis = analyzeStudentTopic(rest.topic, rest.caseStudyCompany);
+  const hasCustomPlan = analysis.hasCustomPlan && analysis.customMabahith.length > 0;
+  const fallbackCandidate =
+    analysis.caseStudy.coreTopic ||
+    analysis.caseStudy.coverTitle ||
+    analysis.cleanedTopic ||
+    sanitizeCoverTitleFromPlanLeak(rest.topic).cleaned;
+  const cleanFallbackTopic =
+    fallbackCandidate && !looksLikePlanLeak(fallbackCandidate) ? fallbackCandidate : "موضوع العرض";
   return generateResearch({
     ...rest,
     length: SLIDE_AI_SIZES[size].length,
-    mabhathCount: String(SLIDE_MABHATH_COUNT),
+    mabhathCount: hasCustomPlan
+      ? String(analysis.customMabahith.length)
+      : String(SLIDE_MABHATH_COUNT),
     matlabCount: String(SLIDE_MATLAB_COUNT),
     promptAddendum: SLIDE_PROMPT_ADDENDUM,
-    normalizePlan: (plan) => enforceSlidePlan(plan, rest.topic),
+    normalizePlan: hasCustomPlan ? undefined : (plan) => enforceSlidePlan(plan, cleanFallbackTopic),
   });
 }
