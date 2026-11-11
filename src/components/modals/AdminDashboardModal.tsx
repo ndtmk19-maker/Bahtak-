@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   BarChart3,
   Check,
   ChevronDown,
@@ -33,14 +34,17 @@ import { Button } from '../ui/Button';
 import { AndroidIcon } from '../ui/BrandIcons';
 import { useUI } from '../../state/UIContext';
 import {
+  FUTURE_SKEW_TOLERANCE_MS,
   getAnalyticsStats,
+  subscribeToAnalyticsUpdates,
   SUPABASE_RESEARCH_LOGS_SQL,
   type AnalyticsStats,
-  type ResearchEvent,
 } from '../../lib/analytics';
+import { getEstimatedServerNowMs } from '../../lib/supabase';
 
 const ADMIN_PASSWORD = '1919';
 const AUTH_STORAGE_KEY = 'bahtak_admin_auth_token';
+const AUTO_REFRESH_INTERVAL_MS = 10_000;
 
 export function AdminDashboardModal() {
   const { adminModalOpen, setAdminModalOpen, toast } = useUI();
@@ -56,29 +60,86 @@ export function AdminDashboardModal() {
   const [authError, setAuthError] = useState(false);
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [, setClockTick] = useState(0);
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
 
-  // تحميل الإحصائيات عند الفتح والمصادقة
-  const loadStats = async () => {
-    setLoading(true);
+  const requestSeqRef = useRef(0);
+  const isFetchingRef = useRef(false);
+  const pendingRefreshRef = useRef(false);
+
+  // تحميل الإحصائيات مع حماية ضد التداخل وضمان عرض أحدث البيانات
+  const loadStats = useCallback(async (silent = false) => {
+    if (isFetchingRef.current) {
+      pendingRefreshRef.current = true;
+      return;
+    }
+    isFetchingRef.current = true;
+    const reqId = ++requestSeqRef.current;
+    if (!silent) setLoading(true);
     try {
       const data = await getAnalyticsStats();
-      setStats(data);
+      if (reqId === requestSeqRef.current) {
+        setStats(data);
+        setLastUpdatedAt(data.serverNowMs || getEstimatedServerNowMs());
+      }
     } catch (err) {
       console.error('Error loading analytics:', err);
     } finally {
-      setLoading(false);
+      isFetchingRef.current = false;
+      if (!silent) setLoading(false);
+      if (pendingRefreshRef.current) {
+        pendingRefreshRef.current = false;
+        void loadStats(true);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (adminModalOpen && isAuthenticated) {
-      loadStats();
-    }
-  }, [adminModalOpen, isAuthenticated]);
+    if (!adminModalOpen || !isAuthenticated) return;
+
+    void loadStats(false);
+
+    let debounceTimer: number | null = null;
+    const scheduleSilentRefresh = () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        void loadStats(true);
+      }, 600);
+    };
+
+    const unsubscribe = subscribeToAnalyticsUpdates(scheduleSilentRefresh);
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) {
+        void loadStats(true);
+      }
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    // تحديث العدادات النسبية («منذ X د») دوريّاً أثناء بقاء اللوحة مفتوحة
+    const tickId = window.setInterval(() => {
+      setClockTick((t) => t + 1);
+    }, 30_000);
+
+    const handleVisibilityOrFocus = () => {
+      if (!document.hidden) {
+        void loadStats(true);
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      unsubscribe();
+      window.clearInterval(intervalId);
+      window.clearInterval(tickId);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [adminModalOpen, isAuthenticated, loadStats]);
 
   const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -250,7 +311,7 @@ export function AdminDashboardModal() {
                 <h2 id="admin-modal-title" className="text-base font-bold text-zinc-900 dark:text-white">
                   لوحة إحصائيات منصة «بحثك»
                 </h2>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.66rem] font-bold ${
                       stats?.isCloudSynced
@@ -258,9 +319,14 @@ export function AdminDashboardModal() {
                         : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20'
                     }`}
                   >
-                    <span className={`size-1.5 rounded-full ${stats?.isCloudSynced ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    <span className={`size-1.5 rounded-full ${stats?.isCloudSynced ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                     {stats?.isCloudSynced ? 'مزامنة حية مع Supabase' : 'تخزين محلي (يتطلب كود SQL)'}
                   </span>
+                  {lastUpdatedAt && (
+                    <span className="text-[0.65rem] text-zinc-400 font-mono" title="يتم التحديث تلقائياً كل 10 ثوانٍ وفور وصول أحداث جديدة">
+                      آخر تحديث: {formatExactSeconds(lastUpdatedAt)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,9 +334,9 @@ export function AdminDashboardModal() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={loadStats}
+                onClick={() => void loadStats(false)}
                 disabled={loading}
-                title="تحديث البيانات"
+                title="تحديث البيانات الآن"
                 className="grid size-9 place-items-center rounded-xl text-zinc-600 dark:text-zinc-400 transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
               >
                 <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
@@ -490,6 +556,15 @@ export function AdminDashboardModal() {
                 </div>
               </div>
 
+              {(stats?.futureSkewCount ?? 0) > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[0.72rem] text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  <span>
+                    يوجد {stats?.futureSkewCount} سجل قديم مرسل من جهاز ساعته متقدمة عن التوقيت الحقيقي؛ تم إبعاده عن أعلى القائمة حتى تظهر التحديثات الجديدة أولاً.
+                  </span>
+                </div>
+              )}
+
               {/* جدول السجل */}
               <div className="max-h-72 overflow-y-auto rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 scroll-thin">
                 {filteredEvents.length === 0 ? (
@@ -498,61 +573,88 @@ export function AdminDashboardModal() {
                   </div>
                 ) : (
                   <div className="divide-y divide-black/5 dark:divide-white/5">
-                    {filteredEvents.map((ev, idx) => (
-                      <div key={ev.id || `${ev.created_at}-${idx}`} className="flex items-center justify-between p-3 text-xs hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
-                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                          <span
-                            className={`grid size-7 shrink-0 place-items-center rounded-lg text-[0.7rem] ${
-                              ev.event_type === 'generate'
-                                ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 font-bold'
-                                : ev.event_type === 'visit'
-                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
-                                : ev.event_type === 'export_pdf'
-                                ? 'bg-red-500/10 text-red-700 dark:text-red-400'
-                                : ev.event_type === 'export_pptx'
-                                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
-                                : ev.event_type === 'download_apk'
-                                ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400'
-                                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                            }`}
-                          >
-                            {ev.event_type === 'generate'
-                              ? '⚡'
-                              : ev.event_type === 'visit'
-                              ? '👁️'
-                              : ev.event_type === 'export_pdf'
-                              ? '📄'
-                              : ev.event_type === 'export_pptx'
-                              ? '📊'
-                              : ev.event_type === 'download_apk'
-                              ? '📱'
-                              : '📝'}
-                          </span>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="font-bold text-zinc-900 dark:text-white truncate">
-                              {ev.topic ||
-                                (ev.event_type === 'visit'
-                                  ? 'زيارة جديدة للمنصة'
+                    {filteredEvents.map((ev, idx) => {
+                      const referenceNowMs = stats?.serverNowMs
+                        ? Math.max(stats.serverNowMs, getEstimatedServerNowMs())
+                        : getEstimatedServerNowMs();
+                      const eventMs = new Date(ev.created_at).getTime();
+                      const isSkewed = Boolean(
+                        ev.clockSkewed ||
+                          (Number.isFinite(eventMs) && eventMs - referenceNowMs > FUTURE_SKEW_TOLERANCE_MS),
+                      );
+                      return (
+                        <div key={ev.id || `${ev.created_at}-${idx}`} className="flex items-center justify-between p-3 text-xs hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <span
+                              className={`grid size-7 shrink-0 place-items-center rounded-lg text-[0.7rem] ${
+                                ev.event_type === 'generate'
+                                  ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 font-bold'
+                                  : ev.event_type === 'visit'
+                                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                                  : ev.event_type === 'export_pdf'
+                                  ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+                                  : ev.event_type === 'export_pptx'
+                                  ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
                                   : ev.event_type === 'download_apk'
-                                  ? 'تحميل تطبيق الأندرويد (APK)'
-                                  : 'بدون عنوان')}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5 text-[0.68rem] text-zinc-400">
-                              {ev.pages_count ? <span>{ev.pages_count} {ev.event_type === 'export_pptx' ? 'شريحة' : 'صفحة A4'} ·</span> : null}
-                              {ev.university ? <span className="truncate">{ev.university} ·</span> : null}
-                              <span>جهاز: {ev.device || 'غير محدد'}</span>
+                                  ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400'
+                                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                              }`}
+                            >
+                              {ev.event_type === 'generate'
+                                ? '⚡'
+                                : ev.event_type === 'visit'
+                                ? '👁️'
+                                : ev.event_type === 'export_pdf'
+                                ? '📄'
+                                : ev.event_type === 'export_pptx'
+                                ? '📊'
+                                : ev.event_type === 'download_apk'
+                                ? '📱'
+                                : '📝'}
+                            </span>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-zinc-900 dark:text-white truncate">
+                                {ev.topic ||
+                                  (ev.event_type === 'visit'
+                                    ? 'زيارة جديدة للمنصة'
+                                    : ev.event_type === 'download_apk'
+                                    ? 'تحميل تطبيق الأندرويد (APK)'
+                                    : 'بدون عنوان')}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[0.68rem] text-zinc-400">
+                                {ev.pages_count ? <span>{ev.pages_count} {ev.event_type === 'export_pptx' ? 'شريحة' : 'صفحة A4'} ·</span> : null}
+                                {ev.university ? <span className="truncate">{ev.university} ·</span> : null}
+                                <span>جهاز: {ev.device || 'غير محدد'}</span>
+                                {isSkewed && (
+                                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[0.62rem] font-semibold text-amber-700 dark:text-amber-300">
+                                    توقيت جهاز متقدم
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="text-left shrink-0 pe-2">
-                          <span className="text-[0.66rem] text-zinc-400 font-mono">
-                            {formatRelativeDate(ev.created_at)}
-                          </span>
+                          <div
+                            className="text-left shrink-0 pe-2 flex flex-col items-end"
+                            title={formatFullDateTime(ev.created_at)}
+                          >
+                            <span
+                              className={`text-[0.66rem] font-mono ${
+                                isSkewed
+                                  ? 'text-amber-700 dark:text-amber-300 font-semibold'
+                                  : 'text-zinc-500 dark:text-zinc-300'
+                              }`}
+                            >
+                              {formatRelativeDate(ev.created_at, referenceNowMs, isSkewed)}
+                            </span>
+                            <span className="text-[0.6rem] text-zinc-400 font-mono">
+                              {formatEventTimeLabel(ev.created_at, isSkewed, referenceNowMs)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -595,10 +697,19 @@ export function AdminDashboardModal() {
   );
 }
 
-function formatRelativeDate(iso: string): string {
+function formatRelativeDate(
+  iso: string,
+  referenceNowMs = Date.now(),
+  clockSkewed = false,
+): string {
   try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
+    const eventMs = new Date(iso).getTime();
+    if (!Number.isFinite(eventMs)) return iso;
+    const diff = referenceNowMs - eventMs;
+    if (clockSkewed || diff < -FUTURE_SKEW_TOLERANCE_MS) {
+      return 'توقيت غير مضبوط';
+    }
+    const mins = Math.floor(Math.max(0, diff) / 60000);
     if (mins < 1) return 'الآن';
     if (mins < 60) return `منذ ${mins} د`;
     const hours = Math.floor(mins / 60);
@@ -606,6 +717,66 @@ function formatRelativeDate(iso: string): string {
     const days = Math.floor(hours / 24);
     if (days < 30) return `منذ ${days} يوم`;
     return new Date(iso).toLocaleDateString('ar-DZ');
+  } catch {
+    return iso;
+  }
+}
+
+function formatExactSeconds(ms: number): string {
+  try {
+    return new Date(ms).toLocaleTimeString('ar-DZ', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatEventTimeLabel(iso: string, isSkewed: boolean, referenceNowMs: number): string {
+  try {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
+    const ref = new Date(referenceNowMs);
+    const sameDay =
+      !isSkewed &&
+      d.getFullYear() === ref.getFullYear() &&
+      d.getMonth() === ref.getMonth() &&
+      d.getDate() === ref.getDate();
+    if (sameDay) {
+      return d.toLocaleTimeString('ar-DZ', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    }
+    return d.toLocaleString('ar-DZ', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatFullDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return iso;
+    return d.toLocaleString('ar-DZ', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
   } catch {
     return iso;
   }
