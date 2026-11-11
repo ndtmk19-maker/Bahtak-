@@ -26,8 +26,9 @@ import { useConverter } from '../../state/ConverterContext';
 import { useUI } from '../../state/UIContext';
 import { useResetApp } from '../../state/useResetApp';
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from '../../data/defaults';
-import { AI_LENGTHS, AI_PROVIDERS, resolveCaseStudySpec, type AiLength, type AiProvider } from '../../lib/aiGenerate';
+import { AI_LENGTHS, AI_PROVIDERS, analyzeStudentTopic, type AiLength, type AiProvider } from '../../lib/aiGenerate';
 import { hasSystemGeminiKey } from '../../lib/aiKeys';
+import { TopicAnalysisCard } from '../ui/TopicAnalysisCard';
 
 export function Step1Input() {
   const { mode, setMode } = useConverter();
@@ -184,7 +185,8 @@ function PasteModeFields() {
 
 function AiModeFields() {
   const { form, setForm, run, generate } = useConverter();
-  const caseSpec = resolveCaseStudySpec(form.topic, form.caseStudyCompany);
+  const topicAnalysis = analyzeStudentTopic(form.topic, form.caseStudyCompany);
+  const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
 
   return (
@@ -200,7 +202,7 @@ function AiModeFields() {
               التوليد بالذكاء الاصطناعي الأكاديمي مفعّل وجاهز مجاناً
             </div>
             <div className="text-[0.72rem] text-emerald-700 dark:text-emerald-300">
-              اكتب موضوع أو عنوان بحثك في الأسفل واضغط على زر التوليد مباشرة دون الحاجة لأي رمز.
+              اكتب موضوع البحث أو ألصق خطة البحث كاملة في الأسفل ثم اضغط زر التوليد مباشرة.
             </div>
           </div>
         </div>
@@ -214,13 +216,13 @@ function AiModeFields() {
           id="ai-topic-input"
           label={
             <>
-              موضوع أو عنوان البحث الأكاديمي <span className="text-danger">*</span>
+              موضوع أو عنوان البحث (أو ألصق خطة البحث كاملة) <span className="text-danger">*</span>
             </>
           }
           value={form.topic}
           onChange={(e) => setForm({ topic: e.target.value })}
-          placeholder={'اكتب هنا موضوع أو عنوان البحث كاملاً، مثال:\n«استراتيجيات إدارة الموارد البشرية وأثرها على الأداء المؤسسي»'}
-          className="min-h-[96px]"
+          placeholder={'اكتب عنوان البحث مباشرة مثل: «التسويق الرقمي»\nأو ألصق هنا خطة البحث كاملة (المبحث الأول، المطلب الأول... أو 1، 2...) ليُبنى البحث وفقها حرفياً.'}
+          className="min-h-[112px]"
         />
         <div className="-mt-1 flex flex-wrap gap-1.5">
           <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">أمثلة سريعة:</span>
@@ -231,26 +233,34 @@ function AiModeFields() {
           ))}
         </div>
 
+        <TopicAnalysisCard analysis={topicAnalysis} matlabCount={form.matlabCount} />
+
         <TextInput
           label="دراسة حالة حول شركة أو مؤسسة"
           aside={
-            <Badge tone={hasCaseStudy ? 'ok' : 'neutral'}>
+            <Badge tone={hasCaseStudy || topicAnalysis.caseStudyInPlanMabhath ? 'ok' : 'neutral'}>
               {caseSpec.source === 'explicit'
                 ? 'ستُضاف قبل الخاتمة'
                 : hasCaseStudy
-                  ? 'مكتشفة من العنوان'
-                  : 'اختياري'}
+                  ? topicAnalysis.hasCustomPlan
+                    ? 'مكتشفة تلقائياً'
+                    : 'مكتشفة من العنوان'
+                  : topicAnalysis.caseStudyInPlanMabhath
+                    ? 'مضمّنة في خطتك'
+                    : 'اختياري'}
             </Badge>
           }
           value={form.caseStudyCompany}
           onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
           placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
           hint={
-            caseSpec.source === 'title-named'
-              ? `تم رصد دراسة الحالة حول «${caseSpec.company}» تلقائياً (ستُضاف قبل الخاتمة ولن تظهر عبارة دراسة حالة في عنوان الغلاف).`
-              : caseSpec.source === 'title-inferred'
-                ? 'تم رصد طلب دراسة حالة من العنوان؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة قبل الخاتمة دون إظهار «دراسة حالة» في عنوان الغلاف، أو اكتب اسماً محدداً هنا.'
-                : 'تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث.'
+            topicAnalysis.caseStudyInPlanMabhath
+              ? 'أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ سيُكتب في موضعه دون تكرار قسم إضافي، أو اكتب اسماً محدداً هنا لإفراد قسم تطبيقي مستقل.'
+              : caseSpec.source === 'title-named'
+                ? `تم رصد دراسة الحالة حول «${caseSpec.company}» تلقائياً (ستُضاف قبل الخاتمة ولن تظهر عبارة دراسة حالة في عنوان الغلاف).`
+                : caseSpec.source === 'title-inferred'
+                  ? 'تم رصد طلب دراسة حالة تلقائياً؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة قبل الخاتمة دون إظهار «دراسة حالة» في عنوان الغلاف، أو اكتب اسماً محدداً هنا.'
+                  : 'تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث.'
           }
         />
 
@@ -278,14 +288,52 @@ function AiModeFields() {
         </SelectInput>
 
         <div className="grid grid-cols-2 gap-3">
-          <SelectInput label="عدد المباحث" value={form.mabhathCount} onChange={(e) => setForm({ mabhathCount: e.target.value })}>
-            <option value="1">مبحث واحد</option>
-            <option value="2">مبحثان (قياسي)</option>
-            <option value="3">3 مباحث</option>
+          <SelectInput
+            label="عدد المباحث"
+            aside={topicAnalysis.hasCustomPlan ? <Badge tone="ok">من خطتك ({topicAnalysis.customMabahith.length})</Badge> : undefined}
+            value={topicAnalysis.hasCustomPlan ? String(topicAnalysis.customMabahith.length) : form.mabhathCount}
+            onChange={(e) => setForm({ mabhathCount: e.target.value })}
+            disabled={topicAnalysis.hasCustomPlan}
+            className="disabled:opacity-75 dark:disabled:bg-white/[0.03] dark:disabled:text-zinc-400"
+          >
+            {topicAnalysis.hasCustomPlan ? (
+              <option value={String(topicAnalysis.customMabahith.length)}>
+                {topicAnalysis.customMabahith.length === 1
+                  ? 'مبحث واحد (من خطتك)'
+                  : topicAnalysis.customMabahith.length === 2
+                    ? 'مبحثان (من خطتك)'
+                    : `${topicAnalysis.customMabahith.length} مباحث (من خطتك)`}
+              </option>
+            ) : (
+              <>
+                <option value="1">مبحث واحد</option>
+                <option value="2">مبحثان (قياسي)</option>
+                <option value="3">3 مباحث</option>
+              </>
+            )}
           </SelectInput>
-          <SelectInput label="مطالب كل مبحث" value={form.matlabCount} onChange={(e) => setForm({ matlabCount: e.target.value })}>
-            <option value="2">مطلبان (قياسي)</option>
-            <option value="3">3 مطالب</option>
+          <SelectInput
+            label="مطالب كل مبحث"
+            aside={
+              topicAnalysis.hasCustomPlan && topicAnalysis.hasAllCustomMatalib ? (
+                <Badge tone="ok">من خطتك</Badge>
+              ) : topicAnalysis.hasCustomPlan ? (
+                <Badge tone="brand">للمباحث غير المفصّلة</Badge>
+              ) : undefined
+            }
+            value={topicAnalysis.hasCustomPlan && topicAnalysis.hasAllCustomMatalib ? 'custom' : form.matlabCount}
+            onChange={(e) => setForm({ matlabCount: e.target.value })}
+            disabled={topicAnalysis.hasCustomPlan && topicAnalysis.hasAllCustomMatalib}
+            className="disabled:opacity-75 dark:disabled:bg-white/[0.03] dark:disabled:text-zinc-400"
+          >
+            {topicAnalysis.hasCustomPlan && topicAnalysis.hasAllCustomMatalib ? (
+              <option value="custom">حسب خطتك المخصصة</option>
+            ) : (
+              <>
+                <option value="2">مطلبان (قياسي)</option>
+                <option value="3">3 مطالب</option>
+              </>
+            )}
           </SelectInput>
         </div>
 
@@ -294,7 +342,11 @@ function AiModeFields() {
         </Note>
 
         <Button variant="magic" size="lg" block loading={run.running} icon={<Wand2 className="size-4.5" />} onClick={generate}>
-          {run.running ? `جاري التوليد (${AI_LENGTHS[form.length].target}${hasCaseStudy ? ' + دراسة الحالة' : ''})...` : 'صياغة وتوليد وتنسيق البحث الأكاديمي'}
+          {run.running
+            ? `جاري التوليد (${topicAnalysis.hasCustomPlan ? `${topicAnalysis.customMabahith.length} مباحث` : AI_LENGTHS[form.length].target}${hasCaseStudy ? ' + دراسة الحالة' : ''})...`
+            : topicAnalysis.hasCustomPlan
+              ? 'صياغة وتوليد البحث وفق خطتك المخصصة'
+              : 'صياغة وتوليد وتنسيق البحث الأكاديمي'}
         </Button>
 
         {(run.running || run.stage === 'done') && <AiProgress />}

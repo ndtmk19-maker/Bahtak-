@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useDocument } from './DocumentContext';
 import { useUI } from './UIContext';
 import { parseRawText, ParseError } from '../lib/parser';
-import { AI_LENGTHS, generateResearch, resolveCaseStudySpec, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
+import { AI_LENGTHS, analyzeStudentTopic, generateResearch, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
@@ -125,6 +125,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
     const startedAt = Date.now();
     setRun((r) => ({ ...r, running: true, stage: 'plan', sections: [], words: 0, startedAt, duration: null }));
     try {
+      let resolvedPlanTitle = '';
       const finalText = await generateResearch({
         provider: form.provider,
         apiKey: effectiveKey,
@@ -135,6 +136,9 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         caseStudyCompany: form.caseStudyCompany.trim(),
         customUrl: form.customUrl,
         customModel: form.customModel,
+        onResolvedPlan: (resolvedPlan) => {
+          if (resolvedPlan?.title) resolvedPlanTitle = resolvedPlan.title;
+        },
         onSections: (sections) => setRun((r) => ({ ...r, sections })),
         onDraft: (text, words) => {
           setRawTextState(text);
@@ -146,13 +150,19 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const duration = Math.round((Date.now() - startedAt) / 100) / 10;
       setRun((r) => ({ ...r, running: false, stage: 'done', duration }));
       saveRawText(finalText);
-      const csSpec = resolveCaseStudySpec(exactUserTopic, form.caseStudyCompany);
-      const cleanCoverTitle = csSpec.coverTitle || exactUserTopic;
+      const analysis = analyzeStudentTopic(exactUserTopic, form.caseStudyCompany);
+      const cleanCoverTitle = resolvedPlanTitle || analysis.caseStudy.coverTitle || analysis.cleanedTopic || exactUserTopic;
       const count = parse({ silent: true, text: finalText, overrideTitle: cleanCoverTitle });
       if (count) {
-        const hasCs = csSpec.hasCaseStudy;
+        const hasCs = analysis.caseStudy.hasCaseStudy;
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
-          description: `${count} صفحة A4 منسقة (الهدف الأساسي: ${AI_LENGTHS[form.length].target}${hasCs ? ' + 1 إلى 3 صفحات لدراسة الحالة' : ''}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
+          description: `${count} صفحة A4 منسقة (${
+            analysis.hasCustomPlan
+              ? `وفق خطتك المحددة: ${analysis.customMabahith.length} مباحث${
+                  !analysis.hasIntroInPlan || !analysis.hasConclusionInPlan ? ' + المقدمة والخاتمة تلقائياً' : ''
+                }`
+              : `الهدف الأساسي: ${AI_LENGTHS[form.length].target}`
+          }${hasCs ? ' + 1 إلى 3 صفحات لدراسة الحالة' : ''}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
         });
       }
 

@@ -67,7 +67,7 @@ var LENGTH_CONFIGS = {
     }
 };
 
-var ORDINAL_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس'];
+var ORDINAL_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر'];
 
 function sanitizeFallbackTopic(topic) {
     return (topic || '').replace(/^["«'\s]+|["»'\s]+$/g, '').trim() || 'موضوع البحث';
@@ -516,9 +516,13 @@ export function fetchAiText(provider, apiKey, prompt, onChunk, options, customUr
 }
 
 // صياغة خطة بحث أكاديمي دقيقة وواقعية بعدد المباحث والمطالب الدقيق دون أي تكرار
-export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudyCompany, caseStudyRequested) {
+export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudyCompany, caseStudyRequested, customPlanOptions) {
     var exactTopic = (topic || '').trim();
-    var mCount = Math.max(1, parseInt(mabhathCount, 10) || 2);
+    var customMabahith = customPlanOptions && Array.isArray(customPlanOptions.customMabahith) && customPlanOptions.customMabahith.length > 0
+        ? customPlanOptions.customMabahith
+        : null;
+    var needInferredTitle = !!(customPlanOptions && customPlanOptions.needInferredTitle);
+    var mCount = customMabahith ? Math.max(1, Math.min(10, customMabahith.length)) : Math.max(1, parseInt(mabhathCount, 10) || 2);
     var tCount = Math.max(1, parseInt(matlabCount, 10) || 2);
     var cleanCompany = (caseStudyCompany || '').trim();
     var isCaseStudy = !!cleanCompany || !!caseStudyRequested;
@@ -532,24 +536,49 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
     ];
 
     var exampleMabahith = [];
-    for (var i = 0; i < mCount; i++) {
-        var ordMb = ORDINAL_LABELS[i] || String(i + 1);
-        var angleHint = mabhathAngles[i] || ('المحور التحليلي ' + ordMb + ' للموضوع');
-        var exampleMatalib = [];
-        for (var j = 0; j < tCount; j++) {
-            var ordMt = ORDINAL_LABELS[j] || String(j + 1);
-            exampleMatalib.push({
-                title: 'المطلب ' + ordMt + ': [عنوان فرعي جديد وفريد يخص المبحث ' + ordMb + ' فقط ولا يتكرر في غيره]'
+    if (customMabahith) {
+        for (var ci = 0; ci < mCount; ci++) {
+            var cm = customMabahith[ci];
+            var ordCm = ORDINAL_LABELS[ci] || String(ci + 1);
+            var existingMatalib = Array.isArray(cm.matalib) && cm.matalib.length > 0 ? cm.matalib : null;
+            var cmMatalib = [];
+            if (existingMatalib) {
+                for (var cj = 0; cj < existingMatalib.length; cj++) {
+                    cmMatalib.push({ title: existingMatalib[cj].title });
+                }
+            } else {
+                for (var fk = 0; fk < tCount; fk++) {
+                    var ordFk = ORDINAL_LABELS[fk] || String(fk + 1);
+                    cmMatalib.push({
+                        title: 'المطلب ' + ordFk + ': [عنوان فرعي مناسب وفريد يتبع "' + cm.title + '" دون تكرار]'
+                    });
+                }
+            }
+            exampleMabahith.push({
+                title: cm.title || ('المبحث ' + ordCm),
+                matalib: cmMatalib
             });
         }
-        exampleMabahith.push({
-            title: 'المبحث ' + ordMb + ': [' + angleHint + ']',
-            matalib: exampleMatalib
-        });
+    } else {
+        for (var i = 0; i < mCount; i++) {
+            var ordMb = ORDINAL_LABELS[i] || String(i + 1);
+            var angleHint = mabhathAngles[i] || ('المحور التحليلي ' + ordMb + ' للموضوع');
+            var exampleMatalib = [];
+            for (var j = 0; j < tCount; j++) {
+                var ordMt = ORDINAL_LABELS[j] || String(j + 1);
+                exampleMatalib.push({
+                    title: 'المطلب ' + ordMt + ': [عنوان فرعي جديد وفريد يخص المبحث ' + ordMb + ' فقط ولا يتكرر في غيره]'
+                });
+            }
+            exampleMabahith.push({
+                title: 'المبحث ' + ordMb + ': [' + angleHint + ']',
+                matalib: exampleMatalib
+            });
+        }
     }
 
     var schemaObj = {
-        title: exactTopic,
+        title: needInferredTitle ? 'صغ عنواناً أكاديمياً موجزاً ودقيقاً يعبّر عن محاور هذه الخطة دون كتابة كلمة بحث أو خطة' : exactTopic,
         problematic: 'صياغة إشكالية رئيسية واحدة فقط للبحث تكون جوهرية ومحكمة وتنتهي حتماً بعلامة استفهام (؟) كنص نثري متصل دون أي مطات أو نقاط ودون أي تساؤلات فرعية',
         hypotheses: ['الفرضية الأولى...', 'الفرضية الثانية...'],
         methodology: 'المنهج الوصفي التحليلي',
@@ -573,6 +602,23 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
         ? '\n4. تنبيه إلزامي: المباحث الـ ' + mCount + ' مخصصة حصراً للإطار النظري والتحليلي العام للموضوع؛ ممنوع تسمية أي مبحث بـ «دراسة حالة» داخل مصفوف mabahith، لأن دراسة الحالة ستُكتب في قسم مستقل تماماً بعد المباحث وقبل الخاتمة.' +
           (!cleanCompany ? ' واختر في حقل caseStudyCompany اسم مؤسسة حقيقية ملائمة لتطبيق هذا الموضوع.' : '')
         : '';
+
+    if (customMabahith) {
+        var totalMatalibCount = exampleMabahith.reduce(function(acc, mb) { return acc + (mb.matalib ? mb.matalib.length : 0); }, 0);
+        return 'أنت عميد أكاديمي ومحكم أبحاث ودراسات عليا. قدّم الطالب **خطة بحث محددة مسبقاً** ويريد توليد البحث بناءً عليها بالضبط دون تغيير عناوينها. أرجع كائن JSON صالحاً فقط دون أي شروحات أو كتل ماركداون.\n' +
+        (needInferredTitle
+            ? 'العنوان المبدئي المستخلص: «' + exactTopic + '» — لم يكتب الطالب عنواناً مستقلاً، لذا صغ في حقل title عنواناً أكاديمياً موجزاً ورصيناً يعبّر عن كامل محاور خطته (دون كلمة «بحث» أو «خطة» وبلا «دراسة حالة»).\n'
+            : 'العنوان الدقيق المطلوب للبحث (التزم بهذا العنوان حرفياً كما هو): «' + exactTopic + '»\n') +
+        'عدد المباحث المطلوبة من خطة الطالب: ' + mCount + ' مباحث (بإجمالي ' + totalMatalibCount + ' مطلباً).\n' +
+        'حجم البحث الأساسي للمباحث: ' + cfg.targetPages + casePlanNote + '\n\n' +
+        'قواعد صارمة لا يُسمح بمخالفتها:\n' +
+        '1. التزم حرفياً بجميع عناوين المباحث والمطالب المكتوبة مسبقاً في قالب schema أدناه دون حذف أو تغيير صياغة أو إعادة تسمية (ولا تقلق بشأن المقدمة والخاتمة والمراجع لأنها ستُصاغ تلقائياً في مراحل مستقلة قبل وبعد هذه المباحث).\n' +
+        '2. أي عنوان مبحث أو مطلب مرمّز بين قوسين [...] داخل الخطة فقط يجب استبداله بعنوان أكاديمي أصيل ومتميز ينسجم مع بقية الخطة دون تكرار.\n' +
+        '3. صغ إشكالية رئيسية واحدة رصينة وفرضيات ومنهجاً تتطابق تماماً مع محاور خطة الطالب المحددة.' +
+        (caseRule ? caseRule : '') + '\n\n' +
+        'يجب أن تُرجع كائن JSON صالح 100% حصراً بنفس البنية وعدد العناصر تماماً دون نصوص خارج الأقواس:\n' +
+        schemaPreview;
+    }
 
     return 'أنت عميد أكاديمي ومحكم أبحاث ودراسات عليا. المطلوب منك وضع خطة بحث أكاديمي دقيقة ومحكمة متناسقة مع موضوع البحث بصيغة JSON فقط دون أي شروحات إضافية أو كتل ماركداون.\n' +
     'العنوان الدقيق المطلوب للبحث (التزم بهذا العنوان حرفياً كما هو دون تغيير أي كلمة أو إعادة صياغة): «' + exactTopic + '»\n' +
@@ -599,9 +645,18 @@ export function buildIntroPrompt(plan, cfg, caseStudyCompany, caseStudyRequested
             ? 'ملاحظة سياقية: يختم هذا البحث مباحثه النظرية بدراسة حالة تطبيقية ميدانية مرتبطة بالموضوع، أشر بإيجاز في التمهيد إلى البعد التطبيقي مع الالتزام التام بأن تتوقف المقدمة عند الإشكالية الرئيسية الواحدة.\n'
             : '');
 
+    var axesSummary = (plan && Array.isArray(plan.mabahith) ? plan.mabahith : [])
+        .map(function(m) { return m && m.title ? m.title : ''; })
+        .filter(Boolean)
+        .join(' — ');
+    var axesNote = axesSummary
+        ? 'محاور البحث الأساسية (للتمهيد المفاهيمي المتناسق فقط دون سرد خطة البحث أو العناوين بعد الإشكالية): ' + axesSummary + '\n'
+        : '';
+
     return 'أنت بروفيسور وعالم أكاديمي خبير. اكتب مقدمة بحث علمي رصينة ومحكمة:\n' +
     'عنوان البحث: ' + plan.title + '\n' +
     'الإشكالية الرئيسية المحددة للبحث: ' + rawProb + '\n' +
+    axesNote +
     caseNote + '\n' +
     'معيار الطول والحجم المطلوب:\n' +
     '- الطول الإجمالي للمقدمة: حوالي ' + cfg.introWords + ' كلمة (' + cfg.introParagraphs + ').\n\n' +
