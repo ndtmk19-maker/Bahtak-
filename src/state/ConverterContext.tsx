@@ -146,9 +146,11 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const duration = Math.round((Date.now() - startedAt) / 100) / 10;
       setRun((r) => ({ ...r, running: false, stage: 'done', duration }));
       saveRawText(finalText);
-      const count = parse({ silent: true, text: finalText, overrideTitle: exactUserTopic });
+      const csSpec = resolveCaseStudySpec(exactUserTopic, form.caseStudyCompany);
+      const cleanCoverTitle = csSpec.coverTitle || exactUserTopic;
+      const count = parse({ silent: true, text: finalText, overrideTitle: cleanCoverTitle });
       if (count) {
-        const hasCs = resolveCaseStudySpec(exactUserTopic, form.caseStudyCompany).hasCaseStudy;
+        const hasCs = csSpec.hasCaseStudy;
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
           description: `${count} صفحة A4 منسقة (الهدف الأساسي: ${AI_LENGTHS[form.length].target}${hasCs ? ' + 1 إلى 3 صفحات لدراسة الحالة' : ''}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
         });
@@ -158,7 +160,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       try {
         trackEvent({
           event_type: 'generate',
-          topic: form.topic.trim(),
+          topic: cleanCoverTitle,
           pages_count: count || undefined,
           university: doc?.coverState?.universityName || undefined,
         });
