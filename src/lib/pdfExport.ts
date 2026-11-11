@@ -186,7 +186,7 @@ export async function exportDocumentPdf(
       title: doc.coverState.title || "بحث أكاديمي منسق",
       creator: "Bahtak — بحثك",
       subject: doc.coverState.workType || "بحث جامعي",
-      author: doc.coverState.studentsText?.split("\n")[0]?.trim() || "Bahtak",
+      author: doc.coverState.studentsText?.split("\n").map((s) => s.trim()).find(Boolean) || "Bahtak",
     });
 
     screenshotContext = await createContext(clones[0], {

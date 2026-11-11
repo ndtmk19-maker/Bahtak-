@@ -3,7 +3,8 @@ import { Building2, ImageUp, Landmark, Palette, ScrollText, Users, X } from 'luc
 import { PanelShell } from './PanelShell';
 import { Button } from '../ui/Button';
 import { ChoiceCards, Segmented, Switch } from '../ui/Controls';
-import { SelectInput, TextArea, TextInput } from '../ui/Form';
+import { SelectInput, TextInput } from '../ui/Form';
+import { StudentListField } from '../ui/StudentListField';
 import { Section, ToggleRow } from '../ui/Section';
 import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
@@ -149,7 +150,7 @@ export function CoverPanel() {
         </Section>
 
         <Section title="فريق العمل والإشراف" icon={<Users />}>
-          <TextArea label="إعداد الطلبة" hint="كل طالب في سطر مستقل." rows={3} value={cs.studentsText} onChange={(e) => updateCover({ studentsText: e.target.value })} placeholder="الطالب: الاسم واللقب..." />
+          <StudentListField value={cs.studentsText} onChange={(studentsText) => updateCover({ studentsText })} disabled={!cs.enabled} />
           <TextInput label="تحت إشراف الأستاذ(ة)" value={cs.supervisor} onChange={(e) => updateCover({ supervisor: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <TextInput label="الفوج / الفصيلة" value={cs.group} onChange={(e) => updateCover({ group: e.target.value })} />

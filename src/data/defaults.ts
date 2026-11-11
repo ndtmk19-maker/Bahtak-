@@ -1,6 +1,8 @@
 import type { DocumentState, ResearchPage } from '../types';
 
 export const PLACEHOLDER_TITLE = '[عنوان البحث هنا]';
+export const DEFAULT_STUDENTS_TEXT = '\n\n\n';
+export const LEGACY_STUDENTS_TEXT = 'الطالب(ة): الاسم واللقب\nالطالب(ة): الاسم واللقب';
 
 export const LINKS = {
   charihatek: 'https://charihatek.netlify.app/',
@@ -84,7 +86,7 @@ export function createDefaultDocument(): DocumentState {
       workType: 'بحث أكاديمي حول',
       title: PLACEHOLDER_TITLE,
       subtitle: '',
-      studentsText: 'الطالب(ة): الاسم واللقب\nالطالب(ة): الاسم واللقب',
+      studentsText: DEFAULT_STUDENTS_TEXT,
       supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
       group: 'الفوج: 01',
       academicYear: 'السنة الجامعية: 2025 / 2026',

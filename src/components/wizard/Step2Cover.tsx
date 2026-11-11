@@ -2,7 +2,8 @@ import { useRef } from 'react';
 import { ImageUp, Landmark, Palette, Users, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ChoiceCards, Segmented, Switch } from '../ui/Controls';
-import { SelectInput, TextArea, TextInput } from '../ui/Form';
+import { SelectInput, TextInput } from '../ui/Form';
+import { StudentListField } from '../ui/StudentListField';
 import { Section, ToggleRow } from '../ui/Section';
 import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
@@ -55,7 +56,7 @@ export function Step2Cover() {
       <div className={`flex flex-col gap-3.5 transition-opacity ${cs.enabled ? '' : 'pointer-events-none opacity-45'}`} aria-disabled={!cs.enabled}>
         {/* 1. فريق العمل والإشراف — يظهر أولاً في الأعلى */}
         <Section title="فريق العمل والإشراف" icon={<Users />} description="سجّل أسماء الطلبة المشاركين والأستاذ المشرف وبيانات الفوج.">
-          <TextArea label="إعداد الطلبة" hint="كل طالب في سطر مستقل." rows={3} value={cs.studentsText} onChange={(e) => updateCover({ studentsText: e.target.value })} placeholder="الطالب: الاسم واللقب..." />
+          <StudentListField value={cs.studentsText} onChange={(studentsText) => updateCover({ studentsText })} disabled={!cs.enabled} />
           <TextInput label="تحت إشراف الأستاذ(ة)" value={cs.supervisor} placeholder="اسم ولقب الأستاذ المشرف..." onChange={(e) => updateCover({ supervisor: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <TextInput label="الفوج / الفصيلة" value={cs.group} placeholder="مثال: الفوج 03" onChange={(e) => updateCover({ group: e.target.value })} />

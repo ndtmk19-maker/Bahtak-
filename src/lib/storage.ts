@@ -1,5 +1,5 @@
 import type { DocumentState } from '../types';
-import { createDefaultDocument } from '../data/defaults';
+import { createDefaultDocument, DEFAULT_STUDENTS_TEXT, LEGACY_STUDENTS_TEXT } from '../data/defaults';
 
 // نفس مفاتيح التخزين المستخدمة في النسخة الأصلية للحفاظ على التوافق
 const DOC_KEY = 'saved_baht_document';
@@ -37,10 +37,13 @@ export function loadSavedDocument(): DocumentState | null {
   try {
     const saved = JSON.parse(raw) as Partial<DocumentState>;
     const base = createDefaultDocument();
+    const rawStudents = saved.coverState?.studentsText;
+    const studentsText =
+      rawStudents == null || rawStudents === '' || rawStudents === LEGACY_STUDENTS_TEXT ? DEFAULT_STUDENTS_TEXT : rawStudents;
     return {
       ...base,
       ...saved,
-      coverState: { ...base.coverState, ...(saved.coverState || {}) },
+      coverState: { ...base.coverState, ...(saved.coverState || {}), studentsText },
       planState: { ...base.planState, ...(saved.planState || {}) },
       pages: Array.isArray(saved.pages) ? saved.pages : base.pages,
     };
