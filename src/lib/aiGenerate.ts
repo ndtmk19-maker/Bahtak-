@@ -775,14 +775,28 @@ function splitTopicIntoPlanLines(rawInput: string): string[] {
   const lines = normalizedNewlines.split('\n');
   const out: string[] = [];
 
-  const ordPat = '(?:الأول|الاول|الأولى|الاولى|الثاني|الثانى|الثانية|الثالث|الثالثة|الرابع|الرابعة|الخامس|الخامسة|السادس|السادسة|السابع|السابعة|الثامن|الثامنة|التاسع|التاسعة|العاشر|العاشرة|التمهيدي|تمهيدي|[\\d٠-٩]+)';
+  const ordDef =
+    'الأول|الاول|الأولى|الاولى|أول|اول|أولى|اولى|الثاني|الثانى|الثانية|ثان|ثاني|ثانية|الثالث|الثالثة|ثالث|ثالثة|الرابع|الرابعة|رابع|رابعة|الخامس|الخامسة|خامس|خامسة|السادس|السادسة|سادس|سادسة|السابع|السابعة|سابع|سابعة|الثامن|الثامنة|ثامن|ثامنة|التاسع|التاسعة|تاسع|تاسعة|العاشر|العاشرة|عاشر|عاشرة|الحادي\\s+عشر|الثاني\\s+عشر|التمهيدي|تمهيدي';
+  const ordPat = `(?:${ordDef}|\\(?\\s*[\\d٠-٩]+\\s*\\)?|[\\d٠-٩]+)`;
+
+  // حساب كثافة الكلمات الهيكلية الصريحة عبر كامل النص لاكتشاف الخطط المسطحة (بلا أسطر أو بلا نقطتين)
+  const globalStructMatches = normalizedNewlines.match(
+    new RegExp(`(?:^|[\\s،؛|/\\-–—])(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}(?=$|\\s|[:：\\-–—.\\(/])`, 'gi'),
+  );
+  const hasMultipleExplicitMarkersGlobally = (globalStructMatches?.length || 0) >= 2;
+
   const inlineExplicitRe = new RegExp(
-    `\\s+(?:[-–—]+\\s*)?(?=(?:(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}\\s*[:：\\-–—.]|(?:المقدمة|الخاتمة|قائمة\\s+(?:المصادر\\s+و)?المراجع)\\s*:))` +
-      `|\\s+[-–—،؛]+\\s*(?=(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}\\s+[^\\s])`,
+    `(?:\\s+|[،؛|/]+\\s*)(?:[-–—]+\\s*)?(?=(?:(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}\\s*[:：\\-–—.]|(?:المقدمة|الخاتمة|قائمة\\s+(?:المصادر\\s+و)?المراجع)\\s*:))` +
+      `|(?:\\s+|(?<=[،؛|/]))[-–—،؛|/]+\\s*(?=(?:ال)?(?:مبحث|مطلب|محور|فصل|باب)\\s+${ordPat}(?:\\s|[:：\\-–—.(/]|$))`,
+    'g',
+  );
+  // تفكيك حتى بدون نقطتين أو شرطة عندما يضم الإدخال 2+ علامات هيكلية واضحة مثل: "المبحث الأول ... المطلب الأول ... المطلب الثاني ..."
+  const inlineFlatMarkersRe = new RegExp(
+    `(?:\\s+|(?<=[،؛|/:]))(?=(?:ال)?(?:مبحث|مطلب|محور)\\s+${ordPat}(?:\\s|[:：\\-–—.(/]|$))`,
     'g',
   );
   const inlineIntroConcRe =
-    /\s*[-–—]+\s*(?=(?:المقدمة|مقدمة|الخاتمة|خاتمة|دراسة\s+حالة|قائمة\s+(?:المصادر\s+و)?المراجع)(?=$|\s|[-–—:]))/g;
+    /\s*[-–—،؛|/]+\s*(?=(?:(?:ال)?مقدمة|(?:ال)?خاتمة|دراسة\s+حالة|قائمة\s+(?:المصادر\s+و)?المراجع)(?=$|\s|[-–—:]))/g;
 
   for (const rawLine of lines) {
     let line = rawLine.trim();
@@ -790,23 +804,30 @@ function splitTopicIntoPlanLines(rawInput: string): string[] {
 
     // تفكيك الأسطر المدمجة التي تضم المباحث والمطالب في سطر واحد (دون المساس بالعناوين العادية)
     let split = line.replace(inlineExplicitRe, '\n');
+    const lineExplicitMatches = line.match(
+      new RegExp(`(?:^|[\\s،؛|/\\-–—:])(?:ال)?(?:مبحث|مطلب|محور)\\s+${ordPat}(?=$|\\s|[:：\\-–—.(/])`, 'gi'),
+    );
+    if (hasMultipleExplicitMarkersGlobally || (lineExplicitMatches?.length || 0) >= 2) {
+      split = split.replace(inlineFlatMarkersRe, '\n');
+    }
+
     const hasExplicitSectionKeyword = new RegExp(`(?:المبحث|مبحث|المطلب|مطلب|المحور|محور|الفصل|فصل)\\s+${ordPat}`, 'i').test(split);
     if (hasExplicitSectionKeyword) {
       split = split.replace(inlineIntroConcRe, '\n');
       split = split.replace(/\s*[-–—]*\s*(?=دراسة\s+حالة\s*:)/g, '\n');
     } else if (
-      /(?:^|[\s:：\-–—،])(?:1|١)\s*[.\-\)]\s*[\u0600-\u06FF]/.test(split) &&
-      /\s(?:2|٢)\s*[.\-\)]\s*[\u0600-\u06FF]/.test(split)
+      /(?:^|[\s:：\-–—،])(?:1|١)\s*[.\-\)/]\s*[\u0600-\u06FF]/.test(split) &&
+      /\s(?:2|٢)\s*[.\-\)/]\s*[\u0600-\u06FF]/.test(split)
     ) {
       // تفكيك ترقيم خطة في سطر واحد مثل: "الأمن السيبراني: 1. مفهوم الأمن 2. التهديدات 3. الحلول"
-      split = split.replace(/(?:\s+|(?<=[:：]))(?=(?:20|1\d|[1-9]|٢٠|١[٠-٩]|[١-٩])\s*[.\-\)]\s*[\u0600-\u06FF])/g, '\n');
+      split = split.replace(/(?:\s+|(?<=[:：]))(?=(?:20|1\d|[1-9]|٢٠|١[٠-٩]|[١-٩])\s*[.\-\)/]\s*[\u0600-\u06FF])/g, '\n');
     }
 
     const didInlineSplit = split !== line;
     for (const part of split.split('\n')) {
       const cleanedPart = (
         didInlineSplit
-          ? part.trim().replace(/[\s:：\-–—،]+$/, '')
+          ? part.trim().replace(/[\s:：\-–—،؛|/]+$/, '')
           : part.trim().replace(/\s+[-–—،]+$/, '')
       ).trim();
       if (cleanedPart) out.push(cleanedPart);
@@ -816,13 +837,16 @@ function splitTopicIntoPlanLines(rawInput: string): string[] {
   return out;
 }
 
+const LEADING_BULLET_PREFIX_RE = /^(?:(?:#+\s*|(?:[-*•+–—>▪▫●○◆◇❖✔‣◦⁃]|📌|📋|🔹|🔸|🔻|🔺|✅|▶️?|◀️?|➡️?|⬅️?)+)\s*)+/u;
+
 function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
   const rawTrim = (rawLine || '').replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ').trim();
   if (!rawTrim || /^[-=_*•\s]{2,}$/.test(rawTrim)) return { type: 'ignore' };
 
-  const hadBullet = /^[-*•+]\s+/.test(rawTrim);
+  const hadBullet = /^(?:[-*•+▪▫●○◆◇❖✔‣◦⁃]|📌|📋|🔹|🔸|🔻|🔺|✅|▶️?|◀️?|➡️?|⬅️?)\s*/u.test(rawTrim) &&
+    /^[-*•+▪▫●○◆◇❖✔‣◦⁃]|^(?:📌|📋|🔹|🔸|🔻|🔺|✅|▶️?|◀️?|➡️?|⬅️?)/u.test(rawTrim);
   const withoutMd = rawTrim
-    .replace(/^(?:#+\s*|[-*•+–—>\s]+)+/, '')
+    .replace(LEADING_BULLET_PREFIX_RE, '')
     .replace(/\*\*|__/g, '')
     .replace(/^\*+|\*+$/g, '')
     .replace(/\s+/g, ' ')
@@ -842,7 +866,7 @@ function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
   let explicitNorm = normDigit;
   let explicitBaseText = withoutMd;
   const leadingNumBeforeKeyword = normDigit.match(
-    /^(?:\(?\s*(?:\d+(?:\.\d+)*|[أابجدهوزحط])\s*[\.\-\)\]:/]+\s*|\[\s*\d+\s*\]\s*|(?:اولا|ثانيا|ثالثا|رابعا|خامسا|سادسا|سابعا|ثامنا|تاسعا|عاشرا)\s*[:：\-–—.]+\s*)((?:ال)?(?:مبحث|محور|فصل|باب|مطلب|فرع|مقدمه|خاتمه|قائمه|مصادر|مراجع|مدخل|خطه|دراسه\s+حاله).*)$/i,
+    /^(?:\(?\s*(?:\d+(?:\.\d+)*|[أابجدهوزحط])\s*[\.\-\)\]:/]+\s*|\[\s*\d+\s*\]\s*|(?:اولا|ثانيا|ثالثا|رابعا|خامسا|سادسا|سابعا|ثامنا|تاسعا|عاشرا)(?:\s*[:：\-–—.]+\s*|\s+(?=(?:ال)?(?:مبحث|محور|مطلب))))((?:ال)?(?:مبحث|محور|فصل|باب|مطلب|فرع|مقدمه|خاتمه|قائمه|مصادر|مراجع|مدخل|خطه|دراسه\s+حاله).*)$/i,
   );
   if (leadingNumBeforeKeyword) {
     const startIdx = normDigit.length - leadingNumBeforeKeyword[1].length;
@@ -851,7 +875,7 @@ function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
   }
 
   const ordPatternNorm =
-    '(?:الاول|الاولي|الثاني|الثانيه|الثالث|الثالثه|الرابع|الرابعه|الخامس|الخامسه|السادس|السادسه|السابع|السابعه|الثامن|الثامنه|التاسع|التاسعه|العاشر|العاشره|الحادي\\s+عشر|الثاني\\s+عشر|التمهيدي|تمهيدي|النظري|نظري|التطبيقي|تطبيقي|المفاهيمي|مفاهيمي|العملي|عملي|الاخير|اخير|\\d+)';
+    '(?:الاول|الاولي|اول|اولي|الثاني|الثانيه|ثان|ثاني|ثانيه|الثالث|الثالثه|ثالث|ثالثه|الرابع|الرابعه|رابع|رابعه|الخامس|الخامسه|خامس|خامسه|السادس|السادسه|سادس|سادسه|السابع|السابعه|سابع|سابعه|الثامن|الثامنه|ثامن|ثامنه|التاسع|التاسعه|تاسع|تاسعه|العاشر|العاشره|عاشر|عاشره|الحادي\\s+عشر|الثاني\\s+عشر|التمهيدي|تمهيدي|النظري|نظري|التطبيقي|تطبيقي|المفاهيمي|مفاهيمي|العملي|عملي|الاخير|اخير|واحد|اثنان|اثنين|\\d+)';
 
   // 1. عناوين تمهيدية صرفة للخطة
   if (/^(?:خطه\s+(?:هذا\s+)?(?:ال)?(?:بحث|دراسه)|الخطه(?:\s+(?:المقترحه|التاليه|الاتيه|المرفقه))?|هيكل\s+البحث|فهرس\s+المحتويات|محتويات\s+البحث)(?:\s*[:：\-–—.*]*)?$/i.test(explicitNorm)) {
@@ -943,7 +967,7 @@ function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
     return { type: 'ordinal', subTitle: cleanOutlineSubTitle(sliceOrigFrom(startIdx)) };
   }
 
-  const topNumMatch = normDigit.match(/^(?:\(\s*(20|1\d|[1-9])\s*\)|(20|1\d|[1-9])\s*[:：\-–—.)]+)\s*(.+)$/);
+  const topNumMatch = normDigit.match(/^(?:\(\s*(20|1\d|[1-9])\s*\)|(20|1\d|[1-9])\s*[:：\-–—.)/]+)\s*(.+)$/);
   if (topNumMatch) {
     const restText = topNumMatch[3] || '';
     if (restText && !/^(?:صفح[هات]|سنه|عام|%|مليون|مليار)/i.test(normalizeIndicDigits(mapNormalizedToOriginal(restText).norm))) {
@@ -952,7 +976,7 @@ function classifyPlanLine(rawLine: string): ClassifiedPlanLine {
     }
   }
 
-  const alphaSubMatch = normDigit.match(/^(?:\(\s*[أابجدهوزحط]\s*\)|[أابجدهوزحط]\s*[:：\-–—.)/]+)\s+(.+)$/);
+  const alphaSubMatch = normDigit.match(/^(?:\(\s*[أابجدهوزحط]\s*\)|[أابجدهوزحط]\s*[:：\-–—.)/]+)\s*(.+)$/);
   if (alphaSubMatch) {
     const startIdx = normDigit.length - alphaSubMatch[1].length;
     return { type: 'alpha_sub', subTitle: cleanOutlineSubTitle(sliceOrigFrom(startIdx)) };
@@ -1051,6 +1075,26 @@ function extractPlanFromTopicInput(rawInput: string): ExtractedPlanResult {
     bareOrdinalCandidates.forEach((cand, idx) => {
       if (cand) classified[idx] = cand;
     });
+  }
+
+  // ترقية العناوين النصية الموجزة التي تسبق «المطلب الأول:» مباشرة (عند وجود سطر عنوان رئيسي يسبقها أو بين كتل المطالب)
+  const hasAnyExplicitMajor = classified.some((c) => c.type === 'major');
+  const firstMatlabIdx = classified.findIndex((c) => c.type === 'matlab_explicit');
+  if (!hasAnyExplicitMajor && firstMatlabIdx !== -1) {
+    for (let i = 1; i < classified.length - 1; i++) {
+      const cur = classified[i];
+      const next = classified[i + 1];
+      if (cur.type !== 'text' || next.type !== 'matlab_explicit') continue;
+      const cleanedHeading = cur.raw.replace(LEADING_BULLET_PREFIX_RE, '').trim();
+      const normHead = mapNormalizedToOriginal(cleanedHeading).norm;
+      if (
+        cleanedHeading.length >= 4 &&
+        cleanedHeading.length <= 100 &&
+        !/^(?:عنوان|موضوع|خطة\s+البحث|بحث\s+(?:بعنوان|حول|عن)|السلام|مرحبا|اكتب|كتابه|اريد|ممكن|هل\s+)/i.test(normHead)
+      ) {
+        classified[i] = { type: 'major', kind: 'mabhath', subTitle: cleanOutlineSubTitle(cleanedHeading) };
+      }
+    }
   }
 
   const isStructuralStart = (c: ClassifiedPlanLine) =>
@@ -1271,6 +1315,99 @@ function extractPlanFromTopicInput(rawInput: string): ExtractedPlanResult {
   };
 }
 
+const PLAN_LEAK_ORD_NORM =
+  '(?:الاول|الاولي|اول|اولي|الثاني|الثانيه|ثان|ثاني|ثانيه|الثالث|الثالثه|ثالث|ثالثه|الرابع|الرابعه|رابع|رابعه|الخامس|الخامسه|خامس|خامسه|السادس|السادسه|سادس|سادسه|السابع|السابعه|سابع|سابعه|الثامن|الثامنه|ثامن|ثامنه|التاسع|التاسعه|تاسع|تاسعه|العاشر|العاشره|عاشر|عاشره|التمهيدي|تمهيدي|\\(?\\s*\\d+\\s*\\)?)';
+
+const PLAN_LEAK_PRIMARY_RE = new RegExp(
+  `(?:^|[\\s:\\-–—،؛(/\\\\|])(?:ال)?(?:مبحث|مطلب|محور)\\s+${PLAN_LEAK_ORD_NORM}(?=$|\\s|[:：\\-–—.)/\\\\|])`,
+  'i',
+);
+
+const PLAN_LEAK_SECONDARY_RE = new RegExp(
+  `(?:^|[\\s:\\-–—،؛(/\\\\|])(?:(?:ال)?(?:فصل|باب)\\s+${PLAN_LEAK_ORD_NORM}\\s*[:：\\-–—]|(?:المقدمه|الخاتمه|قائمه\\s+(?:المصادر\\s+و)?المراجع)\\s*[:：\\-–—])|(?:^|\\s)(?:1|١)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF][\\s\\S]*\\s(?:2|٢)\\s*[.\\-\\)]\\s*[\\u0600-\\u06FF]`,
+  'i',
+);
+
+export function looksLikePlanLeak(titleCandidate: string): boolean {
+  const s = (titleCandidate || '').trim();
+  if (!s) return false;
+  const { norm } = mapNormalizedToOriginal(s);
+  const normDigit = normalizeIndicDigits(norm);
+  if (PLAN_LEAK_PRIMARY_RE.test(normDigit)) return true;
+  if (PLAN_LEAK_SECONDARY_RE.test(normDigit)) return true;
+  if (/\n/.test(s) && s.split('\n').filter((l) => l.trim()).length >= 3) {
+    const structLines = s
+      .split('\n')
+      .map((l) => classifyPlanLine(l))
+      .filter((c) => c.type !== 'text' && c.type !== 'ignore');
+    if (structLines.length >= 2) return true;
+  }
+  return false;
+}
+
+export function sanitizeCoverTitleFromPlanLeak(
+  rawTitle: string,
+  fallbackMabahith?: CustomPlanMabhath[],
+): { cleaned: string; hadLeak: boolean; extractedPrefix: boolean } {
+  const trimmed = (rawTitle || '').replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ').trim();
+  if (!trimmed) {
+    return { cleaned: '', hadLeak: false, extractedPrefix: false };
+  }
+
+  if (!looksLikePlanLeak(trimmed)) {
+    return { cleaned: trimmed, hadLeak: false, extractedPrefix: true };
+  }
+
+  // استخراج الجزء الواقع قبل بداية أول علامة خطة متسربة (مثل المبحث/المطلب/1.)
+  const singleLine = trimmed.replace(/\r\n?/g, '\n');
+  const rawLines = singleLine.split('\n').map((l) => l.trim()).filter(Boolean);
+  let leadingCandidate = '';
+
+  if (rawLines.length >= 2) {
+    const firstNonStructIdx = rawLines.findIndex((l) => {
+      const cls = classifyPlanLine(l);
+      return cls.type !== 'text' && cls.type !== 'ignore';
+    });
+    if (firstNonStructIdx > 0) {
+      leadingCandidate = rawLines.slice(0, firstNonStructIdx).join(' ').trim();
+    } else if (firstNonStructIdx === -1) {
+      leadingCandidate = rawLines[0];
+    }
+  } else {
+    leadingCandidate = trimmed;
+  }
+
+  if (leadingCandidate) {
+    const { norm, origStarts } = mapNormalizedToOriginal(leadingCandidate);
+    const normDigit = normalizeIndicDigits(norm);
+    let earliestNormIdx = -1;
+    for (const re of [PLAN_LEAK_PRIMARY_RE, PLAN_LEAK_SECONDARY_RE]) {
+      const m = normDigit.match(re);
+      if (m && typeof m.index === 'number') {
+        if (earliestNormIdx === -1 || m.index < earliestNormIdx) {
+          earliestNormIdx = m.index;
+        }
+      }
+    }
+    if (earliestNormIdx !== -1 && earliestNormIdx < origStarts.length) {
+      leadingCandidate = leadingCandidate.slice(0, origStarts[earliestNormIdx]).trim();
+    }
+  }
+
+  if (leadingCandidate) {
+    leadingCandidate = leadingCandidate.replace(/[\s:：\-–—،؛/|]+$/, '').trim();
+    leadingCandidate = stripTopicChatWrappers(leadingCandidate, { allowEmpty: true, planPreamble: true }).cleaned;
+    leadingCandidate = leadingCandidate.replace(/[\s:：\-–—،؛/|]+$/, '').trim();
+  }
+
+  if (leadingCandidate && leadingCandidate.length >= 3 && leadingCandidate.length <= 145 && !looksLikePlanLeak(leadingCandidate)) {
+    return { cleaned: leadingCandidate, hadLeak: true, extractedPrefix: true };
+  }
+
+  const derived = fallbackMabahith?.length ? deriveTitleFromCustomPlan(fallbackMabahith) : '';
+  return { cleaned: derived, hadLeak: true, extractedPrefix: false };
+}
+
 /**
  * التحليل الشامل والموحّد لمدخلات الطالب في خانة «موضوع أو عنوان البحث»:
  * ١. يكتشف إن لصق الطالب خطة بحث كاملة (بصيغ المباحث أو المحاور أو الترقيم أو القوائم).
@@ -1286,7 +1423,9 @@ export function analyzeStudentTopic(rawInput: string, explicitCaseStudyCompany?:
       .replace(/\s+/g, ' ')
       .trim();
     const wrapperRes = stripTopicChatWrappers(rawInput);
-    const caseStudy = resolveCaseStudySpec(rawInput, explicitCaseStudyCompany);
+    const leakRes = sanitizeCoverTitleFromPlanLeak(wrapperRes.cleaned || rawTrimmed);
+    const safeTopic = leakRes.hadLeak ? leakRes.cleaned || wrapperRes.cleaned : wrapperRes.cleaned || rawTrimmed;
+    const caseStudy = resolveCaseStudySpec(safeTopic || rawInput, explicitCaseStudyCompany);
     return {
       hasCustomPlan: false,
       customMabahith: [],
@@ -1294,9 +1433,9 @@ export function analyzeStudentTopic(rawInput: string, explicitCaseStudyCompany?:
       hasIntroInPlan: false,
       hasConclusionInPlan: false,
       caseStudyInPlanMabhath: false,
-      hasExplicitTitle: Boolean(rawTrimmed),
-      hadWrapperNoise: wrapperRes.stripped,
-      cleanedTopic: wrapperRes.cleaned || rawTrimmed,
+      hasExplicitTitle: Boolean(safeTopic),
+      hadWrapperNoise: wrapperRes.stripped || leakRes.hadLeak,
+      cleanedTopic: safeTopic,
       caseStudy,
     };
   }
@@ -1307,8 +1446,14 @@ export function analyzeStudentTopic(rawInput: string, explicitCaseStudyCompany?:
     planPreamble: true,
   });
 
-  // التحقق إن بقي عنوان صريح حقيقي بعد إزالة «أكتب لي بحث حول» و«خطة البحث:»
-  const rawRemainingTitle = preambleClean.cleaned.replace(/[\s:：\-–—،]+$/, '').trim();
+  // التحقق إن بقي عنوان صريح حقيقي خالٍ تماماً من أي بقايا مبحث/مطلب بعد التنظيف
+  const preSanitizedTitle = preambleClean.cleaned.replace(/[\s:：\-–—،]+$/, '').trim();
+  const titleLeakCheck = sanitizeCoverTitleFromPlanLeak(preSanitizedTitle, planRes.customMabahith);
+  const rawRemainingTitle = titleLeakCheck.hadLeak
+    ? titleLeakCheck.extractedPrefix
+      ? titleLeakCheck.cleaned
+      : ''
+    : preSanitizedTitle;
   const hasExplicitTitle = Boolean(rawRemainingTitle);
 
   const effectiveTitleSource = hasExplicitTitle
@@ -1494,10 +1639,12 @@ export function normalizeResearchPlan(
     allowInferredTitle?: boolean;
   },
 ): AiPlan {
-  const exactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
+  const rawExactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
+  const customMabahith = options?.customMabahith && options.customMabahith.length > 0 ? options.customMabahith : null;
+  const topicSanitized = sanitizeCoverTitleFromPlanLeak(rawExactTopic, customMabahith || undefined);
+  const exactTopic = topicSanitized.cleaned || 'دراسة أكاديمية وفق الخطة المحددة';
   const analysisTopic = (options?.coreTopic || exactTopic).trim() || exactTopic;
   const hasCaseStudy = !!options?.hasCaseStudy;
-  const customMabahith = options?.customMabahith && options.customMabahith.length > 0 ? options.customMabahith : null;
   const mCount = customMabahith
     ? Math.max(1, Math.min(10, customMabahith.length))
     : Math.max(1, Math.min(6, parseInt(String(mabhathCountRaw), 10) || 2));
@@ -1505,7 +1652,7 @@ export function normalizeResearchPlan(
   const fb = buildFallbackPlan(analysisTopic, mCount, defaultTCount, 'medium') as AiPlan;
 
   let finalTitle = exactTopic;
-  if (options?.allowInferredTitle && rawPlan?.title) {
+  if ((options?.allowInferredTitle || topicSanitized.hadLeak) && rawPlan?.title) {
     let candidate = stripTopicChatWrappers(rawPlan.title, { allowEmpty: true, planPreamble: true }).cleaned;
     if (hasCaseStudy && candidate) {
       candidate = extractCaseStudyFromTopic(candidate).coverTitle || candidate;
@@ -1513,7 +1660,9 @@ export function normalizeResearchPlan(
     const normCand = mapNormalizedToOriginal(candidate).norm;
     const isStructuralOrPlaceholder =
       !candidate ||
+      candidate.length > 140 ||
       candidate.startsWith('[') ||
+      looksLikePlanLeak(candidate) ||
       /^(?:ال)?(?:مبحث|مطلب|محور|فصل|خطه|عنوان|موضوع|صغ\s+عنوانا)/.test(normCand);
     if (!isStructuralOrPlaceholder) {
       finalTitle = candidate;
@@ -1876,11 +2025,17 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const withAddendum = (prompt: string) => (o.promptAddendum ? `${prompt}\n\n${o.promptAddendum}` : prompt);
   const exactUserTopic = o.topic.trim();
   const analysis = analyzeStudentTopic(exactUserTopic, o.caseStudyCompany);
-  const provisionalCoverTitle = analysis.caseStudy.coverTitle || analysis.cleanedTopic || exactUserTopic;
+  const customMabahith = analysis.hasCustomPlan && analysis.customMabahith.length > 0 ? analysis.customMabahith : undefined;
+  const rawCoverCandidate = analysis.caseStudy.coverTitle || analysis.cleanedTopic;
+  const provisionalCoverTitle =
+    rawCoverCandidate ||
+    sanitizeCoverTitleFromPlanLeak(exactUserTopic, customMabahith).cleaned ||
+    'بحث أكاديمي وفق الخطة المحددة';
   const hasCaseStudy = analysis.caseStudy.hasCaseStudy;
   let caseCompany = analysis.caseStudy.company;
-  const customMabahith = analysis.hasCustomPlan && analysis.customMabahith.length > 0 ? analysis.customMabahith : undefined;
-  const needInferredTitle = Boolean(customMabahith && !analysis.hasExplicitTitle);
+  const needInferredTitle = Boolean(
+    (customMabahith && !analysis.hasExplicitTitle) || (!rawCoverCandidate && looksLikePlanLeak(exactUserTopic)),
+  );
   const effectiveMabhathCount = customMabahith ? String(customMabahith.length) : o.mabhathCount;
 
   let sections: SectionProgress[] = [{ id: 'plan', label: 'خطة البحث', status: 'running', words: 0 }];
@@ -1940,9 +2095,8 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     allowInferredTitle: needInferredTitle,
   });
   if (o.normalizePlan) plan = o.normalizePlan(plan);
-  if (!plan.title || !plan.title.trim()) {
-    plan.title = provisionalCoverTitle;
-  }
+  const safePlanTitle = sanitizeCoverTitleFromPlanLeak(plan.title || '', customMabahith).cleaned;
+  plan.title = (safePlanTitle || provisionalCoverTitle).trim();
   const p = plan;
   o.onResolvedPlan?.(p);
 
