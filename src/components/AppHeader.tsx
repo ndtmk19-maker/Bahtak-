@@ -77,14 +77,25 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
       if (cs.enabled && cs.logoUrl && !cs.logoBase64) {
         d = { ...doc, coverState: { ...cs, logoBase64: await imageToDataUrl(cs.logoUrl) } };
       }
-      downloadWordDocument(d);
+      const res = await downloadWordDocument(d);
+      if (res.inAppBrowser) {
+        openIOSModal("inApp");
+        return;
+      }
+      if (!res.success) {
+        toast("حدث خطأ أثناء تصدير ملف Word", {
+          tone: "error",
+          description: res.error,
+        });
+        return;
+      }
       trackEvent({
         event_type: "export_word",
         topic: doc.coverState.title || undefined,
         university: doc.coverState.universityName || undefined,
       });
-      toast("تم تصدير ملف Word", {
-        description: "افتح الملف في Microsoft Word واحفظه بصيغة .docx إذا رغبت.",
+      toast("تم تصدير ملف Word (.docx)", {
+        description: "تم حفظ البحث بصيغة Word الرسمية (.docx) مع الشعارات والإطارات الكاملة.",
       });
       setTimeout(() => setFeedbackOpen(true), 1200);
     } catch (err) {
@@ -282,7 +293,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
               icon={<FileDown className="size-4" />}
               loading={exporting}
               onClick={exportWord}
-              title="تصدير البحث بصيغة Word (.doc)"
+              title="تصدير البحث بصيغة Word (.docx)"
               className="max-sm:px-3"
             >
               <span className="max-sm:hidden">Word</span>

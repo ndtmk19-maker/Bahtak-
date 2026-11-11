@@ -347,7 +347,7 @@ export function AdminDashboardModal() {
                   <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tabular-nums">
                     {stats?.totalWordExports ?? 0}
                   </div>
-                  <span className="text-[0.66rem] text-zinc-400">ملفات .doc محملة</span>
+                  <span className="text-[0.66rem] text-zinc-400">ملفات .docx محملة</span>
                 </div>
 
                 <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-4 text-center">

@@ -56,14 +56,25 @@ export function Step5Preview() {
       if (cs.enabled && cs.logoUrl && !cs.logoBase64) {
         d = { ...doc, coverState: { ...cs, logoBase64: await imageToDataUrl(cs.logoUrl) } };
       }
-      downloadWordDocument(d);
+      const res = await downloadWordDocument(d);
+      if (res.inAppBrowser) {
+        openIOSModal("inApp");
+        return;
+      }
+      if (!res.success) {
+        toast("حدث خطأ أثناء تصدير ملف Word", {
+          tone: "error",
+          description: res.error,
+        });
+        return;
+      }
       trackEvent({
         event_type: "export_word",
         topic: doc.coverState.title || undefined,
         pages_count: totalA4,
         university: doc.coverState.universityName || undefined,
       });
-      toast("تم تصدير ملف Word بنجاح", {
+      toast("تم تصدير ملف Word (.docx) بنجاح", {
         description: "افتح الملف في Microsoft Word أو Google Docs.",
       });
       setTimeout(() => setFeedbackOpen(true), 1200);
@@ -276,7 +287,7 @@ export function Step5Preview() {
             onClick={exportWord}
             className="w-full justify-center !rounded-2xl !py-3.5 !border-black/15 dark:!border-white/15 !bg-white/80 dark:!bg-zinc-800/80 !text-zinc-900 dark:!text-white hover:!border-black/30 dark:hover:!border-white/30"
           >
-            تصدير ملف Word (.doc)
+            تصدير ملف Word (.docx)
           </Button>
 
           <Button
