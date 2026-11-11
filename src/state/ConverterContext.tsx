@@ -147,7 +147,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const count = parse({ silent: true, text: finalText, overrideTitle: exactUserTopic });
       if (count) {
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
-          description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى خطوة المعاينة والتحميل...`,
+          description: `${count} صفحة A4 منسقة (النطاق المستهدف: ${AI_LENGTHS[form.length].target}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
         });
       }
 
@@ -163,9 +163,9 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         console.warn('Analytics tracking error:', trackErr);
       }
 
-      // الانتقال التلقائي للخطوة الثالثة: المعاينة والإنهاء
+      // الانتقال التلقائي إلى المحرر الكامل وورقة A4
       setTimeout(() => {
-        ui.setWizardStep(3);
+        ui.setViewMode('classic');
       }, 700);
     } catch (err) {
       setRun((r) => ({ ...r, running: false, stage: 'idle' }));

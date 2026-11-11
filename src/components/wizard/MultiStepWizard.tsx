@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  FileCheck,
   GraduationCap,
   LayoutGrid,
   Wand2,
@@ -13,7 +12,6 @@ import {
 import { Button } from '../ui/Button';
 import { Step1Input } from './Step1Input';
 import { Step2Cover } from './Step2Cover';
-import { Step5Preview } from './Step5Preview';
 import { useUI } from '../../state/UIContext';
 
 export interface WizardStepMeta {
@@ -41,23 +39,35 @@ export const WIZARD_STEPS: WizardStepMeta[] = [
   },
   {
     id: 3,
-    label: 'المعاينة والإنهاء',
-    title: 'المعاينة والإنهاء إلى المحرر الكامل',
-    desc: 'راجع ملخص البحث، صدّر ملف Word أو حمّل ملف PDF مباشرة، أو انتقل لورقة A4 والمحرر الكامل.',
-    icon: FileCheck,
+    label: 'المحرر الكامل وورقة A4',
+    title: 'المحرر الكامل ومعاينة ورقة A4',
+    desc: 'انتقل مباشرة إلى المحرر الكامل لتعديل الغلاف والخطة والصفحات والتنسيق مع معاينة ورقة A4 الحية والتحميل.',
+    icon: LayoutGrid,
   },
 ];
 
 export function MultiStepWizard() {
-  const { wizardStep, setWizardStep, setViewMode, setSection } = useUI();
+  const { wizardStep, setWizardStep, setViewMode, setSection, setMobileView } = useUI();
   const [direction, setDirection] = useState<1 | -1>(1);
 
-  const activeStep = Math.min(Math.max(wizardStep, 1), WIZARD_STEPS.length);
+  const activeStep = Math.min(Math.max(wizardStep, 1), 2);
   const currentIdx = activeStep - 1;
   const current = WIZARD_STEPS[currentIdx] || WIZARD_STEPS[0];
   const progressPercent = (activeStep / WIZARD_STEPS.length) * 100;
 
+  const openFullEditor = () => {
+    setViewMode('classic');
+    setSection('pages');
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      setMobileView('preview');
+    }
+  };
+
   const goToStep = (stepNumber: number) => {
+    if (stepNumber === 3) {
+      openFullEditor();
+      return;
+    }
     if (stepNumber === activeStep) return;
     setDirection(stepNumber > activeStep ? 1 : -1);
     setWizardStep(stepNumber);
@@ -71,13 +81,11 @@ export function MultiStepWizard() {
   };
 
   const handleNext = () => {
-    if (activeStep < WIZARD_STEPS.length) {
+    if (activeStep < 2) {
       setDirection(1);
       setWizardStep(activeStep + 1);
     } else {
-      // إتمام المعالج والانتقال للمحرر الكامل
-      setViewMode('classic');
-      setSection('content');
+      openFullEditor();
     }
   };
 
@@ -187,7 +195,6 @@ export function MultiStepWizard() {
           >
             {activeStep === 1 && <Step2Cover />}
             {activeStep === 2 && <Step1Input />}
-            {activeStep === 3 && <Step5Preview />}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -103,7 +103,7 @@ export function Step1Input() {
 
 function PasteModeFields() {
   const { rawText, setRawText, parse } = useConverter();
-  const { confirm, toast, setWizardStep } = useUI();
+  const { confirm, toast, setViewMode } = useUI();
   const resetApp = useResetApp();
   const words = rawText.trim() ? rawText.trim().split(/\s+/).length : 0;
 
@@ -168,7 +168,7 @@ function PasteModeFields() {
           icon={<Zap className="size-4.5" />}
           onClick={() => {
             const count = parse();
-            if (count) setWizardStep(3);
+            if (count) setViewMode('classic');
           }}
           disabled={!rawText.trim()}
         >
@@ -271,7 +271,7 @@ function AiModeFields() {
 
 function AiProgress() {
   const { run, rawText } = useConverter();
-  const { setWizardStep } = useUI();
+  const { setViewMode, setSection, setMobileView } = useUI();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!run.running) return;
@@ -339,9 +339,13 @@ function AiProgress() {
             size="md"
             block
             icon={<ArrowLeft className="size-4" />}
-            onClick={() => setWizardStep(3)}
+            onClick={() => {
+              setViewMode('classic');
+              setSection('pages');
+              if (window.matchMedia('(max-width: 1023px)').matches) setMobileView('preview');
+            }}
           >
-            الانتقال إلى الخطوة 3: المعاينة وتحميل البحث
+            الانتقال إلى المحرر الكامل وورقة A4
           </Button>
         </div>
       )}
