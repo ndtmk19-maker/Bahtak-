@@ -92,7 +92,404 @@ export interface AiPlan {
   questions?: string[];
   hypotheses?: string[];
   methodology?: string;
+  caseStudyCompany?: string;
   mabahith: { title: string; matalib?: { title: string }[] }[];
+}
+
+export interface ExtractedTopicCaseStudy {
+  /** هل احتوى العنوان طلب «دراسة حالة» */
+  hasKeyword: boolean;
+  /** اسم الشركة أو المؤسسة المستخرج من العنوان إن وُجد صراحة */
+  company: string;
+  /** موضوع البحث الأساسي بدون عبارة «دراسة حالة ...» */
+  coreTopic: string;
+}
+
+export interface CaseStudyResolution {
+  hasCaseStudy: boolean;
+  source: 'none' | 'explicit' | 'title-named' | 'title-inferred';
+  company: string;
+  coreTopic: string;
+}
+
+const METHODOLOGY_PREFIX_RE = /(?:^|[\s،,])(?:منهج|منهجية|منهجيه|أسلوب|اسلوب|طريقة|طريقه|تقنية|تقنيه|أداة|اداة|مفهوم|ماهية|ماهيه|استراتيجية|استراتيجيه|استخدام|تطبيق|أهمية|اهمية|دور)\s*$/;
+const CASE_QUALIFIERS_RE = /^(?:تطبيقية|تطبيقيه|ميدانية|ميدانيه|تحليلية|تحليليه|وصفية|وصفيه|استطلاعية|استطلاعيه|استكشافية|استكشافيه|تشخيصية|تشخيصيه|واقعية|واقعيه|عملية|عمليه|علمية|علميه|مقارنة|مقارنه|نموذجية|نموذجيه|شاملة|شامله|مختصرة|مختصره|مصغرة|مصغره)(?=$|\s|[:\-–—،,/|؛])/;
+const ENTITY_PREFIX_NOUNS = 'مؤسسة|مؤسسه|شركة|شركه|بنك|مصرف|مجمع|مصنع|مديرية|مديريه|مستشفى|مستشفي|بلدية|بلديه|ولاية|ولايه|دائرة|دائره|جامعة|جامعه|كلية|كليه|معهد|ديوان|وكالة|وكاله|هيئة|هيئه|مركز|صندوق|مطار|ميناء|مكتب|مخبر|فندق|مطبعة|مطبعه|متوسطة|متوسطه|ثانوية|ثانويه|ابتدائية|ابتدائيه|مدرسة|مدرسه|جمعية|جمعيه|منظمة|منظمه|تعاونية|تعاونيه|إدارة|ادارة|اداره|مصلحة|مصلحه|فرع|وحدة|وحده|قسم|خطوط|اتصالات|بريد|تأمين|تامين|قرض';
+const KNOWN_MAJOR_ENTITIES = 'سوناطراك|سونلغاز|نفطال|موبيليس|جازي|أوريدو|اوريدو|كوندور|صيدال|كوسيدار|سيفيتال|اتصالات|بريد';
+const NON_ENTITY_MANAGEMENT_SUBJECTS_RE = /^(?:إدارة|ادارة|اداره)\s+(?:ال)?(?:أجور|اجور|أعمال|اعمال|موارد|جودة|جوده|مخاطر|مشاريع|معرفة|معرفه|إنتاج|انتاج|أزمات|ازمات|تغيير|مخزون|تكاليف|ديون|سيولة|سيوله|عمليات|مبيعات|تسويق|سلسلة|علاقات|وقت|أداء|اداء|تطوير|استراتيجية|استراتيجيه|معارف)(?=$|\s|[:\-–—،,/|؛])/;
+
+const GENERIC_PLACEHOLDER_COMPANIES = new Set([
+  'شركه', 'مؤسسه', 'موسسه', 'بنك', 'مصرف', 'منظمه', 'اداره', 'هيئه', 'مشروع', 'متجر',
+  'مؤسسه اقتصاديه', 'موسسه اقتصاديه', 'مؤسسه اقتصاديه جزائريه', 'شركه اقتصاديه', 'شركه تجاريه',
+  'مؤسسه عموميه', 'مؤسسه عموميه اقتصاديه', 'اداره عموميه', 'بنك تجاري', 'مصرف اسلامي',
+  'شركه ما', 'مؤسسه ما', 'بنك ما', 'احدي المؤسسات', 'احدي الشركات', 'احد البنوك', 'احد المصارف',
+  'بعض الشركات', 'بعض المؤسسات', 'نموذج', 'نموذجيه', 'واقعيه', 'مثال', 'الموضوع', 'هذا الموضوع',
+  'دراسه حاله', 'الشركه', 'المؤسسه', 'البنك', 'المصنع', 'الاداره',
+  'ها', 'هم', 'هو', 'هي', 'ذلك', 'هذه', 'هذا',
+  'حولها', 'عليها', 'عنها', 'فيها', 'بها', 'لها', 'منها', 'اليها',
+  'حوله', 'عليه', 'عنه', 'فيه', 'به', 'له', 'منه', 'اليه',
+]);
+
+function stripDiacriticsWithIndexMap(input: string): { stripped: string; origStarts: number[] } {
+  let stripped = '';
+  const origStarts: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (/[\u064B-\u065F\u0670\u0640]/.test(ch)) continue;
+    stripped += ch;
+    origStarts.push(i);
+  }
+  return { stripped, origStarts };
+}
+
+function isGenericOrPronounEntity(candidate: string): boolean {
+  const norm = normalizeArabicComparable(candidate);
+  if (!norm || norm.length < 2) return true;
+  if (GENERIC_PLACEHOLDER_COMPANIES.has(norm)) return true;
+  if (/^(?:ل|ب|في|على|عن|حول|مع|من)(?:ها|هم|هما|ه)$/.test(norm)) return true;
+  if (/^(?:اسم|عنوان|مثال)\s+(?:الشركه|المؤسسه|شركه|مؤسسه)/.test(norm)) return true;
+  return false;
+}
+
+function balanceAndStripOuterEdges(raw: string): string {
+  let s = raw.trim();
+  const pairs: [string, string][] = [
+    ['(', ')'],
+    ['[', ']'],
+    ['«', '»'],
+    ['"', '"'],
+    ["'", "'"],
+  ];
+
+  // إزالة الأقواس المغلفة الكاملة مثل «(شركة سوناطراك)» مع الحفاظ على "(BEA)" غير المغلفة
+  let changed = true;
+  while (changed && s.length >= 2) {
+    changed = false;
+    for (const [open, close] of pairs) {
+      if (s.startsWith(open) && s.endsWith(close)) {
+        if (open === close) {
+          const inner = s.slice(1, -1);
+          if (!inner.includes(open)) {
+            s = inner.trim();
+            changed = true;
+            break;
+          }
+        } else {
+          let depth = 0;
+          let closesEntire = true;
+          for (let i = 0; i < s.length; i++) {
+            if (s[i] === open) depth++;
+            else if (s[i] === close) {
+              depth--;
+              if (depth === 0 && i < s.length - 1) {
+                closesEntire = false;
+                break;
+              }
+            }
+          }
+          if (closesEntire && depth === 0) {
+            s = s.slice(1, -1).trim();
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // إزالة أي قوس مغلق يتيم في الطرف دون أن يقابله قوس مفتوح داخل النص
+  for (const [open, close] of pairs) {
+    if (open === close) {
+      const count = s.split(open).length - 1;
+      if (count % 2 === 1) {
+        if (s.startsWith(open)) s = s.slice(1).trim();
+        else if (s.endsWith(close)) s = s.slice(0, -1).trim();
+      }
+    } else {
+      while (s.endsWith(close) && s.split(open).length < s.split(close).length) {
+        s = s.slice(0, -1).trim();
+      }
+      while (s.startsWith(open) && s.split(open).length > s.split(close).length) {
+        s = s.slice(1).trim();
+      }
+    }
+  }
+  return s;
+}
+
+function cleanExtractedCaseStudyEntity(rawCandidate: string): string {
+  let s = (rawCandidate || '').replace(/\s+/g, ' ').trim();
+  s = balanceAndStripOuterEdges(s);
+  s = s.replace(/^[\s:\-–—/،,|؛.]+|[\s:\-–—/،,|؛.]+$/g, '').trim();
+
+  // إزالة الصفات الملحقة بـ "حالة" وحروف الجر والربط في بداية اسم المؤسسة
+  for (let guard = 0; guard < 6; guard++) {
+    const prev = s;
+    s = s.replace(/^[\s:\-–—/،,|؛.]+/, '').trim();
+    s = s.replace(CASE_QUALIFIERS_RE, '').trim();
+    s = s.replace(/^[\s:\-–—/،,|؛.]+/, '').trim();
+    s = s.replace(/^(?:على\s+مستوى|في\s+إطار|في\s+اطار|من\s+خلال|الخاصة\s+بـ?\s*|الخاصه\s+بـ?\s*|المتعلقة\s+بـ?\s*|المتعلقه\s+بـ?\s*|خاص\s+بـ?\s*|بخصوص|بالنسبة\s+لـ?\s*|بالنسبه\s+لـ?\s*)(?=\s|$)/, '').trim();
+    s = s.replace(/^(?:حول|عن|على|في|لدى|عند|بين|مع|من)(?=\s|$)/, '').trim();
+    s = s.replace(/^(?:لـ+|بـ+)\s*/, '').trim();
+    if (s === prev) break;
+  }
+
+  // فك حروف الجر الملتصقة بالاسم المؤسسي: "بمؤسسة..." / "لشركة..." / "للشركة..." / "بالمستشفى..."
+  s = s.replace(
+    new RegExp(`^لل(?=(?:${ENTITY_PREFIX_NOUNS}|${KNOWN_MAJOR_ENTITIES})(?:\\s|$))`),
+    'ال',
+  );
+  s = s.replace(
+    new RegExp(`^بال(?=(?:${ENTITY_PREFIX_NOUNS})(?:\\s|$))`),
+    'ال',
+  );
+  s = s.replace(
+    new RegExp(`^(?:ب|ل)(?=(?:${ENTITY_PREFIX_NOUNS}|${KNOWN_MAJOR_ENTITIES})(?:\\s|$))`),
+    '',
+  );
+
+  // إزالة الفترات الزمنية الملحقة في نهاية التسمية فقط (مع بقاء التواريخ في عنوان الغلاف كما هي)
+  s = s.replace(/[\s،,]*(?:خلال\s+(?:ال)?فترة|للفترة|للسنوات|خلال\s+(?:ال)?سنوات|من\s+(?:سنة|عام)|خلال\s+(?:سنة|عام)|لسنة|لعام)(?=$|\s).*$/i, '').trim();
+  s = s.replace(/\s*\(\s*\d{4}\s*(?:[-–—/]|إلى)\s*\d{4}\s*\)\s*$/, '').trim();
+
+  s = balanceAndStripOuterEdges(s);
+  s = s.replace(/^[\s:\-–—/،,|؛.]+|[\s:\-–—/،,|؛.]+$/g, '').trim();
+
+  if (isGenericOrPronounEntity(s)) return '';
+  return s;
+}
+
+function cleanTopicCoreFragment(text: string): string {
+  return (text || '')
+    .replace(/[\s:\-–—/،,|؛]+$/g, '')
+    .replace(/\s+(?:مع|و)\s*$/g, '')
+    .replace(/^[\s:\-–—/،,|؛]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTrailingEntityFromBeforeTopic(beforeText: string): { core: string; entity: string } | null {
+  const prepRegex = new RegExp(
+    `^(.+?)\\s+(?:في|لدى|على\\s+مستوى|بـ?)\\s*((?:(?:${ENTITY_PREFIX_NOUNS})\\s+\\S.*|(?:الشركة|المؤسسة|البنك|القرض|الصندوق)\\s+(?:الوطنية|الوطني|الخارجي|الشعبي|الجزائرية|الجزائري)(?:$|\\s.*)|(?:${KNOWN_MAJOR_ENTITIES})(?:\\s+\\S.*)?))$`,
+  );
+  const attachedPrepRegex = new RegExp(
+    `^(.+?)\\s+(?:ب|ل)((?:${ENTITY_PREFIX_NOUNS})\\s+\\S.*|(?:${KNOWN_MAJOR_ENTITIES})(?:\\s+\\S.*)?)$`,
+  );
+
+  for (const re of [prepRegex, attachedPrepRegex]) {
+    const m = beforeText.match(re);
+    if (m && m[1] && m[2]) {
+      const candidate = cleanExtractedCaseStudyEntity(m[2]);
+      const core = cleanTopicCoreFragment(m[1]);
+      if (
+        candidate &&
+        core &&
+        !isGenericOrPronounEntity(candidate) &&
+        !NON_ENTITY_MANAGEMENT_SUBJECTS_RE.test(candidate)
+      ) {
+        return { core, entity: candidate };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * الكشف الذكي عن «دراسة حالة» داخل عنوان أو موضوع البحث الذي يكتبه الطالب،
+ * واستخراج اسم الشركة/المؤسسة وعنوان الموضوع الأساسي بدقة.
+ */
+export function extractCaseStudyFromTopic(topic: string): ExtractedTopicCaseStudy {
+  const normalized = (topic || '')
+    .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return { hasKeyword: false, company: '', coreTopic: '' };
+
+  const { stripped, origStarts } = stripDiacriticsWithIndexMap(normalized);
+  const triggerRe = /(?:^|[\s\-–—:(\[{\«"'،,/|؛])(و?\s*(?:دراسة\s+حال[ةه]|دراسة\s+الحال[ةه]))(?=$|[\s\-–—:)\]}\»"'،,/|؛.])/g;
+
+  const openToClose: Record<string, string> = { '(': ')', '[': ']', '«': '»', '"': '"', "'": "'" };
+
+  interface TriggerMatch {
+    rawStart: number;
+    rawEnd: number;
+    beforeTrimmed: string;
+    openDelim: string | null;
+    closeDelim: string | null;
+    openPos: number;
+  }
+
+  let chosen: TriggerMatch | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = triggerRe.exec(stripped)) !== null) {
+    const fullStart = m.index;
+    const matchedPhrase = m[1];
+    const phraseOffset = m[0].indexOf(matchedPhrase);
+    const trimmedLeadingWaw = matchedPhrase.replace(/^و\s+/, '').replace(/^و(?=دراسة)/, '');
+    const innerShift = matchedPhrase.length - trimmedLeadingWaw.length;
+
+    const strippedStart = fullStart + phraseOffset + innerShift;
+    const strippedEnd = fullStart + phraseOffset + matchedPhrase.length;
+
+    const rawStart = origStarts[strippedStart] ?? 0;
+    const rawEnd = strippedEnd < origStarts.length ? origStarts[strippedEnd] : normalized.length;
+
+    const strippedBefore = stripped.slice(0, strippedStart).replace(/[\s\-–—:(\[{\«"'،,/|؛]+$/, '');
+    const isDefinite = /^دراسة\s+الحال[ةه]$/.test(trimmedLeadingWaw.replace(/\s+/g, ' '));
+    const hasSepBefore = /[\-–—:(\[{\«"'،,/|؛]\s*$/.test(stripped.slice(0, strippedStart)) || /\s(?:مع|و)\s*$/.test(stripped.slice(0, strippedStart));
+
+    if (METHODOLOGY_PREFIX_RE.test(strippedBefore)) {
+      continue;
+    }
+    if (isDefinite && !hasSepBefore) {
+      // تفادي الجمل المنهجية مثل "أهمية دراسة الحالة في التشخيص"
+      const strippedAfterTest = stripped.slice(strippedEnd).trim();
+      if (!/^[:\-–—)\]}»"']/.test(strippedAfterTest)) {
+        continue;
+      }
+    }
+
+    // التحقق إن كانت عبارة «دراسة حالة» مفتوحة بقوس مثل "(دراسة حالة بنك الجزائر)"
+    const rawBeforeDirect = normalized.slice(0, rawStart).replace(/\s+$/, '');
+    const lastBeforeChar = rawBeforeDirect ? rawBeforeDirect[rawBeforeDirect.length - 1] : '';
+    const openDelim = openToClose[lastBeforeChar] ? lastBeforeChar : null;
+
+    chosen = {
+      rawStart,
+      rawEnd,
+      beforeTrimmed: openDelim ? rawBeforeDirect.slice(0, -1) : normalized.slice(0, rawStart),
+      openDelim,
+      closeDelim: openDelim ? openToClose[openDelim] : null,
+      openPos: openDelim ? rawBeforeDirect.length - 1 : rawStart,
+    };
+  }
+
+  if (!chosen) {
+    return { hasKeyword: false, company: '', coreTopic: normalized };
+  }
+
+  // الحالة 1: عبارة «دراسة حالة» في بداية العنوان
+  const beforeCleanTest = cleanTopicCoreFragment(chosen.beforeTrimmed);
+  if (!beforeCleanTest) {
+    const rawTail = normalized.slice(chosen.rawEnd).trim();
+    // حالة: "دراسة حالة مؤسسة سوناطراك حول إدارة الأجور"
+    const splitMidMatch = rawTail.match(/^[:\-–—\s]*(.+?)\s+(?:حول|عن|في\s+مجال|في\s+موضوع|بخصوص)\s+(.+)$/);
+    if (splitMidMatch) {
+      const candCompany = cleanExtractedCaseStudyEntity(splitMidMatch[1]);
+      const candTopic = cleanTopicCoreFragment(splitMidMatch[2]);
+      if (candCompany && candTopic) {
+        return { hasKeyword: true, company: candCompany, coreTopic: candTopic };
+      }
+    }
+    // حالة: "دراسة حالة: إدارة الأجور في شركة سوناطراك" أو "دراسة حالة شركة موبيليس"
+    const cleanTail = cleanExtractedCaseStudyEntity(rawTail);
+    const tailInBefore = extractTrailingEntityFromBeforeTopic(rawTail.replace(/^[\s:\-–—/|]+/, ''));
+    if (tailInBefore) {
+      return { hasKeyword: true, company: tailInBefore.entity, coreTopic: tailInBefore.core };
+    }
+    const startsWithEntity =
+      new RegExp(`^(?:ال)?(?:${ENTITY_PREFIX_NOUNS}|${KNOWN_MAJOR_ENTITIES})(?:\\s|$)`).test(cleanTail) &&
+      !NON_ENTITY_MANAGEMENT_SUBJECTS_RE.test(cleanTail);
+    if (startsWithEntity && cleanTail) {
+      return { hasKeyword: true, company: cleanTail, coreTopic: normalized };
+    }
+    return { hasKeyword: true, company: '', coreTopic: cleanTopicCoreFragment(rawTail) || normalized };
+  }
+
+  // الحالة 2: عبارة «دراسة حالة» بعد عنوان البحث (الحالة الشائعة لدى الطلبة)
+  let rawCaseBlock = normalized.slice(chosen.rawEnd);
+  let afterClose = '';
+
+  if (chosen.openDelim && chosen.closeDelim) {
+    const open = chosen.openDelim;
+    const close = chosen.closeDelim;
+    if (open === close) {
+      const idx = rawCaseBlock.indexOf(close);
+      if (idx !== -1) {
+        afterClose = rawCaseBlock.slice(idx + 1);
+        rawCaseBlock = rawCaseBlock.slice(0, idx);
+      }
+    } else {
+      let depth = 1;
+      for (let i = 0; i < rawCaseBlock.length; i++) {
+        if (rawCaseBlock[i] === open) depth++;
+        else if (rawCaseBlock[i] === close) {
+          depth--;
+          if (depth === 0) {
+            afterClose = rawCaseBlock.slice(i + 1);
+            rawCaseBlock = rawCaseBlock.slice(0, i);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  let company = cleanExtractedCaseStudyEntity(rawCaseBlock);
+  let coreTopic = cleanTopicCoreFragment(
+    afterClose.trim() && !/^(?:خلال|للفترة|لسنة|لعام)(?=$|\s)/.test(afterClose.trim())
+      ? `${beforeCleanTest} ${cleanTopicCoreFragment(afterClose)}`
+      : beforeCleanTest,
+  );
+
+  // إذا كتب الطالب "الموضوع في شركة سوناطراك (دراسة حالة)" ولم يضع اسماً بعد "دراسة حالة"
+  if (!company) {
+    const recovered = extractTrailingEntityFromBeforeTopic(coreTopic);
+    if (recovered) {
+      company = recovered.entity;
+      coreTopic = recovered.core;
+    }
+  }
+
+  return {
+    hasKeyword: true,
+    company,
+    coreTopic: coreTopic || normalized,
+  };
+}
+
+/**
+ * الدمج المعتمد بين الخانة المخصصة «دراسة حالة حول شركة أو مؤسسة» والكشف التلقائي من العنوان:
+ * الخانة المخصصة تأخذ الأولوية دائماً إن مُلئت، وإلا يُعتمد ما ورد في العنوان.
+ */
+export function resolveCaseStudySpec(topic: string, explicitCompany?: string): CaseStudyResolution {
+  const explicit = (explicitCompany || '').trim();
+  const extracted = extractCaseStudyFromTopic(topic);
+
+  if (explicit) {
+    return {
+      hasCaseStudy: true,
+      source: 'explicit',
+      company: explicit,
+      coreTopic: extracted.hasKeyword ? extracted.coreTopic : (topic || '').trim(),
+    };
+  }
+
+  if (extracted.hasKeyword) {
+    return {
+      hasCaseStudy: true,
+      source: extracted.company ? 'title-named' : 'title-inferred',
+      company: extracted.company,
+      coreTopic: extracted.coreTopic,
+    };
+  }
+
+  return {
+    hasCaseStudy: false,
+    source: 'none',
+    company: '',
+    coreTopic: (topic || '').trim(),
+  };
+}
+
+function cleanPlanSuggestedCompany(raw: string | undefined): string {
+  const s = (raw || '')
+    .replace(/^[\s"*«'\[]+|[\s"*»'\]]+$/g, '')
+    .replace(/^دراسة\s+حالة\s*[:\-–—]\s*/i, '')
+    .trim();
+  if (!s || /\[|\]|اسم\s+شركة|اسم\s+مؤسسة|مثال\s*:/i.test(s)) return '';
+  if (isGenericOrPronounEntity(s)) return '';
+  return s;
 }
 
 const ORDINAL_WORDS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس'];
@@ -243,40 +640,54 @@ export function normalizeResearchPlan(
   topic: string,
   mabhathCountRaw: string | number,
   matlabCountRaw: string | number,
+  options?: { coreTopic?: string; hasCaseStudy?: boolean },
 ): AiPlan {
   const exactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
+  const analysisTopic = (options?.coreTopic || exactTopic).trim() || exactTopic;
+  const hasCaseStudy = !!options?.hasCaseStudy;
   const mCount = Math.max(1, Math.min(6, parseInt(String(mabhathCountRaw), 10) || 2));
   const tCount = Math.max(1, Math.min(6, parseInt(String(matlabCountRaw), 10) || 2));
-  const fb = buildFallbackPlan(exactTopic, mCount, tCount, 'medium') as AiPlan;
+  const fb = buildFallbackPlan(analysisTopic, mCount, tCount, 'medium') as AiPlan;
 
   const usedMbTokens: string[][] = [];
   const usedMtTokens: string[][] = [];
   const normalizedMabahith: { title: string; matalib: { title: string }[] }[] = [];
+  const strayCaseStudyHeadingRe = /(?:^|[\s:\-–—«"(])دراسة\s+حال[ةه](?:$|[\s:\-–—»")])/i;
 
   for (let i = 0; i < mCount; i++) {
     const rawMb = rawPlan?.mabahith?.[i];
     const fbMbSub = stripStructuralPrefix(fb.mabahith[i]?.title || '', 'مبحث') || `المحور ${ORDINAL_WORDS[i] || i + 1}`;
     let mbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
-    if (!mbSub || mbSub.startsWith('[') || isTooSimilarHeading(mbSub, usedMbTokens, exactTopic)) {
+    if (
+      !mbSub ||
+      mbSub.startsWith('[') ||
+      (hasCaseStudy && strayCaseStudyHeadingRe.test(mbSub)) ||
+      isTooSimilarHeading(mbSub, usedMbTokens, analysisTopic)
+    ) {
       mbSub = fbMbSub;
     }
-    usedMbTokens.push(toComparisonTokens(mbSub, exactTopic));
+    usedMbTokens.push(toComparisonTokens(mbSub, analysisTopic));
 
     // جمع قائمة مرشحين احتياطيين متميزين لهذا المبحث (ثم من المباحث المجاورة عند الحاجة)
     const fallbackPool: string[] = [];
     for (let shift = 0; shift < 5; shift++) {
-      fallbackPool.push(...(getDistinctFallbackMatalib(exactTopic, i + shift, 6) as string[]));
+      fallbackPool.push(...(getDistinctFallbackMatalib(analysisTopic, i + shift, 6) as string[]));
     }
 
     const matalib: { title: string }[] = [];
     for (let j = 0; j < tCount; j++) {
       const rawMtTitle = rawMb?.matalib?.[j]?.title || '';
       let mtSub = stripStructuralPrefix(rawMtTitle, 'مطلب');
-      if (!mtSub || mtSub.startsWith('[') || isTooSimilarHeading(mtSub, usedMtTokens, exactTopic)) {
-        const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, exactTopic));
+      if (
+        !mtSub ||
+        mtSub.startsWith('[') ||
+        (hasCaseStudy && strayCaseStudyHeadingRe.test(mtSub)) ||
+        isTooSimilarHeading(mtSub, usedMtTokens, analysisTopic)
+      ) {
+        const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, analysisTopic));
         mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
       }
-      usedMtTokens.push(toComparisonTokens(mtSub, exactTopic));
+      usedMtTokens.push(toComparisonTokens(mtSub, analysisTopic));
       matalib.push({
         title: `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`,
       });
@@ -294,6 +705,7 @@ export function normalizeResearchPlan(
     questions: Array.isArray(rawPlan?.questions) ? rawPlan.questions : fb.questions,
     hypotheses: Array.isArray(rawPlan?.hypotheses) && rawPlan.hypotheses.length ? rawPlan.hypotheses : fb.hypotheses,
     methodology: rawPlan?.methodology?.trim() || fb.methodology,
+    caseStudyCompany: rawPlan?.caseStudyCompany,
     mabahith: normalizedMabahith,
   };
 }
@@ -469,10 +881,9 @@ function trimTrailingEmptyMatlabStub(text: string): string {
  * تنظيف نص «دراسة حالة» وتثبيت عنوانها الرئيسي بصيغة «دراسة حالة: [اسم المؤسسة]»
  * مع استبعاد أي تسمية كمبحث أو تسرب للخاتمة أو المراجع النهائية.
  */
-export function sanitizeCaseStudyOutput(rawText: string, company: string): string {
+export function sanitizeCaseStudyOutput(rawText: string, company?: string): string {
   const cleanCompany = (company || '').trim();
-  if (!cleanCompany) return cleanSection(rawText);
-  const canonicalHeader = `دراسة حالة: ${cleanCompany}`;
+  const explicitCanonicalHeader = cleanCompany ? `دراسة حالة: ${cleanCompany}` : '';
   const cleanedRaw = splitInlineStructuralHeadings(cleanSection(rawText).replace(/\r\n/g, '\n'));
   if (!cleanedRaw) return '';
 
@@ -507,7 +918,14 @@ export function sanitizeCaseStudyOutput(rawText: string, company: string): strin
 
     // ضمان تثبيت العنوان الأول بصيغة «دراسة حالة: ...» ومنع وصفه كمبحث
     if (!seenCaseHeader && (caseLineRe.test(stripped) || accidentalMabhathRe.test(stripped))) {
-      out.push(canonicalHeader);
+      if (explicitCanonicalHeader) {
+        out.push(explicitCanonicalHeader);
+      } else {
+        const cleanedLine = displayStripped
+          .replace(new RegExp(`^(?:ال)?مبحث\\s+${ARABIC_ORD_PATTERN}\\s*[:\\-–—\\.]*\\s*`, 'i'), '')
+          .trim();
+        out.push(caseLineRe.test(cleanedLine) ? cleanedLine : `دراسة حالة: ${cleanedLine || 'تطبيقية'}`);
+      }
       seenCaseHeader = true;
       continue;
     }
@@ -546,7 +964,8 @@ export function sanitizeCaseStudyOutput(rawText: string, company: string): strin
 
   let res = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   if (res && !seenCaseHeader) {
-    res = `${canonicalHeader}\n\n${res}`;
+    const fallbackHeader = explicitCanonicalHeader || 'دراسة حالة تطبيقية';
+    res = `${fallbackHeader}\n\n${res}`;
   }
   return res;
 }
@@ -558,8 +977,10 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const call = (prompt: string, onChunk: ((c: string, acc: string) => void) | null, opts: Record<string, unknown>) =>
     fetchAiText(o.provider, o.apiKey, prompt, onChunk, { ...opts, onModelSelect: o.onModel }, o.customUrl, o.customModel) as Promise<string>;
   const withAddendum = (prompt: string) => (o.promptAddendum ? `${prompt}\n\n${o.promptAddendum}` : prompt);
-  const caseCompany = (o.caseStudyCompany || '').trim();
-  const hasCaseStudy = caseCompany.length > 0;
+  const exactUserTopic = o.topic.trim();
+  const csSpec = resolveCaseStudySpec(exactUserTopic, o.caseStudyCompany);
+  const hasCaseStudy = csSpec.hasCaseStudy;
+  let caseCompany = csSpec.company;
 
   let sections: SectionProgress[] = [{ id: 'plan', label: 'خطة البحث', status: 'running', words: 0 }];
   const emit = () => o.onSections(sections.map((s) => ({ ...s })));
@@ -573,7 +994,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   // 1. توليد خطة البحث الحقيقية بصيغة JSON من النموذج
   let planRaw = '';
   try {
-    planRaw = await call(buildPlanPrompt(o.topic, o.mabhathCount, o.matlabCount, cfg, caseCompany), null, {
+    planRaw = await call(buildPlanPrompt(exactUserTopic, o.mabhathCount, o.matlabCount, cfg, caseCompany, hasCaseStudy), null, {
       temperature: 0.25,
       maxTokens: 2400,
     });
@@ -583,12 +1004,17 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   }
 
   let plan: AiPlan | null = parseAiPlanJson(planRaw);
-  const exactUserTopic = o.topic.trim();
-  if (!plan || !plan.mabahith?.length) {
-    plan = buildFallbackPlan(exactUserTopic, o.mabhathCount, o.matlabCount, o.length) as AiPlan;
+  if (hasCaseStudy && !caseCompany && plan?.caseStudyCompany) {
+    caseCompany = cleanPlanSuggestedCompany(plan.caseStudyCompany);
   }
-  // ضبط العدد الدقيق للمباحث والمطالب (مثل 3×3) ومنع أي تكرار في خطة المباحث
-  plan = normalizeResearchPlan(plan, exactUserTopic, o.mabhathCount, o.matlabCount);
+  if (!plan || !plan.mabahith?.length) {
+    plan = buildFallbackPlan(csSpec.coreTopic || exactUserTopic, o.mabhathCount, o.matlabCount, o.length) as AiPlan;
+  }
+  // ضبط العدد الدقيق للمباحث والمطالب (مثل 3×3) ومنع أي تكرار في خطة المباحث أو تداخلها مع دراسة الحالة
+  plan = normalizeResearchPlan(plan, exactUserTopic, o.mabhathCount, o.matlabCount, {
+    coreTopic: csSpec.coreTopic,
+    hasCaseStudy,
+  });
   if (o.normalizePlan) plan = o.normalizePlan(plan);
   plan.title = exactUserTopic;
   const p = plan;
@@ -622,7 +1048,8 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
     if (hasCaseStudy) {
-      draft += caseStudy ? caseStudy.trim() + '\n\n' : `دراسة حالة: ${caseCompany}\n(جاري تحرير دراسة الحالة بالتوازي...)\n\n`;
+      const pendingCaseHeader = caseCompany ? `دراسة حالة: ${caseCompany}` : 'دراسة حالة تطبيقية';
+      draft += caseStudy ? caseStudy.trim() + '\n\n' : `${pendingCaseHeader}\n(جاري تحرير دراسة الحالة بالتوازي...)\n\n`;
     }
     draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
     o.onDraft(draft, total);
@@ -670,7 +1097,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       throw err;
     },
   };
-  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany)), tIntro.onChunk, {
+  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany, hasCaseStudy)), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
@@ -683,7 +1110,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     try {
       const expectedMatalib = mb.matalib || [];
       const dynamicMaxTokens = Math.min(8192, Math.max(cfg.mabhathMaxTokens, expectedMatalib.length * 1400));
-      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg)), t.onChunk, {
+      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg, hasCaseStudy)), t.onChunk, {
         temperature: 0.35,
         maxTokens: dynamicMaxTokens,
       });
@@ -752,13 +1179,13 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     }
   });
 
-  // مهمة دراسة الحالة التطبيقية (تُنَفَّذ فقط عند إدخال اسم شركة/مؤسسة) وتوضع بعد المباحث وقبل الخاتمة
+  // مهمة دراسة الحالة التطبيقية (تُنَفَّذ عند إدخال اسم شركة/مؤسسة أو اكتشاف «دراسة حالة» في العنوان) وتوضع بعد المباحث وقبل الخاتمة
   const taskCaseStudy = hasCaseStudy
     ? (async () => {
         await waitMs(350 * (p.mabahith.length + 1));
         const tCs = track('casestudy', (v) => (caseStudy = v));
         try {
-          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg)), tCs.onChunk, {
+          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg, csSpec.coreTopic)), tCs.onChunk, {
             temperature: 0.35,
             maxTokens: 4096,
           });
@@ -774,7 +1201,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tConc = track('conclusion', (v) => (conclusion = v));
   const taskConc = (async () => {
     await waitMs(350 * (p.mabahith.length + (hasCaseStudy ? 2 : 1)));
-    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany)), tConc.onChunk, {
+    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany, hasCaseStudy)), tConc.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.conclusionMaxTokens,
     }).then(tConc.done, tConc.fail);

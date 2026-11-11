@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useDocument } from './DocumentContext';
 import { useUI } from './UIContext';
 import { parseRawText, ParseError } from '../lib/parser';
-import { AI_LENGTHS, generateResearch, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
+import { AI_LENGTHS, generateResearch, resolveCaseStudySpec, type AiLength, type AiProvider, type SectionProgress } from '../lib/aiGenerate';
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
@@ -148,7 +148,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       saveRawText(finalText);
       const count = parse({ silent: true, text: finalText, overrideTitle: exactUserTopic });
       if (count) {
-        const hasCs = !!form.caseStudyCompany.trim();
+        const hasCs = resolveCaseStudySpec(exactUserTopic, form.caseStudyCompany).hasCaseStudy;
         ui.toast(`اكتمل توليد البحث في ${duration} ثانية`, {
           description: `${count} صفحة A4 منسقة (الهدف الأساسي: ${AI_LENGTHS[form.length].target}${hasCs ? ' + 1 إلى 3 صفحات لدراسة الحالة' : ''}). جاري الانتقال إلى المحرر الكامل وورقة A4...`,
         });

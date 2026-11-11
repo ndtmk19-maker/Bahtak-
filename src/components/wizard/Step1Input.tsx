@@ -26,7 +26,7 @@ import { useConverter } from '../../state/ConverterContext';
 import { useUI } from '../../state/UIContext';
 import { useResetApp } from '../../state/useResetApp';
 import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from '../../data/defaults';
-import { AI_LENGTHS, AI_PROVIDERS, type AiLength, type AiProvider } from '../../lib/aiGenerate';
+import { AI_LENGTHS, AI_PROVIDERS, resolveCaseStudySpec, type AiLength, type AiProvider } from '../../lib/aiGenerate';
 import { hasSystemGeminiKey } from '../../lib/aiKeys';
 
 export function Step1Input() {
@@ -184,7 +184,8 @@ function PasteModeFields() {
 
 function AiModeFields() {
   const { form, setForm, run, generate } = useConverter();
-  const hasCaseStudy = !!form.caseStudyCompany.trim();
+  const caseSpec = resolveCaseStudySpec(form.topic, form.caseStudyCompany);
+  const hasCaseStudy = caseSpec.hasCaseStudy;
 
   return (
     <div className="flex animate-rise flex-col gap-3.5">
@@ -269,13 +270,23 @@ function AiModeFields() {
           label="دراسة حالة حول شركة أو مؤسسة"
           aside={
             <Badge tone={hasCaseStudy ? 'ok' : 'neutral'}>
-              {hasCaseStudy ? 'ستُضاف قبل الخاتمة' : 'اختياري'}
+              {caseSpec.source === 'explicit'
+                ? 'ستُضاف قبل الخاتمة'
+                : hasCaseStudy
+                  ? 'مكتشفة من العنوان'
+                  : 'اختياري'}
             </Badge>
           }
           value={form.caseStudyCompany}
           onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
           placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
-          hint="تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث."
+          hint={
+            caseSpec.source === 'title-named'
+              ? `تم رصد دراسة الحالة تلقائياً من العنوان حول «${caseSpec.company}» وستُضاف قبل الخاتمة (+1 إلى 3 صفحات إضافية). يمكنك تعديل الاسم هنا إذا رغبت.`
+              : caseSpec.source === 'title-inferred'
+                ? 'تم رصد عبارة «دراسة حالة» في العنوان؛ سيختار الذكاء الاصطناعي مؤسسة مناسبة تلقائياً (+1 إلى 3 صفحات إضافية)، أو اكتب اسم مؤسسة محددة هنا.'
+                : 'تُضاف بعد المباحث وقبل الخاتمة باسم «دراسة حالة» (+1 إلى 3 صفحات إضافية فوق الحجم المختار: تعريف موجز بالمؤسسة ثم تفصيل تطبيقي للموضوع) دون تغيير عدد المباحث.'
+          }
         />
 
         <Note icon={<CircleAlert />} tone="warn">
