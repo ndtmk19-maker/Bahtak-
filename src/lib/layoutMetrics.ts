@@ -70,7 +70,7 @@ export function resolvePageMetrics(opts: LayoutOptions = {}): PageMetrics {
     fontSizePt,
     lineHeight,
     fontFamily: opts.fontFamily || DEFAULT_LAYOUT.fontFamily,
-    majorSectionBreak: opts.majorSectionBreak ?? 'smart',
+    majorSectionBreak: opts.majorSectionBreak ?? 'always',
     columnWidthMm: twoColumns ? (frameW - COLUMN_GAP) / 2 : frameW,
     footerWidthMm: frameW,
     // في وضع العمودين تتضاعف السعة تقريباً مع فاقد بسيط لموازنة الأعمدة

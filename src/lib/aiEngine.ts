@@ -25,7 +25,7 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: '3 فقرات علمية مستفيضة لكل مطلب (110–150 كلمة للفقرة) مع مناقشة وتوثيق',
         minMatlabWords: 400,
         conclusionWords: 320,
-        maxRefs: 12,
+        maxRefs: 8,
         introMaxTokens: 2000,
         mabhathMaxTokens: 4200,
         conclusionMaxTokens: 1800
@@ -39,7 +39,7 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: '3 إلى 4 فقرات علمية مفصلة لكل مطلب (110–160 كلمة للفقرة) بدقة وأمثلة واقعية وتوثيق أكاديمي',
         minMatlabWords: 420,
         conclusionWords: 380,
-        maxRefs: 16,
+        maxRefs: 10,
         introMaxTokens: 2500,
         mabhathMaxTokens: 5800,
         conclusionMaxTokens: 2200
@@ -53,7 +53,7 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: '4 فقرات علمية موسعة لكل مطلب (120–170 كلمة للفقرة) مع مناقشة فكرية معمقة وهوامش وفيرة',
         minMatlabWords: 450,
         conclusionWords: 470,
-        maxRefs: 20,
+        maxRefs: 12,
         introMaxTokens: 3200,
         mabhathMaxTokens: 7200,
         conclusionMaxTokens: 2800
@@ -67,7 +67,7 @@ var LENGTH_CONFIGS = {
         matlabParagraphs: '4 إلى 5 فقرات تحليلية موسعة وتفريعات لكل مطلب (120–180 كلمة للفقرة) مع إحالات مرجعية مكثفة',
         minMatlabWords: 480,
         conclusionWords: 570,
-        maxRefs: 25,
+        maxRefs: 12,
         introMaxTokens: 4000,
         mabhathMaxTokens: 8192,
         conclusionMaxTokens: 3500
@@ -962,7 +962,7 @@ export function buildConclusionPrompt(plan, cfg, caseStudyCompany, caseStudyRequ
     caseStudyInfo + '\n' +
     'معيار الطول والحجم المطلوب:\n' +
     '- الطول الإجمالي للخاتمة: حوالي ' + cfg.conclusionWords + ' كلمة.\n' +
-    '- عدد المراجع الإجمالي: حوالي ' + cfg.maxRefs + ' مرجعاً أكاديمياً حقيقياً متنوعاً.\n\n' +
+    '- عدد المراجع الإجمالي: من 8 إلى ' + cfg.maxRefs + ' مراجع كحد أقصى (شرط أساسي حاسم: يجب ألا تتجاوز قائمة المراجع صفحة واحدة إطلاقاً، فاختر أهم وأدق المراجع الأكاديمية واكتفِ بهذا العدد لتتسع بالكامل في صفحة واحدة).\n\n' +
     'الشروط الصارمة في الصياغة:\n' +
     '1. ابدأ السطر الأول مباشرة بـ:\nالخـاتـمـــة:\n' +
     '2. اكتب في 3 إلى 4 فقرات: حوصلة النتائج المتوصل إليها، الاستنتاجات العلمية، ومجموعة توصيات عملية مقترحة، مع توثيق هوامش ^1 و ^2.\n' +

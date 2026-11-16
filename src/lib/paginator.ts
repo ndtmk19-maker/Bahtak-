@@ -86,8 +86,6 @@ const CHART_MAX_WIDTH = 150; // .doc-chart svg max-width
 
 /** أقل عدد أسطر مسموح في طرفي فقرة مجزأة (منع الأسطر اليتيمة والأرملة) */
 const MIN_SPLIT_LINES = 2;
-/** الصفحة التي امتلأت بأقل من هذه النسبة لا تُترك فارغة عند بدء مبحث أو خاتمة (سياسة smart) */
-const SPARSE_PAGE_RATIO = 0.6;
 /** أقل فراغ يستحق تأجيل جدول/شكل لملئه بالنص الموالي */
 const MIN_FLOAT_GAP_MM = 25;
 
@@ -395,36 +393,12 @@ export function paginateResearch(
     if (isMajor) {
       // العناصر المؤجلة تُوضع قبل الانتقال إلى قسم رئيسي جديد
       if (floats.length > 0) flushFloats();
-      const headMm =
-        (sec.mabhathTitle ? mabhathTitleMm(sec.mabhathTitle) : 0) + (sec.matlabTitle ? matlabTitleMm(sec.matlabTitle) : 0);
-      const fillRatio = (page.usedMm + page.footnoteMm) / M.bodyCapacityMm;
-      const canInline =
-        M.majorSectionBreak === 'smart' &&
-        sec.type !== 'intro' &&
-        sec.type !== 'references' &&
-        page.blocks.length > 0 &&
-        fillRatio < SPARSE_PAGE_RATIO &&
-        fits(headMm + 3 * bodyLine, []);
-
-      if (canInline) {
-        // متابعة القسم الجديد في الصفحة نفسها بدل ترك نصفها فارغاً
-        if (sec.mabhathTitle) {
-          commit(
-            { list: false, html: `<div class="doc-mabhath-title doc-mabhath-title--inline">${escapeHtml(sec.mabhathTitle)}</div>`, citations: [] },
-            mabhathTitleMm(sec.mabhathTitle) + 3,
-          );
-        }
-        if (sec.matlabTitle) {
-          commit({ list: false, html: `<div class="doc-matlab-title">${escapeHtml(sec.matlabTitle)}</div>`, citations: [] }, matlabTitleMm(sec.matlabTitle));
-        }
-        recordMajor(sec);
-      } else {
-        if (hasContent()) emitPage();
-        recordMajor(sec);
-        startPageTitles(sec);
-      }
+      // الأقسام الرئيسية (المقدمة، المباحث، الخاتمة، المراجع) تبدأ دائماً في صفحة جديدة
+      if (hasContent()) emitPage();
+      recordMajor(sec);
+      startPageTitles(sec);
     } else {
-      // مطلب يتبع المبحث الحالي: يكفي أن يتسع عنوانه مع ثلاثة أسطر من متنه
+      // مطلب يتبع المبحث الحالي: يكفي أن يتسع عنوانه مع ثلاثة أسطر من متنه، ويكمل في نفس الصفحة
       const headMm = matlabTitleMm(sec.matlabTitle);
       if (page.blocks.length > 0 && !fits(headMm + firstMin, [])) newPage();
       if (page.blocks.length === 0 && !page.matlab && !page.mabhath) {
@@ -434,6 +408,60 @@ export function paginateResearch(
         commit({ list: false, html: `<div class="doc-matlab-title">${escapeHtml(sec.matlabTitle)}</div>`, citations: [] }, headMm);
       }
       plan.push({ type: 'matlab', title: sec.matlabTitle, pageNum: pages.length + 1 });
+    }
+
+    if (sec.type === 'references') {
+      // قائمة المصادر والمراجع: صفحة واحدة فقط بشكل صارم، مع إسقاط أي مراجع إضافية لا تتسع فيها
+      let lastSubtitleIndex = -1;
+      let itemsUnderSubtitle = 0;
+
+      for (let idx = 0; idx < sec.items.length; idx++) {
+        const item = sec.items[idx];
+        if (item.type === 'subtitle') {
+          // إذا كان التصنيف السابق بلا مراجع، نحذفه لتفادي رأس تصنيف فارغ في أسفل الصفحة
+          if (lastSubtitleIndex !== -1 && itemsUnderSubtitle === 0 && page.blocks.length > 0) {
+            const popped = page.blocks.pop();
+            if (popped) {
+              page.usedMm = Math.max(0, page.usedMm - subtitleMm(sec.items[lastSubtitleIndex].cleanText));
+            }
+          }
+
+          const h = subtitleMm(item.cleanText);
+          // نشترط اتساع العنوان مع مرجع واحد على الأقل بعده (~14mm)
+          if (!fits(h + 14, [])) {
+            break;
+          }
+          commit({ list: false, html: `<div class="doc-subtitle">${item.rawText.replace(/^#+\s*/, '')}</div>`, citations: [] }, h);
+          lastSubtitleIndex = idx;
+          itemsUnderSubtitle = 0;
+        } else {
+          const formatted = deps.formatBullet(item.rawText);
+          const width = W - LIST_INDENT;
+          const lines = measure.countLines(formatted, width, M.fontSizePt);
+          const gap = lastIsList() ? LIST_ITEM_GAP : LIST_MARGINS;
+          const itemMm = lines * bodyLine + gap;
+
+          if (!fits(itemMm, [])) {
+            // الصفحة امتلأت: لا نفتح صفحة ثانية للمراجع وفق طلب المستخدم
+            break;
+          }
+
+          commit({ list: true, html: `<li class="doc-li">${formatted}</li>`, citations: [] }, itemMm);
+          itemsUnderSubtitle++;
+        }
+      }
+
+      // تنظيف نهائي لأي عنوان فرعي فارغ في الأسفل
+      if (lastSubtitleIndex !== -1 && itemsUnderSubtitle === 0 && page.blocks.length > 0) {
+        const lastBlock = page.blocks[page.blocks.length - 1];
+        if (lastBlock && !lastBlock.list) {
+          page.blocks.pop();
+          page.usedMm = Math.max(0, page.usedMm - subtitleMm(sec.items[lastSubtitleIndex].cleanText));
+        }
+      }
+
+      if (floats.length > 0) flushFloats();
+      continue;
     }
 
     sec.items.forEach((item, idx) => {
