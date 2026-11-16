@@ -136,7 +136,7 @@ export function paginateResearch(
     return maxLines * lineMm(tableFontPt, TABLE_LH) + (header ? 2.4 : 2) + PX;
   }
 
-  function tableMm(table: TableData, num: number, from: number, to: number, continued: boolean, withSource: boolean): number {
+  function tableMm(table: TableData, num: number, from: number, to: number, continued: boolean, withSource = false): number {
     let h = BLOCK_MARGINS + captionMm(tableLabel(num, table.caption, continued)) + tableRowMm(table, table.headers, true);
     for (let r = from; r < to; r++) h += tableRowMm(table, table.rows[r], false);
     return h + (withSource ? sourceMm(table.source) : 0);
@@ -317,7 +317,7 @@ export function paginateResearch(
     let guard = 0;
     while (from < table.rows.length && guard++ < 100) {
       const to = table.rows.length;
-      const fullMm = tableMm(table, num, from, to, continued, true);
+      const fullMm = tableMm(table, num, from, to, continued, false);
       const html = renderTableHtml(table, num, { rowStart: from, rowEnd: to, continued });
       const cits = citationsIn(html, item.citations);
       if (fits(fullMm, cits)) {

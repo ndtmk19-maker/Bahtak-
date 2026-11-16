@@ -276,7 +276,7 @@ export function renderTableHtml(table: TableData, num: number, opts: TableRender
     )
     .join('');
   const caption = formatInlineText(tableLabel(num, table.caption, opts.continued));
-  const showSource = opts.showSource ?? end >= table.rows.length;
+  const showSource = opts.showSource ?? false;
   const source =
     showSource && table.source
       ? `<div class="doc-source"><strong>المصدر:</strong> ${formatInlineText(table.source)}</div>`
@@ -332,12 +332,11 @@ export function parseTableHtml(html: string): { table: TableData; label: string;
   };
 }
 
-/** تحويل جدول إلى صيغة المحرر (Markdown) مع سطر العنوان والمصدر */
+/** تحويل جدول إلى صيغة المحرر (Markdown) مع سطر العنوان */
 export function tableToMarkdown(table: TableData, label: string): string {
   const row = (cells: string[]) => `| ${cells.map((c) => inlineHtmlToMarkdown(c).replace(/\|/g, '\\|')).join(' | ')} |`;
   const sep = `| ${table.aligns.map((a) => (a === 'center' ? ':---:' : a === 'end' ? '---:' : '---')).join(' | ')} |`;
   const lines = [label, row(table.headers), sep, ...table.rows.map(row)];
-  if (table.source) lines.push(`المصدر: ${table.source}`);
   return lines.join('\n');
 }
 

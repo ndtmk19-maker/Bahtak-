@@ -985,10 +985,8 @@ function buildContentSectionXml(
         .join('');
       const tblPr = `<w:tblPr><w:bidiVisual/><w:tblW w:w="${tableW}" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders><w:top ${border}/><w:left ${border}/><w:bottom ${border}/><w:right ${border}/><w:insideH ${border}/><w:insideV ${border}/></w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>`;
       const tbl = `<w:tbl>${tblPr}<w:tblGrid>${grid.map((g) => `<w:gridCol w:w="${g}"/>`).join('')}</w:tblGrid>${headerRow}${bodyRows}</w:tbl>`;
-      // فقرة بعد الجدول إلزامية في OpenXML لفصل الجداول المتتالية، وتحمل سطر المصدر إن وجد
-      const after = table.source
-        ? `<w:p><w:pPr><w:bidi/><w:spacing w:before="${mm(1.2)}" w:after="${mm(3)}" w:line="264" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun('المصدر: ', { font: mainFont, sizePt: Math.max(8.5, fontSize * 0.8), bold: true, color: '27272A' })}${cellRuns(table.source, false, Math.max(8.5, fontSize * 0.8))}</w:p>`
-        : `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="${mm(3)}" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
+      // فقرة بعد الجدول إلزامية في OpenXML لفصل الجداول المتتالية
+      const after = `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="${mm(3)}" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
       return caption + tbl + after;
     };
 
