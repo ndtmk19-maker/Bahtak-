@@ -1,10 +1,29 @@
-// @ts-nocheck
+// @ts-nocheck — مرحلة التحليل البنيوي موروثة من المشروع الأصلي بصيغة JavaScript؛
+// الأجزاء الجديدة (الجداول/الأشكال/التوزيع) مكتوبة بـ TypeScript صارم في docBlocks.ts و paginator.ts و layoutMetrics.ts.
 // محرك تحليل النص الخام وتقسيمه إلى صفحات A4 أكاديمية.
-// الخوارزمية منقولة كما هي من المشروع الأصلي (parseRawTextToDocument) مع فصلها عن واجهة DOM
-// لتصبح دالة نقية تُرجع النتيجة بدلاً من تعديل الحالة مباشرة.
-import { escapeHtml } from './escape';
+// المرحلة الأولى (analyzeResearchText) مستقلة عن صيغة الإخراج وتُستعمل أيضاً في العروض التقديمية،
+// والمرحلة الثانية (parseRawText) تفوّض التوزيع على الصفحات إلى paginator.ts.
 import { isStructuralTitleOnly, looksLikePlanLeak, sanitizeCoverTitleFromPlanLeak } from './aiGenerate';
 import type { ResearchPage } from '../types';
+import {
+    CHART_FENCE_START_RE,
+    CHART_MARKER_RE,
+    FIGURE_CAPTION_RE,
+    SOURCE_LINE_RE,
+    TABLE_CAPTION_RE,
+    chartSummary,
+    figureLabel,
+    formatInlineText,
+    isTableRowLine,
+    parseChartSpec,
+    parseMarkdownTable,
+    tableLabel,
+    tableSummary,
+    type ChartData,
+    type TableData,
+} from './docBlocks';
+import { paginateResearch } from './paginator';
+import type { LayoutOptions } from './layoutMetrics';
 
 export class ParseError extends Error {}
 
@@ -17,9 +36,21 @@ export interface ParseResult {
 // ===== المرحلة الأولى: التحليل البنيوي المستقل عن صيغة الإخراج =====
 // تُستعمل هذه المرحلة كما هي في نظام البحوث (صفحات A4 / Word / PDF) وفي نظام العروض التقديمية (PPTX).
 
-export type AnalyzedItemType = 'subtitle' | 'bullet' | 'paragraph' | 'matlab_header';
+export type AnalyzedItemType = 'subtitle' | 'bullet' | 'paragraph' | 'matlab_header' | 'table' | 'figure';
 export interface AnalyzedCitation { origNum: number; text: string; newPageNum?: number }
-export interface AnalyzedItem { type: AnalyzedItemType; rawText: string; cleanText: string; heightMm: number; citations: AnalyzedCitation[] }
+export interface AnalyzedItem {
+  type: AnalyzedItemType;
+  /** للنصوص: المتن مع وسوم الإحالة. للجداول والأشكال: ملخص نصي يُستعمل في العروض التقديمية */
+  rawText: string;
+  cleanText: string;
+  /** تقدير قديم محفوظ للتوافق فقط؛ التوزيع الفعلي يقيس الارتفاعات في paginator.ts */
+  heightMm: number;
+  citations: AnalyzedCitation[];
+  table?: TableData;
+  chart?: ChartData;
+  /** رقم الجدول أو الشكل التسلسلي في البحث كاملاً */
+  blockNumber?: number;
+}
 export type AnalyzedSectionType = 'intro' | 'matlab' | 'conclusion' | 'references';
 export interface AnalyzedSection {
   type: AnalyzedSectionType;
@@ -197,6 +228,137 @@ export function splitLongParagraph(text, maxChars = 750) {
     return chunks.length > 0 ? chunks : [text];
 }
 
+// ===== تجميع كتل الجداول والأشكال قبل كشف الهوامش وتفكيك القوائم =====
+interface TableEntry { kind: 'table'; lines: string[]; caption: string; source: string }
+interface ChartEntry { kind: 'chart'; chart: ChartData; caption: string; source: string }
+type BlockEntry = TableEntry | ChartEntry;
+
+function stripCaptionMarkdown(line: string): string {
+    return (line || '').trim().replace(/^#+\s*/, '').replace(/^[-*•]\s+/, '').trim();
+}
+
+/** قراءة مواصفات شكل بياني تبدأ عند السطر start (سطر واحد أو كتلة مسيجة أو وسم متعدد الأسطر) */
+function readChartBlock(lines: string[], start: number): { chart: ChartData | null; end: number } | null {
+    const first = lines[start].trim();
+    const single = CHART_MARKER_RE.exec(first);
+    if (single) return { chart: parseChartSpec(single[1]), end: start };
+
+    if (CHART_FENCE_START_RE.test(first)) {
+        let json = '';
+        for (let j = start + 1; j < lines.length && j < start + 60; j++) {
+            const l = lines[j].trim();
+            if (/^```\s*$/.test(l)) return { chart: parseChartSpec(json), end: j };
+            json += l;
+            // النموذج قد يحذف سياج الإغلاق: ننهي الكتلة عند اكتمال JSON صالح
+            const parsed = parseChartSpec(json);
+            if (parsed && /\}\s*$/.test(json)) {
+                const after = lines[j + 1] ? lines[j + 1].trim() : '';
+                return { chart: parsed, end: /^```\s*$/.test(after) ? j + 1 : j };
+            }
+        }
+        return null;
+    }
+
+    if (/^\[\[\s*(?:CHART|chart|شكل|رسم)\b/.test(first)) {
+        let buf = first;
+        for (let j = start + 1; j < lines.length && j < start + 60; j++) {
+            if (/\]\]\s*$/.test(buf)) break;
+            buf += lines[j].trim();
+            if (/\]\]\s*$/.test(buf)) {
+                const m = CHART_MARKER_RE.exec(buf);
+                return { chart: m ? parseChartSpec(m[1]) : null, end: j };
+            }
+        }
+    }
+    return null;
+}
+
+function groupBlockLines(lines: string[]): Array<string | BlockEntry> {
+    const out: Array<string | BlockEntry> = [];
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i].trim();
+
+        // أ) جدول Markdown: أسطر متتالية تبدأ وتنتهي بـ |
+        if (isTableRowLine(line)) {
+            const tLines: string[] = [];
+            while (i < lines.length && isTableRowLine(lines[i].trim())) {
+                tLines.push(lines[i].trim());
+                i++;
+            }
+            if (tLines.length < 2) {
+                out.push(...tLines);
+                continue;
+            }
+            let caption = '';
+            let source = '';
+            const prev = out[out.length - 1];
+            if (typeof prev === 'string') {
+                const cm = TABLE_CAPTION_RE.exec(stripCaptionMarkdown(prev));
+                if (cm) {
+                    caption = cm[3];
+                    out.pop();
+                }
+            }
+            // المصدر (وأحياناً العنوان) يرد بعد الجدول مباشرة
+            for (let look = 0; look < 2 && i < lines.length; look++) {
+                const nxt = stripCaptionMarkdown(lines[i]);
+                const sm = !source ? SOURCE_LINE_RE.exec(nxt) : null;
+                if (sm) { source = sm[1]; i++; continue; }
+                const cm = !caption ? TABLE_CAPTION_RE.exec(nxt) : null;
+                if (cm) { caption = cm[3]; i++; continue; }
+                break;
+            }
+            out.push({ kind: 'table', lines: tLines, caption, source });
+            continue;
+        }
+
+        // ب) شكل بياني: [[CHART {...}]] أو كتلة ```chart
+        if (CHART_MARKER_RE.test(line) || CHART_FENCE_START_RE.test(line) || /^\[\[\s*(?:CHART|chart|شكل|رسم)\b/.test(line)) {
+            const block = readChartBlock(lines, i);
+            if (block) {
+                i = block.end + 1;
+                if (!block.chart) continue; // مواصفات غير صالحة: تُحذف بدل طباعة JSON خام في الورقة
+                let caption = '';
+                let source = block.chart.source || '';
+                const prev = out[out.length - 1];
+                if (typeof prev === 'string') {
+                    const fm = FIGURE_CAPTION_RE.exec(stripCaptionMarkdown(prev));
+                    if (fm) { caption = fm[2]; out.pop(); }
+                }
+                for (let look = 0; look < 2 && i < lines.length; look++) {
+                    const nxt = stripCaptionMarkdown(lines[i]);
+                    const sm = !source ? SOURCE_LINE_RE.exec(nxt) : null;
+                    if (sm) { source = sm[1]; i++; continue; }
+                    const fm = !caption ? FIGURE_CAPTION_RE.exec(nxt) : null;
+                    if (fm) { caption = fm[2]; i++; continue; }
+                    break;
+                }
+                out.push({ kind: 'chart', chart: block.chart, caption, source });
+                continue;
+            }
+        }
+
+        out.push(lines[i]);
+        i++;
+    }
+    return out;
+}
+
+/** استخراج الإحالات من HTML عنصر غير نصي وربطها بنصوص الهوامش */
+function collectCitations(html: string, rawFootnotes: { num: number; text: string }[]) {
+    const seen = new Set<number>();
+    const citations = [];
+    for (const m of html.matchAll(/<sup>(\d+)<\/sup>/g)) {
+        const origNum = parseInt(m[1], 10);
+        if (seen.has(origNum)) continue;
+        seen.add(origNum);
+        const fnObj = rawFootnotes.find(f => f.num === origNum);
+        citations.push({ origNum, text: fnObj ? fnObj.text : '' });
+    }
+    return citations;
+}
+
 export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             const rawText = (rawInput || '').trim();
             if (!rawText) {
@@ -245,7 +407,9 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
             allCleanLines.forEach(line => {
                 const trimmed = line.trim();
-                if (/\|\s*(?:ص|صفحة)\s*\.?\s*\d*/i.test(trimmed)) {
+                // سطر خطة بصيغة «العنوان | ص 05» — مع استثناء صفوف جداول Markdown (تبدأ بـ |)
+                // حتى لا تُبتلع خلية تبدأ بحرف الصاد مثل «| صادرات» كسطر خطة
+                if (!trimmed.startsWith('|') && /\|\s*(?:ص|صفحة)\s*\.?\s*[\d٠-٩]*\s*$/i.test(trimmed)) {
                     planLinesWithPage.push(trimmed);
                 } else {
                     nonPlanLines.push(line);
@@ -524,13 +688,34 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             // تجهيز عناصر كل قسم (استخراج الإحالات وتحديد الارتفاعات التقريبية)
             const processedSections = [];
             let carryMabhathTitle = '';
+            // ترقيم تسلسلي موحد للجداول والأشكال عبر البحث كاملاً (بترتيب ورودها)
+            let tableCounter = 0;
+            let figureCounter = 0;
+
+            function buildBlockItem(entry: BlockEntry, rawFootnotes): AnalyzedItem | null {
+                if (entry.kind === 'table') {
+                    const table = parseMarkdownTable(entry.lines, entry.caption, entry.source);
+                    if (!table) return null;
+                    const n = ++tableCounter;
+                    const html = [formatInlineText(table.caption), formatInlineText(table.source), ...table.headers, ...table.rows.flat()].join(' ');
+                    return { type: 'table', rawText: tableSummary(table, n), cleanText: tableLabel(n, table.caption), heightMm: 0, citations: collectCitations(html, rawFootnotes), table, blockNumber: n };
+                }
+                const n = ++figureCounter;
+                const chart = { ...entry.chart, title: entry.caption || entry.chart.title, source: entry.source || entry.chart.source };
+                return { type: 'figure', rawText: chartSummary(chart, n), cleanText: figureLabel(n, chart.title), heightMm: 0, citations: collectCitations(formatInlineText(chart.source), rawFootnotes), chart, blockNumber: n };
+            }
+
             rawSections.forEach((sec) => {
                 const contentLines = [];
                 const rawFootnotes = [];
                 let inFootnotesBlock = false;
 
-                sec.lines.forEach(line => {
-                    const trimmed = line.trim();
+                groupBlockLines(sec.lines).forEach(entry => {
+                    if (typeof entry !== 'string') {
+                        contentLines.push(entry);
+                        return;
+                    }
+                    const trimmed = entry.trim();
                     const headingTrimmed = stripStructuralMarkdown(trimmed);
                     if (/^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i.test(headingTrimmed)) {
                         inFootnotesBlock = true;
@@ -577,6 +762,10 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 // تفكيك أي قوائم أو نقاط تعداد مدمجة في نفس السطر
                 const expandedContentLines = [];
                 contentLines.forEach(cl => {
+                    if (typeof cl !== 'string') {
+                        expandedContentLines.push(cl);
+                        return;
+                    }
                     const splitted = splitInlineList(cl);
                     splitted.forEach(sp => {
                         if (sp && sp.trim()) expandedContentLines.push(sp.trim());
@@ -585,7 +774,17 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
                 // تحويل أسطر المحتوى إلى عناصر هيكلية مع استخراج أرقام الإحالات وتحديد الارتفاع المتوقع
                 const items = [];
+                // نص السطر المجاور (الكتل غير النصية تُعامل كسطر فارغ في فحوص السياق)
+                const lineText = (i: number): string => {
+                    const v = expandedContentLines[i];
+                    return typeof v === 'string' ? v.trim() : '';
+                };
                 expandedContentLines.forEach((line, idx) => {
+                    if (typeof line !== 'string') {
+                        const blockItem = buildBlockItem(line, rawFootnotes);
+                        if (blockItem) items.push(blockItem);
+                        return;
+                    }
                     let processedLine = line;
                     if (sec.type !== 'references') {
                         processedLine = processedLine.replace(/\$?[\^](\d+)\$?/g, '<sup>$1</sup>');
@@ -600,7 +799,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     // فحص السياق السابق للقوائم
                     let inListContext = false;
                     if (idx > 0) {
-                        const prev = expandedContentLines[idx - 1].trim();
+                        const prev = lineText(idx - 1);
                         const prevItem = items[items.length - 1];
                         if (LIST_INTRO_REGEX.test(prev) || (prev.endsWith(':') && prev.length < 80)) {
                             inListContext = true;
@@ -615,13 +814,13 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     let hasSiblingListItems = false;
                     if (isOrd || isNum || isLet) {
                         if (idx > 0) {
-                            const prev = expandedContentLines[idx - 1].trim();
+                            const prev = lineText(idx - 1);
                             if (/^(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(prev) || /^\(?\d+[\.\-\)/:]\s+/.test(prev) || /^[-*•–—]\s+/.test(prev)) {
                                 hasSiblingListItems = true;
                             }
                         }
                         if (idx + 1 < expandedContentLines.length) {
-                            const next = expandedContentLines[idx + 1].trim();
+                            const next = lineText(idx + 1);
                             if (/^(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(next) || /^\(?\d+[\.\-\)/:]\s+/.test(next) || /^[-*•–—]\s+/.test(next)) {
                                 hasSiblingListItems = true;
                             }
@@ -634,7 +833,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                                        (/^(?:الفرع\s+(?:الأول|الثاني|الثالث|الرابع|الخامس))\s*[:\-]/i.test(processedLine)) ||
                                        (/^(?:أهمية\s+البحث|أهداف\s+البحث|إشكالية\s+البحث|فرضيات\s+البحث|منهجية\s+البحث|الأسئلة\s+الفرعية|أبرز\s+النتائج|التوصيات|التوصيات\s+والاقتراحات)\s*[:\-]?$/i.test(processedLine)) ||
                                        (sec.type === 'references' && /^(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|الكتب|المؤلفات|المجلات|الدوريات|الأطروحات|المعاجم|القوانين|المواقع)[\s:\-–—]/i.test(processedLine)) ||
-                                       (isOrd && !inListContext && !hasSiblingListItems && processedLine.length < 100 && (idx + 1 < expandedContentLines.length && !/^(?:#+\s*)?(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(expandedContentLines[idx + 1]))) ||
+                                       (isOrd && !inListContext && !hasSiblingListItems && processedLine.length < 100 && (idx + 1 < expandedContentLines.length && !/^(?:#+\s*)?(?:[-*•–—]\s*)?(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|سابعاً|سابعا|ثامناً|ثامنا|تاسعاً|تاسعا|عاشراً|عاشرا)\s*[:/\-–—.]/i.test(lineText(idx + 1)))) ||
                                        (processedLine.endsWith(':') && processedLine.length < 75 && !processedLine.includes('.') && !isOrd && !isNum && !isSym));
 
                     const isBullet = !isSubtitle && !isIntro && (isSym || isNum || isLet || (isOrd && (inListContext || hasSiblingListItems || processedLine.length < 250)) || (inListContext && processedLine.length < 350 && !processedLine.endsWith(':')));
@@ -691,211 +890,21 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 }
 
 // ===== المرحلة الثانية: التوزيع على صفحات A4 (خاص بإخراج البحث) =====
-export function parseRawText(rawInput: string): ParseResult {
-            const { detectedTitle, extractedPlan, sections: processedSections } = analyzeResearchText(rawInput);
+// القواعد الأكاديمية المعتمدة (التفاصيل في paginator.ts):
+// 1. المقدمة والمراجع تبدأ دائماً بصفحة جديدة؛ المبحث والخاتمة كذلك إلا إذا كانت الصفحة الحالية شبه فارغة.
+// 2. المطلب التالي يواصل في الصفحة نفسها متى اتسع عنوانه مع ثلاثة أسطر من متنه.
+// 3. الفقرات والنقاط الطويلة تُجزأ لملء الصفحة، والجداول الطويلة تُقسم مع تكرار رأسها.
+export function parseRawText(rawInput: string, options?: LayoutOptions): ParseResult {
+            const analysis = analyzeResearchText(rawInput);
+            const { pages, planText } = paginateResearch(analysis, options, { formatBullet: formatBulletContent });
 
-            // خوارزمية التوزيع على الصفحات وفق القواعد الأكاديمية:
-            // 1. الانتقال إلى مبحث جديد (أو مقدمة أو خاتمة أو مراجع) يستلزم الانتقال لصفحة جديدة دائماً!
-            // 2. الانتقال من مطلب إلى مطلب آخر داخل نفس المبحث لا يستلزم صفحة جديدة بل يواصل في نفس الصفحة إذا كان هناك متسع.
-            const MAX_PAGE_HEIGHT_MM = 230; // الحد الأقصى الآمن للارتفاع بالمليمتر داخل إطار الصفحة
-            const parsedPages = [];
-            const recordedPlan = [];
-
-            let curPageItems = [];
-            let curPageMabhath = '';
-            let curPageMatlab = '';
-            let curHeight = 0;
-
-            function getHeaderHeight(mabhath, matlab) {
-                let h = 0;
-                if (mabhath) h += 17;
-                if (matlab) h += 14;
-                return h;
-            }
-
-            function emitCurrentPage() {
-                if (curPageItems.length === 0) return;
-
-                // ربط الهوامش بالصفحة وإعادة ترقيمها محلياً من 1، 2، 3... لكل صفحة بدقة متناهية
-                const pageFootnotes = [];
-
-                curPageItems.forEach(it => {
-                    if (it.citations && it.citations.length > 0) {
-                        it.citations.forEach(c => {
-                            if (c.text) {
-                                let existingIndex = pageFootnotes.indexOf(c.text);
-                                if (existingIndex === -1) {
-                                    pageFootnotes.push(c.text);
-                                    c.newPageNum = pageFootnotes.length;
-                                } else {
-                                    c.newPageNum = existingIndex + 1;
-                                }
-                            }
-                        });
-                    }
-                });
-
-                // توليد محتوى HTML مع أرقام الإحالات المعاد ضبطها للصفحة وتجميع عناصر القوائم داخل <ul>
-                let contentHtml = '';
-                let inList = false;
-
-                curPageItems.forEach(it => {
-                    let text = it.rawText || '';
-                    if (it.citations && it.citations.length > 0) {
-                        it.citations.forEach(c => {
-                            if (c.newPageNum) {
-                                text = text.replace(new RegExp(`<sup>${c.origNum}</sup>`, 'g'), `<sup>${c.newPageNum}</sup>`);
-                            }
-                        });
-                    }
-
-                    if (it.type === 'bullet') {
-                        if (!inList) {
-                            contentHtml += `<ul class="doc-ul">`;
-                            inList = true;
-                        }
-                        const bulletFormatted = formatBulletContent(text);
-                        contentHtml += `<li class="doc-li">${bulletFormatted}</li>`;
-                    } else {
-                        if (inList) {
-                            contentHtml += `</ul>`;
-                            inList = false;
-                        }
-
-                        if (it.type === 'matlab_header') {
-                            contentHtml += `<div class="doc-matlab-title">${escapeHtml(it.cleanText)}</div>`;
-                        } else if (it.type === 'subtitle') {
-                            contentHtml += `<div class="doc-subtitle">${text.replace(/^#+\s*/, '')}</div>`;
-                        } else {
-                            contentHtml += `<p class="doc-paragraph">${text}</p>`;
-                        }
-                    }
-                });
-
-                if (inList) {
-                    contentHtml += `</ul>`;
-                    inList = false;
-                }
-
-                parsedPages.push({
-                    mabhathTitle: curPageMabhath,
-                    matlabTitle: curPageMatlab,
-                    content: contentHtml,
-                    footnotes: pageFootnotes
-                });
-
-                curPageItems = [];
-                curPageMabhath = '';
-                curPageMatlab = '';
-                curHeight = 0;
-            }
-
-            processedSections.forEach(sec => {
-                // فحص هل يجب فتح صفحة جديدة إجبارياً:
-                // (المقدمة، الخاتمة، المراجع، أو بداية مبحث جديد بحيث sec.mabhathTitle غير فارغ)
-                const isNewMajorSection = sec.type === 'intro' || sec.type === 'conclusion' || sec.type === 'references' || (sec.mabhathTitle && sec.mabhathTitle.trim() !== '');
-
-                if (isNewMajorSection) {
-                    if (curPageItems.length > 0) {
-                        emitCurrentPage();
-                    }
-                    curPageMabhath = sec.mabhathTitle;
-                    curPageMatlab = sec.matlabTitle;
-                    curHeight = getHeaderHeight(curPageMabhath, curPageMatlab);
-
-                    const curPageNum = parsedPages.length + 1;
-                    if (sec.type === 'intro') {
-                        if (!recordedPlan.some(e => e.type === 'intro')) {
-                            recordedPlan.push({ type: 'intro', pageNum: curPageNum });
-                        }
-                    } else if (sec.type === 'conclusion') {
-                        if (!recordedPlan.some(e => e.type === 'conclusion')) {
-                            recordedPlan.push({ type: 'conclusion', pageNum: curPageNum });
-                        }
-                    } else if (sec.type === 'references') {
-                        if (!recordedPlan.some(e => e.type === 'references')) {
-                            recordedPlan.push({ type: 'references', pageNum: curPageNum });
-                        }
-                    } else {
-                        recordedPlan.push({ type: 'mabhath', title: sec.mabhathTitle, pageNum: curPageNum });
-                        if (sec.matlabTitle) {
-                            recordedPlan.push({ type: 'matlab', title: sec.matlabTitle, pageNum: curPageNum });
-                        }
-                    }
-                } else {
-                    // مطلب إضافي يتبع لنفس المبحث الحالي:
-                    // نتحقق إن كان هناك متسع في الصفحة الحالية لإكمال المطلب فيها
-                    const matlabHeaderHeight = 14;
-                    const firstItemHeight = sec.items.length > 0 ? sec.items[0].heightMm : 0;
-                    const neededHeight = matlabHeaderHeight + firstItemHeight;
-
-                    if (curPageItems.length > 0 && (curHeight + neededHeight > MAX_PAGE_HEIGHT_MM)) {
-                        emitCurrentPage();
-                        curPageMabhath = '';
-                        curPageMatlab = sec.matlabTitle;
-                        curHeight = 14;
-                    } else {
-                        // إكمال في نفس الصفحة!
-                        if (curPageItems.length === 0) {
-                            curPageMatlab = sec.matlabTitle;
-                            curHeight = 14;
-                        } else {
-                            curPageItems.push({
-                                type: 'matlab_header',
-                                cleanText: sec.matlabTitle,
-                                heightMm: matlabHeaderHeight,
-                                citations: []
-                            });
-                            curHeight += matlabHeaderHeight;
-                        }
-                    }
-
-                    const curPageNum = parsedPages.length + 1;
-                    recordedPlan.push({ type: 'matlab', title: sec.matlabTitle, pageNum: curPageNum });
-                }
-
-
-
-                sec.items.forEach(item => {
-                    let fnHeight = (item.citations ? item.citations.length : 0) * 6;
-                    if (curPageItems.length > 0 && (curHeight + item.heightMm + fnHeight > MAX_PAGE_HEIGHT_MM)) {
-                        emitCurrentPage();
-                        curHeight = 0;
-                    }
-                    curPageItems.push(item);
-                    curHeight += item.heightMm + fnHeight;
-                });
-            });
-
-            if (curPageItems.length > 0) {
-                emitCurrentPage();
-            }
-
-            if (parsedPages.length === 0) {
+            if (pages.length === 0) {
                 throw new ParseError('لم يتم العثور على أقسام واضحة في النص. تأكد من احتواء النص على كلمات مثل (المقدمة، المبحث، المطلب، الخاتمة).');
             }
 
-
-            // تحديث خطة البحث تلقائياً بالأقسام والصفحات الفعلية
-            let updatedPlan = '';
-            recordedPlan.forEach(entry => {
-                const pNumStr = entry.pageNum < 10 ? `0${entry.pageNum}` : `${entry.pageNum}`;
-                if (entry.type === 'intro') {
-                    updatedPlan += `المقدمة | ص ${pNumStr}\n`;
-                } else if (entry.type === 'conclusion') {
-                    updatedPlan += `الخــاتـمـــة | ص ${pNumStr}\n`;
-                } else if (entry.type === 'references') {
-                    updatedPlan += `قائمة المصادر والمراجع | ص ${pNumStr}\n`;
-                } else if (entry.type === 'mabhath') {
-                    updatedPlan += `${entry.title} | ص ${pNumStr}\n`;
-                } else if (entry.type === 'matlab') {
-                    updatedPlan += `- ${entry.title} | ص ${pNumStr}\n`;
-                }
-            });
-
             return {
-                pages: parsedPages,
-                detectedTitle,
-                planText: updatedPlan.trim() || extractedPlan.trim(),
+                pages,
+                detectedTitle: analysis.detectedTitle,
+                planText: planText || analysis.extractedPlan.trim(),
             };
 }

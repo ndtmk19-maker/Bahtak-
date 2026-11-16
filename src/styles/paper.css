@@ -1,5 +1,6 @@
 /* أنماط صفحات A4 الأكاديمية — منقولة من المشروع الأصلي للحفاظ على مطابقة الطباعة.
-   لا تُعدَّل هذه القياسات (بالمليمتر) لأن خوارزمية التقسيم تعتمد عليها. */
+   لا تُعدَّل هذه القياسات (بالمليمتر) دون تحديث lib/layoutMetrics.ts و lib/paginator.ts
+   لأن خوارزمية التوزيع على الصفحات تحاكيها حرفياً. */
 :root {
   --gold: #c5a059;
 }
@@ -49,7 +50,9 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    /* كان space-between يوزع الفراغ بين شريط الطالب والمتن والتذييل فيُبعد المتن عن أعلى الصفحة؛
+       الآن يلتصق المحتوى بالأعلى، ويبقى التذييل (الهوامش ورقم الصفحة) في الأسفل عبر margin-top: auto فقط */
+    justify-content: flex-start;
     overflow: hidden;
 }
 
@@ -58,6 +61,15 @@
     min-height: 0;
     overflow: hidden;
     text-align: justify;
+    /* منع خروج أي عنصر عريض (جدول/شكل/رابط طويل) خارج إطار A4 */
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+
+/* أول عنصر في المتن لا يحتاج هامشاً علوياً يهدر مساحة الصفحة */
+.page-content > :first-child,
+.page-content > div[style*="contents"] > :first-child {
+    margin-top: 0;
 }
 
 /* ==============================================================
@@ -353,6 +365,11 @@
     color: #000;
 }
 
+.doc-mabhath-title--inline {
+    /* مبحث أو خاتمة تبدأ داخل صفحة غير ممتلئة (سياسة smart في paginator.ts) */
+    margin-top: 3mm;
+}
+
 .doc-matlab-title {
     font-family: inherit;
     font-size: 13.5pt;
@@ -390,6 +407,11 @@
     word-wrap: break-word;
 }
 
+.doc-paragraph--cont {
+    /* تتمة فقرة جُزئت بين صفحتين: لا إزاحة لأول سطر */
+    text-indent: 0;
+}
+
 .doc-ul {
     margin: 1.5mm 0 2.5mm 0;
     padding-right: 6.5mm;
@@ -417,9 +439,130 @@
     font-size: 1.15em;
 }
 
+.doc-li--cont {
+    /* تتمة نقطة طويلة من الصفحة السابقة: دون علامة تعداد جديدة */
+    list-style-type: none !important;
+}
+
+.doc-li--cont::marker {
+    content: none;
+}
+
 .doc-li strong {
     font-weight: 700;
     color: #111;
+}
+
+/* ==============================================================
+   الجداول الأكاديمية والأشكال التوضيحية (RTL)
+   القياسات مطابقة لثوابت paginator.ts (TABLE_FONT_RATIO / CAPTION_FONT_RATIO / BLOCK_MARGINS)
+   ============================================================== */
+.doc-table-block,
+.doc-figure {
+    margin: 2.5mm 0 3mm 0;
+    padding: 0;
+    max-width: 100%;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.doc-caption {
+    font-size: 0.92em;
+    line-height: 1.4;
+    font-weight: 700;
+    text-align: center;
+    color: #111;
+    margin: 0 0 1.5mm 0;
+    text-indent: 0;
+}
+
+/* عنوان الشكل يأتي أسفله وفق الأعراف الأكاديمية */
+.doc-figure .doc-caption {
+    margin: 1.5mm 0 0 0;
+}
+
+.doc-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    direction: rtl;
+    font-size: 0.86em;
+    line-height: 1.4;
+    text-indent: 0;
+    background: #fff;
+}
+
+.doc-table th,
+.doc-table td {
+    border: 1px solid #3f3f46;
+    padding: 1mm 1.6mm;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: auto;
+}
+
+.doc-table th {
+    background: #e7e5e4;
+    color: #111;
+    font-weight: 700;
+    text-align: center;
+    padding-top: 1.2mm;
+    padding-bottom: 1.2mm;
+    border-color: #27272a;
+}
+
+.doc-table td.is-start { text-align: right; }
+.doc-table td.is-center { text-align: center; font-variant-numeric: tabular-nums; }
+.doc-table td.is-end { text-align: left; font-variant-numeric: tabular-nums; }
+
+/* تظليل خفيف للصفوف الزوجية لتسهيل القراءة دون إثقال الطباعة */
+.doc-table tbody tr:nth-child(even) td {
+    background: #fafaf9;
+}
+
+/* عمود الترقيم «م» */
+.doc-table .doc-table-index {
+    text-align: center;
+    font-weight: 700;
+    color: #27272a;
+    background: #f5f5f4;
+}
+
+.doc-table thead {
+    display: table-header-group; /* تكرار الرأس عند الطباعة إن انقسم الجدول */
+}
+
+.doc-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.doc-source {
+    font-size: 0.8em;
+    line-height: 1.4;
+    color: #27272a;
+    margin-top: 1.2mm;
+    text-align: right;
+    text-indent: 0;
+}
+
+.doc-chart {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.doc-chart svg,
+.doc-chart-svg {
+    display: block;
+    width: 100%;
+    max-width: 150mm;
+    height: auto;
+    overflow: visible;
 }
 
 /* شريط معلومات الطالب */
@@ -557,6 +700,15 @@
     column-count: 2;
     column-gap: 8mm;
     column-rule: 1px dashed #bbb;
+}
+
+.two-columns-mode .doc-table-block,
+.two-columns-mode .doc-figure {
+    break-inside: avoid;
+}
+
+.two-columns-mode .doc-table {
+    font-size: 0.78em;
 }
 
 .two-columns-mode section {

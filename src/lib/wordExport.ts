@@ -5,6 +5,19 @@ import { createDocxZip, type ZipEntryInput } from './docxZip';
 import { imageToDataUrl } from './image';
 import { parsePlanRows } from './plan';
 import { isInAppBrowser } from './printDocument';
+import {
+  CHART_VIEW_WIDTH,
+  chartViewHeight,
+  figureLabel,
+  hasIndexColumn,
+  parseTableHtml,
+  renderChartSvg,
+  splitContentSegments,
+  tableColumnWeights,
+  type CellAlign,
+  type ChartData,
+  type TableData,
+} from './docBlocks';
 
 export const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -38,8 +51,19 @@ type InlinePiece =
   | { kind: 'br' }
   | { kind: 'sup'; text: string; bold: boolean; italic: boolean };
 
+/** صورة PNG لشكل بياني مدمجة في الحزمة (word/media/chartN.png) */
+interface ChartAsset {
+  rId: string;
+  widthPx: number;
+  heightPx: number;
+}
+
+/** مفتاح الشكل داخل الصفحة = قيمة السمة data-chart كما هي */
+type ChartAssetMap = Map<string, ChartAsset>;
+
 interface ParsedBlock {
-  kind: 'mabhath' | 'matlab' | 'subtitle' | 'paragraph' | 'bullet' | 'numbered';
+  /** paragraph_cont / bullet_cont: تتمة فقرة أو نقطة جُزئت بين صفحتين (دون إزاحة أو علامة تعداد) */
+  kind: 'mabhath' | 'matlab' | 'subtitle' | 'paragraph' | 'paragraph_cont' | 'bullet' | 'bullet_cont' | 'numbered';
   inlines: InlinePiece[];
 }
 
@@ -337,6 +361,66 @@ async function loadLogoAsset(primarySrc?: string, fallbackSrc?: string): Promise
   return null;
 }
 
+/**
+ * تحويل الشكل البياني (SVG) إلى PNG عالي الدقة داخل المتصفح لإدراجه في Word كصورة.
+ * يعيد null خارج المتصفح أو عند فشل الرسم، فيُصدَّر الشكل حينها كجدول بيانات بديل.
+ */
+async function rasterizeChart(chart: ChartData): Promise<{ bytes: Uint8Array; widthPx: number; heightPx: number } | null> {
+  if (typeof Image === 'undefined' || typeof document === 'undefined') return null;
+  const scale = 3; // ≈ 300dpi عند عرض 150mm
+  const viewH = chartViewHeight(chart);
+  const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderChartSvg(chart))}`;
+  const dataUrl = await new Promise<string | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = CHART_VIEW_WIDTH * scale;
+        c.height = viewH * scale;
+        const ctx = c.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/png'));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = svgUrl;
+  });
+  const parsed = dataUrl ? dataUrlToBytes(dataUrl) : null;
+  return parsed ? { bytes: parsed.bytes, widthPx: CHART_VIEW_WIDTH * scale, heightPx: viewH * scale } : null;
+}
+
+/** تجميع كل الأشكال البيانية في الصفحات وتحويلها إلى صور مرة واحدة لكل شكل */
+async function collectChartAssets(
+  doc: DocumentState,
+  allocRel: () => string,
+  rels: { id: string; type: string; target: string }[],
+  entries: ZipEntryInput[],
+): Promise<ChartAssetMap> {
+  const map: ChartAssetMap = new Map();
+  let n = 0;
+  for (const page of doc.pages) {
+    for (const seg of splitContentSegments(page.content || '')) {
+      if (seg.kind !== 'figure' || !seg.chart) continue;
+      const key = /data-chart="([^"]*)"/.exec(seg.html)?.[1] ?? '';
+      if (!key || map.has(key)) continue;
+      const png = await rasterizeChart(seg.chart);
+      if (!png) continue;
+      n++;
+      const rId = allocRel();
+      const target = `media/chart${n}.png`;
+      rels.push({ id: rId, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image', target });
+      entries.push({ name: `word/${target}`, data: png.bytes, store: true });
+      map.set(key, { rId, widthPx: png.widthPx, heightPx: png.heightPx });
+    }
+  }
+  return map;
+}
+
 function getLogoBoxMm(size?: LogoSize): number {
   switch (size) {
     case 'compact':
@@ -511,10 +595,11 @@ function parseContentHtmlBlocks(html: string): ParsedBlock[] {
       inList = 'ol';
     } else if (tag === 'li') {
       flushBlock();
-      curBlock = { kind: inList === 'ol' ? 'numbered' : 'bullet', inlines: [] };
+      const cont = attrs.includes('doc-li--cont');
+      curBlock = { kind: cont ? 'bullet_cont' : inList === 'ol' ? 'numbered' : 'bullet', inlines: [] };
     } else if (tag === 'p' || tag === 'blockquote') {
       flushBlock();
-      curBlock = { kind: 'paragraph', inlines: [] };
+      curBlock = { kind: attrs.includes('doc-paragraph--cont') ? 'paragraph_cont' : 'paragraph', inlines: [] };
     } else if (tag === 'h1' || tag === 'h2') {
       flushBlock();
       curBlock = { kind: 'matlab', inlines: [] };
@@ -780,6 +865,8 @@ function buildContentSectionXml(
   footerRId: string,
   headerRId: string | null,
   isFirstSection: boolean,
+  chartAssets: ChartAssetMap = new Map(),
+  shapeCounter: { val: number } = { val: 100 },
 ): { bodyXml: string; sectPrXml: string } {
   const sideM = mm(17);
   const topM = doc.showStudentInfo ? mm(17.5) : mm(14);
@@ -828,7 +915,7 @@ function buildContentSectionXml(
       pageParagraphCount++;
     }
 
-    const parsedBlocks = parseContentHtmlBlocks(page.content || '');
+    const segments = splitContentSegments(page.content || '');
 
     const renderInlines = (
       inlines: InlinePiece[],
@@ -865,31 +952,121 @@ function buildContentSectionXml(
 
     const trailingPageParagraphs: string[] = [];
 
-    for (let bi = 0; bi < parsedBlocks.length; bi++) {
-      const block = parsedBlocks[bi];
-      const pb = consumePageBreak();
+    /** خلية جدول: HTML سطري (strong / sup) → تشغيلات Word */
+    const cellRuns = (html: string, bold: boolean, sizePt: number): string => {
+      const blocks = parseContentHtmlBlocks(`<p>${html}</p>`);
+      return blocks.length > 0 ? renderInlines(blocks[0].inlines, bold, sizePt, '111111', false) : '';
+    };
+    const jcOf = (a: CellAlign | undefined) => (a === 'center' ? 'center' : a === 'end' ? 'left' : 'right');
 
-      if (block.kind === 'mabhath') {
-        trailingPageParagraphs.push(
-          `<w:p><w:pPr><w:keepNext/>${pb}<w:pBdr><w:bottom w:val="single" w:sz="12" w:space="4" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="${mm(2)}" w:after="${mm(4)}" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${renderInlines(block.inlines, true, 15.5, '000000', false)}</w:p>`,
-        );
-      } else if (block.kind === 'matlab') {
-        trailingPageParagraphs.push(
-          `<w:p><w:pPr><w:keepNext/>${pb}<w:pBdr><w:right w:val="single" w:sz="24" w:space="6" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="${mm(3)}" w:after="${mm(2.5)}" w:line="280" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${renderInlines(block.inlines, true, 13.5, '000000', true)}</w:p>`,
-        );
-      } else if (block.kind === 'subtitle') {
-        trailingPageParagraphs.push(
-          `<w:p><w:pPr><w:keepNext/>${pb}<w:bidi/><w:spacing w:before="${mm(2.2)}" w:after="${mm(1.2)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${renderInlines(block.inlines, true, Math.max(11.8, fontSize), '111111', true)}</w:p>`,
-        );
-      } else if (block.kind === 'bullet' || block.kind === 'numbered') {
-        const numId = block.kind === 'numbered' ? '2' : '1';
-        trailingPageParagraphs.push(
-          `<w:p><w:pPr>${pb}<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr><w:bidi/><w:spacing w:before="0" w:after="${mm(1.8)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="520" w:hanging="240"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
-        );
-      } else {
-        trailingPageParagraphs.push(
-          `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="${mm(2.2)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:firstLine="${mm(8)}"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
-        );
+    /**
+     * جدول Word أصلي (w:tbl) مطابق للمعاينة: RTL، موسّط، حدود رفيعة، رأس مظلل يتكرر عند الانقسام،
+     * عرض ثابت لا يتجاوز عرض المتن، وصفوف غير قابلة للانشطار.
+     */
+    const buildTableXml = (table: TableData, label: string, pb: string): string => {
+      const tableW = fnBlockW;
+      const weights = tableColumnWeights(table);
+      const grid = weights.map((w) => Math.max(mm(6), Math.floor(tableW * w)));
+      grid[grid.length - 1] += tableW - grid.reduce((a, b) => a + b, 0);
+      const cellPt = Math.max(8.5, fontSize * 0.86);
+      const border = 'w:val="single" w:sz="6" w:space="0" w:color="3F3F46"';
+      const indexed = hasIndexColumn(table);
+      const cellXml = (html: string, ci: number, opts: { header: boolean; fill?: string }) => {
+        const isIndex = indexed && ci === 0;
+        const fill = opts.header ? 'E7E5E4' : isIndex ? 'F5F5F4' : opts.fill;
+        const shd = fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` : '';
+        const jc = opts.header || isIndex ? 'center' : jcOf(table.aligns[ci]);
+        return `<w:tc><w:tcPr><w:tcW w:w="${grid[ci]}" w:type="dxa"/>${shd}<w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0" w:line="252" w:lineRule="auto"/><w:ind w:firstLine="0"/><w:jc w:val="${jc}"/></w:pPr>${cellRuns(html, opts.header || isIndex, cellPt)}</w:p></w:tc>`;
+      };
+      const caption = `<w:p><w:pPr><w:keepNext/>${pb}<w:bidi/><w:spacing w:before="${mm(2.5)}" w:after="${mm(1.5)}" w:line="276" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(label, { font: mainFont, sizePt: Math.max(9.5, fontSize * 0.92), bold: true, color: '111111' })}</w:p>`;
+      const headerRow = `<w:tr><w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>${table.headers.map((h, ci) => cellXml(h, ci, { header: true })).join('')}</w:tr>`;
+      const bodyRows = table.rows
+        .map((r, ri) => `<w:tr><w:trPr><w:cantSplit/></w:trPr>${r.map((c, ci) => cellXml(c, ci, { header: false, fill: ri % 2 === 1 ? 'FAFAF9' : undefined })).join('')}</w:tr>`)
+        .join('');
+      const tblPr = `<w:tblPr><w:bidiVisual/><w:tblW w:w="${tableW}" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders><w:top ${border}/><w:left ${border}/><w:bottom ${border}/><w:right ${border}/><w:insideH ${border}/><w:insideV ${border}/></w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>`;
+      const tbl = `<w:tbl>${tblPr}<w:tblGrid>${grid.map((g) => `<w:gridCol w:w="${g}"/>`).join('')}</w:tblGrid>${headerRow}${bodyRows}</w:tbl>`;
+      // فقرة بعد الجدول إلزامية في OpenXML لفصل الجداول المتتالية، وتحمل سطر المصدر إن وجد
+      const after = table.source
+        ? `<w:p><w:pPr><w:bidi/><w:spacing w:before="${mm(1.2)}" w:after="${mm(3)}" w:line="264" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun('المصدر: ', { font: mainFont, sizePt: Math.max(8.5, fontSize * 0.8), bold: true, color: '27272A' })}${cellRuns(table.source, false, Math.max(8.5, fontSize * 0.8))}</w:p>`
+        : `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="${mm(3)}" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
+      return caption + tbl + after;
+    };
+
+    /** شكل بياني: صورة PNG موسّطة ثم «الشكل رقم (..)» أسفلها ثم المصدر؛ أو جدول بيانات بديل */
+    const buildFigureXml = (chart: ChartData, key: string, num: number, pb: string): string => {
+      const label = figureLabel(num, chart.title);
+      const asset = chartAssets.get(key);
+      if (!asset) {
+        const fallback: TableData = {
+          caption: chart.title,
+          headers: ['البيان', chart.unit ? `القيمة (${chart.unit})` : 'القيمة'],
+          rows: chart.data.map((d) => [d.label, String(d.value)]),
+          aligns: ['start', 'center'],
+          source: chart.source,
+        };
+        return buildTableXml(fallback, label, pb);
+      }
+      const widthMm = Math.min(150, fnBlockW / MM_TO_DXA);
+      const cx = Math.round(widthMm * 36000);
+      const cy = Math.round((cx * asset.heightPx) / asset.widthPx);
+      const id = shapeCounter.val++;
+      const drawing = `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="Chart${id}" descr="${xmlEscape(label)}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="Chart${id}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${asset.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+      const capSize = Math.max(9.5, fontSize * 0.92);
+      const image = `<w:p><w:pPr><w:keepNext/>${pb}<w:bidi/><w:spacing w:before="${mm(2.5)}" w:after="${mm(1)}" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${drawing}</w:p>`;
+      const caption = `<w:p><w:pPr>${chart.source ? '<w:keepNext/>' : ''}<w:bidi/><w:spacing w:before="0" w:after="${chart.source ? 0 : mm(3)}" w:line="276" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(label, { font: mainFont, sizePt: capSize, bold: true, color: '111111' })}</w:p>`;
+      const source = chart.source
+        ? `<w:p><w:pPr><w:bidi/><w:spacing w:before="${mm(1.2)}" w:after="${mm(3)}" w:line="264" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun('المصدر: ', { font: mainFont, sizePt: Math.max(8.5, fontSize * 0.8), bold: true, color: '27272A' })}${buildTextRun(chart.source, { font: mainFont, sizePt: Math.max(8.5, fontSize * 0.8), color: '27272A' })}</w:p>`
+        : '';
+      return image + caption + source;
+    };
+
+    for (const seg of segments) {
+      if (seg.kind === 'table') {
+        const parsed = parseTableHtml(seg.html);
+        if (parsed) trailingPageParagraphs.push(buildTableXml(parsed.table, parsed.label, consumePageBreak()));
+        continue;
+      }
+      if (seg.kind === 'figure') {
+        const num = parseInt(/data-figure-number="(\d+)"/.exec(seg.html)?.[1] ?? '1', 10);
+        const key = /data-chart="([^"]*)"/.exec(seg.html)?.[1] ?? '';
+        if (seg.chart) trailingPageParagraphs.push(buildFigureXml(seg.chart, key, num, consumePageBreak()));
+        continue;
+      }
+      const parsedBlocks = parseContentHtmlBlocks(seg.html);
+      for (let bi = 0; bi < parsedBlocks.length; bi++) {
+        const block = parsedBlocks[bi];
+        const pb = consumePageBreak();
+
+        if (block.kind === 'mabhath') {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr><w:keepNext/>${pb}<w:pBdr><w:bottom w:val="single" w:sz="12" w:space="4" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="${mm(2)}" w:after="${mm(4)}" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${renderInlines(block.inlines, true, 15.5, '000000', false)}</w:p>`,
+          );
+        } else if (block.kind === 'matlab') {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr><w:keepNext/>${pb}<w:pBdr><w:right w:val="single" w:sz="24" w:space="6" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="${mm(3)}" w:after="${mm(2.5)}" w:line="280" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${renderInlines(block.inlines, true, 13.5, '000000', true)}</w:p>`,
+          );
+        } else if (block.kind === 'subtitle') {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr><w:keepNext/>${pb}<w:bidi/><w:spacing w:before="${mm(2.2)}" w:after="${mm(1.2)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${renderInlines(block.inlines, true, Math.max(11.8, fontSize), '111111', true)}</w:p>`,
+          );
+        } else if (block.kind === 'bullet_cont') {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="${mm(1.8)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="520"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
+          );
+        } else if (block.kind === 'paragraph_cont') {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="${mm(2.2)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
+          );
+        } else if (block.kind === 'bullet' || block.kind === 'numbered') {
+          const numId = block.kind === 'numbered' ? '2' : '1';
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr>${pb}<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr><w:bidi/><w:spacing w:before="0" w:after="${mm(1.8)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:left="520" w:hanging="240"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
+          );
+        } else {
+          trailingPageParagraphs.push(
+            `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="${mm(2.2)}" w:line="${lineSpacing}" w:lineRule="auto"/><w:ind w:firstLine="${mm(8)}"/><w:jc w:val="both"/></w:pPr>${renderInlines(block.inlines, false, fontSize, '111111', false)}</w:p>`,
+          );
+        }
       }
     }
 
@@ -1073,6 +1250,8 @@ export async function buildWordDocx(
 
   const shapeCounter = { val: 1 };
   const builtSections: { bodyXml: string; sectPrXml: string }[] = [];
+  // الأشكال البيانية تُحوَّل إلى صور PNG وتُسجَّل علاقاتها قبل بناء جسم المستند
+  const chartAssets = await collectChartAssets(doc, allocRel, rels, entries);
 
   if (cs.enabled) {
     builtSections.push(buildCoverSectionXml(doc, logo, logoRId, shapeCounter));
@@ -1089,6 +1268,8 @@ export async function buildWordDocx(
     footerContentRId,
     headerContentRId,
     builtSections.length === 0,
+    chartAssets,
+    shapeCounter,
   );
   builtSections.push({ bodyXml: contentResult.bodyXml, sectPrXml: contentResult.sectPrXml });
 

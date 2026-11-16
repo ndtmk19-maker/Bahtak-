@@ -101,6 +101,31 @@ const yieldMainThread = () => new Promise<void>((resolve) => setTimeout(resolve,
 /**
  * إنشاء وتحميل ملف PDF مباشر بحجم A4 لجميع صفحات البحث (الغلاف + الخطة + المحتوى)
  */
+/**
+ * ضمان بقاء الجداول والأشكال داخل هوامش الصفحة (عرض المتن داخل إطار 210mm) قبل الالتقاط.
+ * الجداول تستعمل table-layout: fixed فلا تتجاوز العرض عادةً؛ هذا حارس إضافي لخلايا بكلمات طويلة جداً
+ * أو لأشكال قديمة دون viewBox: يُصغَّر خط الكتلة تناسبياً (حتى 70%) ثم يُقص ما تبقى عند حدود العمود.
+ */
+function fitAcademicBlocks(page: HTMLElement): void {
+  page.querySelectorAll<HTMLElement>(".doc-table-block, .doc-figure").forEach((block) => {
+    const column = block.closest<HTMLElement>(".page-content");
+    const limit = column?.clientWidth ?? 0;
+    if (!limit) return;
+    block.style.maxWidth = "100%";
+    const svg = block.querySelector<SVGSVGElement>("svg");
+    if (svg) {
+      svg.style.maxWidth = "100%";
+      svg.style.height = "auto";
+    }
+    const overflow = block.scrollWidth - limit;
+    if (overflow > 1) {
+      const ratio = Math.max(0.7, limit / block.scrollWidth);
+      block.style.fontSize = `${(ratio * 100).toFixed(1)}%`;
+      block.style.overflow = "hidden";
+    }
+  });
+}
+
 export async function exportDocumentPdf(
   doc: DocumentState,
   options: PdfExportOptions = {},
@@ -174,6 +199,7 @@ export async function exportDocumentPdf(
     document.body.appendChild(host);
     await waitUntilLoad(host, { timeout: 10000 });
     await nextFrames();
+    clones.forEach(fitAcademicBlocks);
 
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -260,7 +286,9 @@ export async function exportDocumentPdf(
             cls.includes("plan-row-title") ||
             cls.includes("doc-mabhath-title") ||
             cls.includes("doc-matlab-title") ||
-            cls.includes("doc-subtitle")
+            cls.includes("doc-subtitle") ||
+            cls.includes("doc-caption") ||
+            cls.includes("doc-source")
           ) {
             cloned.style.removeProperty("width");
           }

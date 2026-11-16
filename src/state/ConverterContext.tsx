@@ -83,7 +83,14 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
   const parse = useCallback(
     (opts?: { silent?: boolean; text?: string; overrideTitle?: string }) => {
       try {
-        const result = parseRawText(opts?.text ?? rawText);
+        // تمرير إعدادات الطباعة الفعلية حتى تحاكي خوارزمية التوزيع ما سيظهر على الورقة بدقة
+        const result = parseRawText(opts?.text ?? rawText, {
+          fontSizePt: doc.fontSize,
+          lineHeight: doc.lineHeight,
+          fontFamily: doc.fontFamily,
+          showStudentInfo: doc.showStudentInfo,
+          layoutMode: doc.layoutMode,
+        });
         if (opts?.overrideTitle) {
           result.detectedTitle = opts.overrideTitle;
         }
@@ -101,7 +108,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    [rawText, applyParsed, ui],
+    [rawText, applyParsed, ui, doc.fontSize, doc.lineHeight, doc.fontFamily, doc.showStudentInfo, doc.layoutMode],
   );
 
   const generate = useCallback(async () => {

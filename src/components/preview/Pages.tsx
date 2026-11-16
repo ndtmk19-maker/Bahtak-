@@ -1,8 +1,39 @@
-import type { CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import type { BorderStyle, DocumentState, ResearchPage } from '../../types';
 import { parsePlanRows } from '../../lib/plan';
 
 const FALLBACK_LOGO = '/assets/univ_logos/MESRS.png';
+
+/** وسوم لا مكان لها في متن البحث (قد تتسرب من مخرجات الذكاء الاصطناعي أو اللصق) */
+const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'base', 'form', 'input', 'button', 'textarea', 'foreignobject']);
+const URL_ATTRS = new Set(['href', 'src', 'xlink:href', 'action', 'formaction']);
+
+/**
+ * تنقية HTML الصفحة قبل حقنه: يبقي الفقرات والقوائم والجداول ورسوم SVG البيانية،
+ * ويزيل الوسوم التنفيذية ومعالجات الأحداث (on*) والروابط من نوع javascript:.
+ */
+function sanitizePageHtml(html: string): string {
+  if (!html || typeof DOMParser === 'undefined') return html || '';
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  const walk = (el: Element) => {
+    for (const child of Array.from(el.children)) {
+      if (BLOCKED_TAGS.has(child.tagName.toLowerCase())) {
+        child.remove();
+        continue;
+      }
+      for (const attr of Array.from(child.attributes)) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.replace(/\s+/g, '').toLowerCase();
+        if (name.startsWith('on') || (URL_ATTRS.has(name) && /^(?:javascript|vbscript|data:text\/html)/.test(value))) {
+          child.removeAttribute(attr.name);
+        }
+      }
+      walk(child);
+    }
+  };
+  walk(doc.body);
+  return doc.body.innerHTML;
+}
 
 function borderStyles(style: BorderStyle): { outer: CSSProperties; inner: CSSProperties } {
   switch (style) {
@@ -134,6 +165,7 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
 
 export function ContentPage({ doc, page, index }: { doc: DocumentState; page: ResearchPage; index: number }) {
   const b = borderStyles(doc.borderStyle);
+  const safeContent = useMemo(() => sanitizePageHtml(page.content), [page.content]);
   return (
     <div className={`a4-page ${doc.layoutMode === 'card' ? 'two-columns-mode' : ''}`} style={{ fontFamily: doc.fontFamily }} id={`preview-page-${index}`}>
       <div className="page-border" style={b.outer}>
@@ -147,8 +179,8 @@ export function ContentPage({ doc, page, index }: { doc: DocumentState; page: Re
           <div className="page-content" style={{ fontSize: `${doc.fontSize}pt`, lineHeight: doc.lineHeight }}>
             {page.mabhathTitle?.trim() && <div className="doc-mabhath-title">{page.mabhathTitle}</div>}
             {page.matlabTitle?.trim() && <div className="doc-matlab-title">{page.matlabTitle}</div>}
-            {/* المحتوى HTML ناتج عن محرك التحويل المحلي من نص المستخدم نفسه */}
-            <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: page.content }} />
+            {/* المحتوى HTML ناتج عن محرك التحويل المحلي (فقرات، قوائم، جداول doc-table، أشكال SVG) بعد تنقيته */}
+            <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: safeContent }} />
           </div>
           <div className="doc-footer">
             {page.footnotes?.length > 0 && (
