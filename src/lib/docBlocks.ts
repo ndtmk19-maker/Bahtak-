@@ -444,68 +444,75 @@ function truncate(text: string, max: number): string {
 
 /** ارتفاع لوحة الرسم (viewBox) بوحدات SVG لعرض ثابت قدره 600 */
 export function chartViewHeight(chart: ChartData): number {
-  if (chart.kind === 'pie') return Math.max(250, chart.data.length * 30 + 50);
-  if (chart.kind === 'column') return 300;
-  return 24 + chart.data.length * 36;
+  if (chart.kind === 'pie') return Math.max(240, chart.data.length * 32 + 50);
+  if (chart.kind === 'column') return 290;
+  return 24 + chart.data.length * 54;
 }
 
 function renderBarSvg(chart: ChartData, h: number): string {
-  // أشرطة أفقية RTL: التسميات يميناً والأشرطة تمتد نحو اليسار
-  const labelRight = CHART_VIEW_WIDTH - 8;
-  const barRight = CHART_VIEW_WIDTH - 190;
-  const barMaxLen = barRight - 70;
+  // أشرطة أفقية أكاديمية واضحة (RTL): التسمية والقيمة في الأعلى، والشريط بمحاذاة اليمين مع مسار خلفي خفيف
+  const left = 35;
+  const right = CHART_VIEW_WIDTH - 35; // 565
+  const fullWidth = right - left; // 530
   const max = Math.max(...chart.data.map((d) => d.value), 0) || 1;
+
   const rows = chart.data
     .map((d, i) => {
-      const y = 14 + i * 36;
-      const len = Math.max(2, (Math.max(0, d.value) / max) * barMaxLen);
-      const x = barRight - len;
+      const rowY = 14 + i * 54;
+      const fillLen = Math.max(6, (Math.max(0, d.value) / max) * fullWidth);
+      const barX = right - fillLen;
+      const valStr = fmtValue(d.value, chart.unit);
+
       return (
-        `<text x="${labelRight}" y="${y + 17}" text-anchor="end" font-size="15">${escapeHtml(truncate(d.label, 26))}</text>` +
-        `<rect x="${x.toFixed(1)}" y="${y + 3}" width="${len.toFixed(1)}" height="20" fill="${CHART_PALETTE[i % 3]}" rx="1.5"/>` +
-        `<text x="${(x - 6).toFixed(1)}" y="${y + 18}" text-anchor="end" font-size="14" font-weight="700">${escapeHtml(fmtValue(d.value, chart.unit))}</text>`
+        `<g class="doc-chart-row" data-index="${i}">` +
+        `<text x="${right}" y="${rowY + 14}" text-anchor="end" font-size="14.5" font-weight="600" fill="#1e293b">${escapeHtml(truncate(d.label, 45))}</text>` +
+        `<text x="${left}" y="${rowY + 14}" text-anchor="start" font-size="14" font-weight="700" fill="#0f172a">${escapeHtml(valStr)}</text>` +
+        `<rect x="${left}" y="${rowY + 22}" width="${fullWidth}" height="14" fill="#f1f5f9" rx="4"/>` +
+        `<rect x="${barX.toFixed(1)}" y="${rowY + 22}" width="${fillLen.toFixed(1)}" height="14" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" rx="4"/>` +
+        `</g>`
       );
     })
     .join('');
-  return `<line x1="${barRight}" y1="8" x2="${barRight}" y2="${h - 6}" stroke="#111" stroke-width="1.2"/>${rows}`;
+
+  return rows;
 }
 
 function renderColumnSvg(chart: ChartData, h: number): string {
   // أعمدة رأسية مرتبة من اليمين إلى اليسار (البيان الأول يميناً)
-  const top = 28;
-  const baseY = h - 58;
-  const left = 40;
-  const right = CHART_VIEW_WIDTH - 20;
+  const top = 32;
+  const baseY = h - 60;
+  const left = 45;
+  const right = CHART_VIEW_WIDTH - 45;
   const n = chart.data.length;
   const slot = (right - left) / n;
-  const barW = Math.min(64, slot * 0.6);
+  const barW = Math.min(56, slot * 0.55);
   const max = Math.max(...chart.data.map((d) => d.value), 0) || 1;
   const grid = [0.25, 0.5, 0.75, 1]
     .map((f) => {
       const y = baseY - f * (baseY - top);
-      return `<line x1="${left}" y1="${y.toFixed(1)}" x2="${right}" y2="${y.toFixed(1)}" stroke="#d1d5db" stroke-width="0.8" stroke-dasharray="3 3"/>`;
+      return `<line x1="${left}" y1="${y.toFixed(1)}" x2="${right}" y2="${y.toFixed(1)}" stroke="#e2e8f0" stroke-width="0.8" stroke-dasharray="3 3"/>`;
     })
     .join('');
   const bars = chart.data
     .map((d, i) => {
       const cx = right - slot * (i + 0.5);
-      const bh = Math.max(2, (Math.max(0, d.value) / max) * (baseY - top));
+      const bh = Math.max(3, (Math.max(0, d.value) / max) * (baseY - top));
       return (
-        `<rect x="${(cx - barW / 2).toFixed(1)}" y="${(baseY - bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${CHART_PALETTE[i % 3]}" rx="1.5"/>` +
-        `<text x="${cx.toFixed(1)}" y="${(baseY - bh - 7).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="700">${escapeHtml(fmtValue(d.value, chart.unit))}</text>` +
-        `<text x="${cx.toFixed(1)}" y="${baseY + 24}" text-anchor="middle" font-size="14">${escapeHtml(truncate(d.label, Math.max(8, Math.floor(slot / 8))))}</text>`
+        `<rect x="${(cx - barW / 2).toFixed(1)}" y="${(baseY - bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" rx="3"/>` +
+        `<text x="${cx.toFixed(1)}" y="${(baseY - bh - 8).toFixed(1)}" text-anchor="middle" font-size="13.5" font-weight="700" fill="#0f172a">${escapeHtml(fmtValue(d.value, chart.unit))}</text>` +
+        `<text x="${cx.toFixed(1)}" y="${baseY + 22}" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">${escapeHtml(truncate(d.label, 22))}</text>`
       );
     })
     .join('');
-  return `${grid}<line x1="${left}" y1="${baseY}" x2="${right}" y2="${baseY}" stroke="#111" stroke-width="1.2"/>${bars}`;
+  return `${grid}<line x1="${left}" y1="${baseY}" x2="${right}" y2="${baseY}" stroke="#475569" stroke-width="1.2"/>${bars}`;
 }
 
 function renderPieSvg(chart: ChartData, h: number): string {
   // حلقة دائرية يساراً ومفتاح الألوان يميناً (اتجاه القراءة العربي)
   const total = chart.data.reduce((a, d) => a + d.value, 0) || 1;
-  const cx = 150;
+  const cx = 145;
   const cy = h / 2;
-  const r = Math.min(105, h / 2 - 16);
+  const r = Math.min(100, h / 2 - 20);
   const inner = r * 0.52;
   let angle = -Math.PI / 2;
   const slices = chart.data
@@ -520,18 +527,18 @@ function renderPieSvg(chart: ChartData, h: number): string {
         sweep >= Math.PI * 2 - 1e-6
           ? `M ${p(0, r)} A ${r} ${r} 0 1 1 ${p(Math.PI, r)} A ${r} ${r} 0 1 1 ${p(0, r)} Z`
           : `M ${p(a0, r)} A ${r} ${r} 0 ${large} 1 ${p(a1, r)} L ${p(a1, inner)} A ${inner} ${inner} 0 ${large} 0 ${p(a0, inner)} Z`;
-      return `<path d="${path}" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" stroke="#fff" stroke-width="1.5"/>`;
+      return `<path d="${path}" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" stroke="#fff" stroke-width="2"/>`;
     })
     .join('');
-  const legendTop = cy - (chart.data.length * 30) / 2 + 8;
+  const legendTop = cy - (chart.data.length * 32) / 2 + 10;
   const legend = chart.data
     .map((d, i) => {
-      const y = legendTop + i * 30;
+      const y = legendTop + i * 32;
       const pct = ((d.value / total) * 100).toFixed(1);
       const valueText = chart.unit === '%' || chart.unit === '٪' ? `${pct}%` : `${fmtValue(d.value, chart.unit)} (${pct}%)`;
       return (
-        `<rect x="${CHART_VIEW_WIDTH - 26}" y="${y - 12}" width="16" height="16" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" rx="2"/>` +
-        `<text x="${CHART_VIEW_WIDTH - 34}" y="${y + 1}" text-anchor="end" font-size="15">${escapeHtml(truncate(d.label, 24))} — <tspan font-weight="700">${escapeHtml(valueText)}</tspan></text>`
+        `<rect x="${CHART_VIEW_WIDTH - 42}" y="${y - 12}" width="14" height="14" fill="${CHART_PALETTE[i % CHART_PALETTE.length]}" rx="3"/>` +
+        `<text x="${CHART_VIEW_WIDTH - 52}" y="${y}" text-anchor="end" font-size="13.5" font-weight="600" fill="#1e293b">${escapeHtml(truncate(d.label, 28))} — <tspan font-weight="700" fill="#0f172a">${escapeHtml(valueText)}</tspan></text>`
       );
     })
     .join('');
@@ -546,7 +553,7 @@ export function renderChartSvg(chart: ChartData): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" class="doc-chart-svg" viewBox="0 0 ${CHART_VIEW_WIDTH} ${h}" ` +
     `width="${CHART_VIEW_WIDTH}" height="${h}" role="img" aria-label="${escapeHtml(chart.title)}" ` +
-    `font-family="${escapeHtml(CHART_FONT)}" fill="#111">${inner}</svg>`
+    `font-family="${escapeHtml(CHART_FONT)}" fill="#111" dir="rtl" style="direction: rtl;">${inner}</svg>`
   );
 }
 
