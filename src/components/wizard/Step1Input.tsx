@@ -307,8 +307,8 @@ function AiModeFields() {
             ) : (
               <>
                 <option value="1">مبحث واحد</option>
-                <option value="2">مبحثان (قياسي)</option>
-                <option value="3">3 مباحث</option>
+                <option value="2">مبحثان</option>
+                <option value="3">3 مباحث (قياسي)</option>
               </>
             )}
           </SelectInput>
@@ -330,8 +330,8 @@ function AiModeFields() {
               <option value="custom">حسب خطتك المخصصة</option>
             ) : (
               <>
-                <option value="2">مطلبان (قياسي)</option>
-                <option value="3">3 مطالب</option>
+                <option value="2">مطلبان</option>
+                <option value="3">3 مطالب (قياسي)</option>
               </>
             )}
           </SelectInput>

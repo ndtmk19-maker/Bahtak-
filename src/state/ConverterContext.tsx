@@ -53,7 +53,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ConverterMode>('paste');
   const [rawText, setRawTextState] = useState(loadRawText);
   const [apiKey, setApiKeyState] = useState(loadApiKey);
-  const [form, setFormState] = useState<AiForm>({ provider: 'gemini', topic: '', length: 'medium', mabhathCount: '2', matlabCount: '2', caseStudyCompany: '', customUrl: '', customModel: '' });
+  const [form, setFormState] = useState<AiForm>({ provider: 'gemini', topic: '', length: 'medium', mabhathCount: '3', matlabCount: '3', caseStudyCompany: '', customUrl: '', customModel: '' });
   const [run, setRun] = useState<AiRun>({ running: false, stage: 'idle', sections: [], words: 0, model: 'Gemini 2.5 Flash', startedAt: 0, duration: null });
   const runningRef = useRef(false);
 
