@@ -154,7 +154,7 @@ export function CoverPanel() {
           <TextInput label="تحت إشراف الأستاذ(ة)" value={cs.supervisor} onChange={(e) => updateCover({ supervisor: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <TextInput label="الفوج / الفصيلة" value={cs.group} onChange={(e) => updateCover({ group: e.target.value })} />
-            <TextInput label="السنة الجامعية" value={cs.academicYear} onChange={(e) => updateCover({ academicYear: e.target.value })} />
+            <TextInput label="السنة الجامعية" value={cs.academicYear} placeholder="مثال: 2026 - 2027" onChange={(e) => updateCover({ academicYear: e.target.value })} />
           </div>
         </Section>
       </div>

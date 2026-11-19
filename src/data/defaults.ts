@@ -11,7 +11,7 @@ export const DEFAULT_LOCALIZED_COVER = {
     workType: 'بحث أكاديمي منسق',
     supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
     group: 'الفوج: 01',
-    academicYear: 'السنة الجامعية: 2024 / 2025',
+    academicYear: 'السنة الجامعية: 2026 / 2027',
     planTitle: 'خـطّـة البـحـث',
   },
   fr: {
@@ -20,7 +20,7 @@ export const DEFAULT_LOCALIZED_COVER = {
     workType: 'Travail de recherche académique',
     supervisor: 'Dr. / Enseignant(e) du module',
     group: 'Groupe : 01',
-    academicYear: 'Année universitaire : 2024 / 2025',
+    academicYear: 'Année universitaire : 2026 / 2027',
     planTitle: 'Sommaire',
   },
   en: {
@@ -29,7 +29,7 @@ export const DEFAULT_LOCALIZED_COVER = {
     workType: 'Academic Research Paper',
     supervisor: 'Dr. / Course Instructor',
     group: 'Group: 01',
-    academicYear: 'Academic Year: 2024 / 2025',
+    academicYear: 'Academic Year: 2026 / 2027',
     planTitle: 'Table of Contents',
   },
 } as const;
@@ -65,6 +65,18 @@ export const KNOWN_PLAN_TITLES = new Set([
   'Sommaire',
   'Table of Contents',
   'Table des matières',
+]);
+
+export const KNOWN_ACADEMIC_YEARS = new Set([
+  '2024 / 2025',
+  '2024/2025',
+  '2024 - 2025',
+  '2025 / 2026',
+  '2025/2026',
+  '2025 - 2026',
+  '2026 / 2027',
+  '2026/2027',
+  '2026 - 2027',
 ]);
 
 export function getLocalizedCoverDefaults(lang?: ResearchLanguage): Partial<CoverState> {
@@ -133,12 +145,14 @@ export function getLocalizedCoverState(cs: CoverState, lang?: ResearchLanguage):
     const rawYear = cs.academicYear
       .replace(/^(?:السنة\s+(?:الجامعية|الدراسية)|Année\s+universitaire|Academic\s+Year)\s*[:：]?\s*/i, '')
       .trim();
+    const isKnownDefault = !rawYear || KNOWN_ACADEMIC_YEARS.has(rawYear);
+    const targetYear = isKnownDefault ? '2026 / 2027' : rawYear;
     if (l === 'fr') {
-      patch.academicYear = rawYear ? `Année universitaire : ${rawYear}` : def.academicYear;
+      patch.academicYear = `Année universitaire : ${targetYear}`;
     } else if (l === 'en') {
-      patch.academicYear = rawYear ? `Academic Year: ${rawYear}` : def.academicYear;
+      patch.academicYear = `Academic Year: ${targetYear}`;
     } else {
-      patch.academicYear = rawYear ? `السنة الجامعية: ${rawYear}` : def.academicYear;
+      patch.academicYear = `السنة الجامعية: ${targetYear}`;
     }
   } else {
     patch.academicYear = def.academicYear;
@@ -233,7 +247,7 @@ export function createDefaultDocument(): DocumentState {
       studentsText: DEFAULT_STUDENTS_TEXT,
       supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
       group: 'الفوج: 01',
-      academicYear: 'السنة الجامعية: 2025 / 2026',
+      academicYear: 'السنة الجامعية: 2026 / 2027',
     },
     planState: {
       enabled: true,
