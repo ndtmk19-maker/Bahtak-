@@ -295,6 +295,46 @@ function Chevron({ direction }: { direction: "left" | "right" }) {
   );
 }
 
+/** حساب مؤشرات النقاط بنظام النافذة المتحركة (Instagram/Apple style) لضمان التناسق الدائم مهما كثرت التقييمات */
+function getVisibleDotIndices(
+  total: number,
+  current: number,
+  maxDots = 7
+): Array<{ index: number; size: 'full' | 'regular' | 'small' | 'tiny' }> {
+  if (total <= maxDots) {
+    return Array.from({ length: total }, (_, i) => ({
+      index: i,
+      size: i === current ? 'full' : 'regular',
+    }));
+  }
+
+  const half = Math.floor(maxDots / 2);
+  let start = current - half;
+  let end = current + half;
+
+  if (start < 0) {
+    start = 0;
+    end = maxDots - 1;
+  } else if (end >= total) {
+    end = total - 1;
+    start = total - maxDots;
+  }
+
+  return Array.from({ length: maxDots }, (_, i) => {
+    const idx = start + i;
+    const isCurrent = idx === current;
+    const isEdge = (idx === start && start > 0) || (idx === end && end < total - 1);
+    const isSubEdge = (idx === start + 1 && start > 0) || (idx === end - 1 && end < total - 1);
+
+    let size: 'full' | 'regular' | 'small' | 'tiny' = 'regular';
+    if (isCurrent) size = 'full';
+    else if (isEdge) size = 'tiny';
+    else if (isSubEdge && maxDots >= 7) size = 'small';
+
+    return { index: idx, size };
+  });
+}
+
 function Portrait({ src, name, className }: { src?: string; name: string; className?: string }) {
   const [failed, setFailed] = React.useState(false);
   const [shownSrc, setShownSrc] = React.useState(src);
@@ -1468,36 +1508,40 @@ export function TestimonialGlobe({
             )}
           </div>
 
-          {/* شريط تنقل أنيق ومحدد بين التقييمات */}
+          {/* شريط تنقل أنيق ومحدد بين التقييمات بنظام النافذة المتحركة */}
           {visibleCount > 1 && (
             <div
               dir="rtl"
-              className="mt-3.5 flex items-center justify-between rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-3.5 py-2 shadow-xs select-none"
+              className="mt-3.5 flex items-center justify-between gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-3 py-2 shadow-xs select-none"
             >
-              {/* التقييم الحالي وعدد التقييمات ذات التعليق */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
-                <span>
+              {/* التقييم الحالي وعدد التقييمات */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 shrink-0 whitespace-nowrap">
+                <span className="size-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <span className="text-[11px] sm:text-xs">
                   التقييم {(featured ?? 0) + 1} من {visibleCount}
                 </span>
               </div>
 
-              {/* مؤشرات التقييمات التفاعلية (dots / pills) */}
-              <div className="flex items-center gap-1.5 px-2">
-                {visibleItems.map((item, idx) => {
-                  const isActive = (featured ?? 0) === idx;
+              {/* مؤشرات التقييمات التفاعلية بنظام النافذة المتحركة (Dynamic sliding dots) */}
+              <div className="flex items-center justify-center gap-1.5 px-1 min-w-0 overflow-hidden">
+                {getVisibleDotIndices(visibleCount, featured ?? 0, 7).map(({ index: dotIdx, size }) => {
+                  const isActive = (featured ?? 0) === dotIdx;
                   return (
                     <button
-                      key={`nav-dot-${item.id || idx}`}
+                      key={`nav-dot-${dotIdx}`}
                       type="button"
-                      onClick={() => go(idx)}
-                      aria-label={`الانتقال إلى التقييم ${idx + 1}`}
-                      title={`التقييم ${idx + 1}`}
+                      onClick={() => go(dotIdx)}
+                      aria-label={`الانتقال إلى التقييم ${dotIdx + 1}`}
+                      title={`التقييم ${dotIdx + 1}`}
                       className={cx(
-                        "h-2 rounded-full transition-all duration-300 cursor-pointer",
+                        "rounded-full transition-all duration-300 cursor-pointer shrink-0",
                         isActive
-                          ? "w-7 bg-amber-400 shadow-xs"
-                          : "w-2 bg-black/20 dark:bg-white/20 hover:bg-black/40 dark:hover:bg-white/40"
+                          ? "w-5 sm:w-6 h-2 bg-amber-400 shadow-xs"
+                          : size === "tiny"
+                          ? "w-1 h-1 bg-black/15 dark:bg-white/15"
+                          : size === "small"
+                          ? "w-1.5 h-1.5 bg-black/20 dark:bg-white/20"
+                          : "w-2 h-2 bg-black/25 dark:bg-white/25 hover:bg-black/50 dark:hover:bg-white/50"
                       )}
                     />
                   );
@@ -1505,26 +1549,27 @@ export function TestimonialGlobe({
               </div>
 
               {/* أزرار السابق والتالي وزر إضافة تقييم */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {onAddReview && (
                   <button
                     type="button"
                     onClick={onAddReview}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 px-2.5 py-1 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 px-2 py-1 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                     title="أضف تقييمك ورأيك في المنصة"
                   >
                     <Plus className="size-3.5 stroke-[2.5]" />
-                    <span>أضف تقييم</span>
+                    <span className="hidden sm:inline">أضف تقييم</span>
+                    <span className="sm:hidden">تقييم</span>
                   </button>
                 )}
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => step(-1)}
                     aria-label="التقييم السابق"
                     title="السابق"
-                    className="grid size-7 place-items-center rounded-lg bg-black/5 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 hover:bg-black/10 dark:hover:bg-white/20 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg bg-black/5 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 hover:bg-black/10 dark:hover:bg-white/20 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer shrink-0"
                   >
                     <Chevron direction="right" />
                   </button>
@@ -1533,7 +1578,7 @@ export function TestimonialGlobe({
                     onClick={() => step(1)}
                     aria-label="التقييم التالي"
                     title="التالي"
-                    className="grid size-7 place-items-center rounded-lg bg-black/5 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 hover:bg-black/10 dark:hover:bg-white/20 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg bg-black/5 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 hover:bg-black/10 dark:hover:bg-white/20 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer shrink-0"
                   >
                     <Chevron direction="left" />
                   </button>
