@@ -6,11 +6,13 @@ import { AI_LENGTHS, analyzeStudentTopic, generateResearch, isStructuralTitleOnl
 import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage';
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
+import type { ResearchLanguage } from '../types';
 
 export type ConverterMode = 'paste' | 'ai';
 
 export interface AiForm {
   provider: AiProvider;
+  language: ResearchLanguage;
   topic: string;
   length: AiLength;
   mabhathCount: string;
@@ -48,12 +50,12 @@ const Ctx = createContext<ConverterApi | null>(null);
 const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
 
 export function ConverterProvider({ children }: { children: ReactNode }) {
-  const { applyParsed, doc } = useDocument();
+  const { applyParsed, doc, update, updateCover } = useDocument();
   const ui = useUI();
   const [mode, setMode] = useState<ConverterMode>('paste');
   const [rawText, setRawTextState] = useState(loadRawText);
   const [apiKey, setApiKeyState] = useState(loadApiKey);
-  const [form, setFormState] = useState<AiForm>({ provider: 'gemini', topic: '', length: 'medium', mabhathCount: '3', matlabCount: '3', caseStudyCompany: '', customUrl: '', customModel: '' });
+  const [form, setFormState] = useState<AiForm>({ provider: 'gemini', language: 'ar', topic: '', length: 'medium', mabhathCount: '3', matlabCount: '3', caseStudyCompany: '', customUrl: '', customModel: '' });
   const [run, setRun] = useState<AiRun>({ running: false, stage: 'idle', sections: [], words: 0, model: 'Gemini 2.5 Flash', startedAt: 0, duration: null });
   const runningRef = useRef(false);
 
@@ -90,6 +92,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
           fontFamily: doc.fontFamily,
           showStudentInfo: doc.showStudentInfo,
           layoutMode: doc.layoutMode,
+          language: doc.language,
         });
         if (opts?.overrideTitle) {
           result.detectedTitle = opts.overrideTitle;
@@ -133,9 +136,11 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
     setRun((r) => ({ ...r, running: true, stage: 'plan', sections: [], words: 0, startedAt, duration: null }));
     try {
       let resolvedPlanTitle = '';
+      const selectedLang = form.language || 'ar';
       const finalText = await generateResearch({
         provider: form.provider,
         apiKey: effectiveKey,
+        language: selectedLang,
         topic: exactUserTopic,
         length: form.length,
         mabhathCount: form.mabhathCount,
@@ -164,11 +169,36 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         analysis.hasCustomPlan ? analysis.customMabahith : undefined,
       );
       const pickSafe = (v?: string) => (v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : '');
+      const defaultFallbackTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي منسق';
       const cleanCoverTitle =
         pickSafe(sanitizedCover.cleaned) ||
         pickSafe(analysis.caseStudy.coverTitle) ||
         pickSafe(analysis.cleanedTopic) ||
-        (looksLikePlanLeak(exactUserTopic) || isStructuralTitleOnly(exactUserTopic) ? 'بحث أكاديمي منسق' : exactUserTopic);
+        (looksLikePlanLeak(exactUserTopic) || isStructuralTitleOnly(exactUserTopic) ? defaultFallbackTitle : exactUserTopic);
+      
+      const isFr = selectedLang === 'fr';
+      const isEn = selectedLang === 'en';
+      const isLatin = isFr || isEn;
+
+      update({
+        language: selectedLang,
+        ...(isLatin ? { fontFamily: "'Times New Roman', serif" } : {}),
+      });
+
+      if (isFr) {
+        updateCover({
+          country: 'République Algérienne Démocratique et Populaire',
+          ministry: "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
+          workType: 'Travail de recherche académique',
+        });
+      } else if (isEn) {
+        updateCover({
+          country: "People's Democratic Republic of Algeria",
+          ministry: 'Ministry of Higher Education and Scientific Research',
+          workType: 'Academic Research Paper',
+        });
+      }
+
       const count = parse({ silent: true, text: finalText, overrideTitle: cleanCoverTitle });
       if (count) {
         const hasCs = analysis.caseStudy.hasCaseStudy;

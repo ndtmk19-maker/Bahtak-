@@ -9,6 +9,7 @@ import {
   EyeOff,
   FlaskConical,
   KeyRound,
+  Languages,
   Lightbulb,
   Loader2,
   RotateCcw,
@@ -23,12 +24,14 @@ import { YouTubeIcon } from '../ui/BrandIcons';
 import { Field, SelectInput, TextArea, TextInput } from '../ui/Form';
 import { Note, Section } from '../ui/Section';
 import { useConverter } from '../../state/ConverterContext';
+import { useDocument } from '../../state/DocumentContext';
 import { useUI } from '../../state/UIContext';
 import { useResetApp } from '../../state/useResetApp';
-import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from '../../data/defaults';
+import { DEMO_RAW_TEXT, QUICK_AI_TOPICS_BY_LANG } from '../../data/defaults';
 import { AI_LENGTHS, AI_PROVIDERS, analyzeStudentTopic, type AiLength, type AiProvider } from '../../lib/aiGenerate';
 import { hasSystemGeminiKey } from '../../lib/aiKeys';
 import { TopicAnalysisCard } from '../ui/TopicAnalysisCard';
+import type { ResearchLanguage } from '../../types';
 
 export function Step1Input() {
   const { mode, setMode } = useConverter();
@@ -185,9 +188,35 @@ function PasteModeFields() {
 
 function AiModeFields() {
   const { form, setForm, run, generate } = useConverter();
+  const { doc, update } = useDocument();
   const topicAnalysis = analyzeStudentTopic(form.topic, form.caseStudyCompany);
   const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
+  const currentLang = form.language || 'ar';
+
+  const handleLangChange = (lang: ResearchLanguage) => {
+    setForm({ language: lang });
+    update({
+      language: lang,
+      fontFamily: lang === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
+    });
+  };
+
+  const quickTopics = QUICK_AI_TOPICS_BY_LANG[currentLang] || QUICK_AI_TOPICS_BY_LANG.ar;
+
+  const topicPlaceholder =
+    currentLang === 'fr'
+      ? 'Écrivez le sujet directement (ex: « Le Marketing Digital »)\nou collez le plan complet (Introduction, Chapitre I, Section 1...)'
+      : currentLang === 'en'
+        ? 'Enter the research topic (e.g. "Digital Marketing")\nor paste the full outline (Introduction, Chapter 1, Section 1...)'
+        : 'اكتب عنوان البحث مباشرة مثل: «التسويق الرقمي»\nأو ألصق هنا خطة البحث كاملة (المبحث الأول، المطلب الأول... أو 1، 2...) ليُبنى البحث وفقها حرفياً.';
+
+  const casePlaceholder =
+    currentLang === 'fr'
+      ? 'Ex: Sonatrach, Mobilis, Condor... (laisser vide si non requis)'
+      : currentLang === 'en'
+        ? 'E.g. Sonatrach, Mobilis, Apple... (leave blank if not needed)'
+        : 'مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)';
 
   return (
     <div className="flex animate-rise flex-col gap-3.5">
@@ -212,6 +241,40 @@ function AiModeFields() {
       </div>
 
       <Section title="موضوع وخطة البحث المطلوب" icon={<BookOpenCheck />}>
+        {/* اختيار لغة البحث */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[0.8rem] font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+              <Languages className="size-3.5 text-zinc-500" />
+              لغة إنجاز وتوليد البحث:
+            </span>
+            <span className="text-[0.72rem] font-medium text-zinc-500">
+              {currentLang === 'ar' ? 'العربية 🇩🇿 (الأميري - RTL)' : currentLang === 'fr' ? 'Français 🇫🇷 (Times New Roman - LTR)' : 'English 🇬🇧 (Times New Roman - LTR)'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'ar' as const, flag: '🇩🇿', label: 'العربية' },
+              { id: 'fr' as const, flag: '🇫🇷', label: 'Français' },
+              { id: 'en' as const, flag: '🇬🇧', label: 'English' },
+            ].map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => handleLangChange(l.id)}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-2 px-3 text-center transition-all cursor-pointer ${
+                  currentLang === l.id
+                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900 font-bold shadow-xs'
+                    : 'border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 text-zinc-700 dark:text-zinc-300 hover:border-black/25 dark:hover:border-white/25'
+                }`}
+              >
+                <span className="text-sm">{l.flag}</span>
+                <span className="text-[0.82rem]">{l.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <TextArea
           id="ai-topic-input"
           label={
@@ -221,12 +284,12 @@ function AiModeFields() {
           }
           value={form.topic}
           onChange={(e) => setForm({ topic: e.target.value })}
-          placeholder={'اكتب عنوان البحث مباشرة مثل: «التسويق الرقمي»\nأو ألصق هنا خطة البحث كاملة (المبحث الأول، المطلب الأول... أو 1، 2...) ليُبنى البحث وفقها حرفياً.'}
+          placeholder={topicPlaceholder}
           className="min-h-[112px]"
         />
         <div className="-mt-1 flex flex-wrap gap-1.5">
           <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">أمثلة سريعة:</span>
-          {QUICK_AI_TOPICS.map((q) => (
+          {quickTopics.map((q) => (
             <Chip key={q.label} onClick={() => setForm({ topic: q.topic })} icon={<Lightbulb className="size-3" />}>
               {q.label}
             </Chip>
@@ -252,7 +315,7 @@ function AiModeFields() {
           }
           value={form.caseStudyCompany}
           onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
-          placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+          placeholder={casePlaceholder}
           hint={
             topicAnalysis.caseStudyInPlanMabhath
               ? 'أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ سيُكتب في موضعه دون تكرار قسم إضافي، أو اكتب اسماً محدداً هنا لإفراد قسم تطبيقي مستقل.'

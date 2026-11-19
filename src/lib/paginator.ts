@@ -10,7 +10,7 @@
 // 4. الجداول الطويلة تُقسم بين الصفحات مع تكرار الرأس و«تابع الجدول»، والأشكال/الجداول القصيرة تطفو إلى
 //    أعلى الصفحة التالية بينما يُملأ الفراغ الحالي بالنص الموالي (الأعراف المعتمدة في الإخراج الأكاديمي).
 import type { AnalyzedCitation, AnalyzedItem, AnalyzedSection, ResearchAnalysis } from './parser';
-import type { ResearchPage } from '../types';
+import type { ResearchLanguage, ResearchPage } from '../types';
 import { escapeHtml } from './escape';
 import {
   CHART_VIEW_WIDTH,
@@ -494,26 +494,34 @@ export function paginateResearch(
   if (floats.length > 0) flushFloats();
   emitPage();
 
-  return { pages, planText: buildPlanText(plan) };
+  return { pages, planText: buildPlanText(plan, options?.language) };
 }
 
 /** إعادة بناء نص خطة البحث بأرقام الصفحات الفعلية */
-function buildPlanText(plan: PlanEntry[]): string {
+function buildPlanText(plan: PlanEntry[], lang?: ResearchLanguage): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+  const isLatin = lang === 'fr' || lang === 'en';
+  const pageLabel = isLatin ? 'p.' : 'ص';
   return plan
     .map((e) => {
       const p = pad(e.pageNum);
       switch (e.type) {
-        case 'intro':
-          return `المقدمة | ص ${p}`;
-        case 'conclusion':
-          return `الخــاتـمـــة | ص ${p}`;
-        case 'references':
-          return `قائمة المصادر والمراجع | ص ${p}`;
+        case 'intro': {
+          const title = lang === 'fr' ? 'Introduction' : lang === 'en' ? 'Introduction' : 'المقدمة';
+          return `${title} | ${pageLabel} ${p}`;
+        }
+        case 'conclusion': {
+          const title = lang === 'fr' ? 'Conclusion générale' : lang === 'en' ? 'General Conclusion' : 'الخــاتـمـــة';
+          return `${title} | ${pageLabel} ${p}`;
+        }
+        case 'references': {
+          const title = lang === 'fr' ? 'Bibliographie' : lang === 'en' ? 'References' : 'قائمة المصادر والمراجع';
+          return `${title} | ${pageLabel} ${p}`;
+        }
         case 'mabhath':
-          return `${e.title} | ص ${p}`;
+          return `${e.title} | ${pageLabel} ${p}`;
         default:
-          return `- ${e.title} | ص ${p}`;
+          return `- ${e.title} | ${pageLabel} ${p}`;
       }
     })
     .join('\n')

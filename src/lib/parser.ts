@@ -66,8 +66,10 @@ export interface ResearchAnalysis {
   sections: AnalyzedSection[];
 }
 
-// تعبير منتظم لأرقام وترتيب المباحث والمطالب (يدعم الهمزات والأرقام العربية والهندية)
+// تعبير منتظم لأرقام وترتيب المباحث والمطالب (يدعم العربية واللاتينية)
 const ARABIC_STRUCT_ORD = '(?:الأول|الاول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\\s+عشر|الثاني\\s+عشر|[\\d٠-٩]+)';
+const LATIN_STRUCT_ORD = '(?:[IVXLCDMivxlcdm]+|\\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Premier|Première|Deuxième|Troisième|Quatrième|Cinquième|Sixième|Septième|Huitième|Neuvième|Dixième)';
+const ANY_STRUCT_ORD = `(?:${ARABIC_STRUCT_ORD}|${LATIN_STRUCT_ORD})`;
 
 function stripDisplayMarkdown(line: string): string {
     const s = (line || '')
@@ -78,7 +80,7 @@ function stripDisplayMarkdown(line: string): string {
         .trim();
 
     const numberedStructMatch = s.match(
-        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا).*)$/i,
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا|Chapitre|Chapter|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
     );
     return numberedStructMatch ? numberedStructMatch[1].trim() : s;
 }
@@ -92,15 +94,17 @@ function stripStructuralMarkdown(line: string): string {
         .replace(/[\u064B-\u065F\u0670ـ]/g, '')
         .trim();
 
-    // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" فقط إذا سبق عنواناً هيكلياً صريحاً
+    // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" أو "1. Chapitre I:" فقط إذا سبق عنواناً هيكلياً صريحاً
     const numberedStructMatch = s.match(
-        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي])\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة).*)$/i,
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|Premièrement|Deuxièmement|Troisièmement|First|Second|Third)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|Chapitre|Chapter|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
     );
     if (numberedStructMatch) {
         s = numberedStructMatch[1].trim();
     }
 
-    return s.replace(/^(المبحث|مبحث|المطلب|مطلب)\s*(?:رقم\s*)?([\d٠-٩]+)/i, '$1 $2');
+    s = s.replace(/^(المبحث|مبحث|المطلب|مطلب)\s*(?:رقم\s*)?([\d٠-٩]+)/i, '$1 $2');
+    s = s.replace(/^(Chapitre|Chapter|Section)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+)/i, '$1 $2');
+    return s;
 }
 
 // تعبير منتظم لاكتشاف عبارات التمهيد للقوائم والنقاط (أهمها، عناصرها، خصائصها، أنواعها، مهامها، أهدافها، مميزاتها، كما يلي، كالاتي...)
@@ -370,19 +374,19 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             cleanText = cleanText.replace(/\\([.&_*\\#\-\(\)\[\]])/g, '$1');
             cleanText = cleanText.replace(/ـ+(?=[\u0621-\u064A])/g, '');
             cleanText = cleanText.replace(
-                new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:(?:المبحث|المطلب)\\s+${ARABIC_STRUCT_ORD}|دراسة\\s+حالة)\\s*[:\\-–—])`, 'g'),
+                new RegExp(`([\\.!\\?؟]|\\^\\d+|\\[\\d+\\])\\s+(?=(?:\\*{1,3}|#+\\s*)?(?:(?:المبحث|مبحث|Chapitre|Chapter)\\s+${ANY_STRUCT_ORD}|(?:المطلب|مطلب|Section|Sous-section|Subsection)\\s+${ANY_STRUCT_ORD}|دراسة\\s+حالة|Étude\\s+de\\s+cas|Etude\\s+de\\s+cas|Case\\s+Study)\\s*[:\\-–—])`, 'gi'),
                 '$1\n\n',
             );
 
             // 2. استخراج عنوان البحث الرئيسي إن وجد
             let detectedTitle = '';
-            const titleMatch = cleanText.match(/(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث)\s*[:\-]?\s*["«]?([^"\n\r»]+)["»]?/i);
+            const titleMatch = cleanText.match(/(?:بحث\s+بعنوان|عنوان\s+البحث|موضوع\s+البحث|Titre\s+de\s+la\s+recherche|Sujet|Thème|Research\s+Title|Title|Topic)\s*[:\-]?\s*["«]?([^"\n\r»]+)["»]?/i);
             if (titleMatch) {
                 detectedTitle = titleMatch[1].trim().replace(/^[:"«\s]+|[:"»\s]+$/g, '');
             }
 
             if (!detectedTitle) {
-                const planTitleInQuotes = cleanText.match(/(?:خطة\s+البحث|فهرس\s+البحث)[^"\n\r»]*["«]([^"\n\r»]+)["»]/i);
+                const planTitleInQuotes = cleanText.match(/(?:خطة\s+البحث|فهرس\s+البحث|Sommaire|Plan|Table\s+of\s+Contents|Outline)[^"\n\r»]*["«]([^"\n\r»]+)["»]/i);
                 if (planTitleInQuotes) {
                     detectedTitle = planTitleInQuotes[1].trim().replace(/^[:"«\s]+|[:"»\s]+$/g, '');
                 }
@@ -407,9 +411,8 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
             allCleanLines.forEach(line => {
                 const trimmed = line.trim();
-                // سطر خطة بصيغة «العنوان | ص 05» — مع استثناء صفوف جداول Markdown (تبدأ بـ |)
-                // حتى لا تُبتلع خلية تبدأ بحرف الصاد مثل «| صادرات» كسطر خطة
-                if (!trimmed.startsWith('|') && /\|\s*(?:ص|صفحة)\s*\.?\s*[\d٠-٩]*\s*$/i.test(trimmed)) {
+                // سطر خطة بصيغة «العنوان | ص 05» أو «Titre | p. 05»
+                if (!trimmed.startsWith('|') && /\|\s*(?:ص|صفحة|p\.|page|pp\.)\s*\.?\s*[\d٠-٩]*\s*$/i.test(trimmed)) {
                     planLinesWithPage.push(trimmed);
                 } else {
                     nonPlanLines.push(line);
@@ -420,8 +423,8 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 extractedPlan = planLinesWithPage.join('\n');
                 bodyText = nonPlanLines.join('\n');
             } else {
-                // ب) فحص وجود كتلة صريحة تبدأ بـ "خطة البحث" أو "فهرس" قبل المقدمة الحقيقية
-                const planHeaderRegex = /(?:^|\n)\s*(?:#+\s*)?(?:📋\s*)?(?:خطة\s+البحث(?:\s+المحسّنة|\s+المقترحة|\s+العامة)?|فهرس\s+البحث|فهرس\s+المحتويات|هيكل\s+البحث|الفهرس|المحتويات)[\s:\-]*/i;
+                // ب) فحص وجود كتلة صريحة تبدأ بـ "خطة البحث" أو "فهرس" أو "Sommaire" أو "Table of Contents" قبل المقدمة الحقيقية
+                const planHeaderRegex = /(?:^|\n)\s*(?:#+\s*)?(?:📋\s*)?(?:خطة\s+البحث(?:\s+المحسّنة|\s+المقترحة|\s+العامة)?|فهرس\s+البحث|فهرس\s+المحتويات|هيكل\s+البحث|الفهرس|المحتويات|Sommaire|Table\s+des\s+matières|Plan\s+de\s+travail|Plan\s+de\s+la\s+recherche|Table\s+of\s+Contents|Contents|Research\s+Outline)[\s:\-]*/i;
                 const planHeaderMatch = bodyText.match(planHeaderRegex);
 
                 if (planHeaderMatch) {
@@ -435,12 +438,12 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                         if (!l) continue;
                         const hl = stripStructuralMarkdown(l);
 
-                        if (/^(?:بحث\s+بعنوان|عنوان\s+البحث)\s*[:\-]/i.test(hl)) {
+                        if (/^(?:بحث\s+بعنوان|عنوان\s+البحث|Titre\s+de\s+la\s+recherche|Research\s+Title)\s*[:\-]/i.test(hl)) {
                             bodyStartIndexInLines = i;
                             break;
                         }
 
-                        if (/^(?:المقدمة|مقدمة|مدخل\s+عام)[\s:\-]*$/i.test(hl)) {
+                        if (/^(?:المقدمة|مقدمة|مدخل\s+عام|Introduction|General\s+Introduction|Introduction\s+générale)[\s:\-]*$/i.test(hl)) {
                             let nextNonEmpty = '';
                             for (let j = i + 1; j < linesAfterPlan.length; j++) {
                                 if (linesAfterPlan[j].trim()) {
@@ -448,7 +451,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                                     break;
                                 }
                             }
-                            if (nextNonEmpty && !/^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|خاتمة|الخاتمة|مراجع|المراجع)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
+                            if (nextNonEmpty && !/^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|خاتمة|الخاتمة|مراجع|المراجع|Chapitre|Chapter|Section|Sous-section|Subsection|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study|Conclusion|Bibliographie|References)/i.test(nextNonEmpty) && nextNonEmpty.length > 30) {
                                 bodyStartIndexInLines = i;
                                 break;
                             }
@@ -460,7 +463,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                         const validPlanLines = [];
                         planBlockLines.forEach(pl => {
                             const tr = stripStructuralMarkdown(pl);
-                            if (tr && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع)/i.test(tr)) {
+                            if (tr && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|قائمة|المصادر|المراجع|Chapitre|Chapter|Section|Sous-section|Subsection|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study|Introduction|Conclusion|Bibliographie|Références|References|Bibliography)/i.test(tr)) {
                                 validPlanLines.push(tr);
                             }
                         });
@@ -473,14 +476,14 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     }
                 } else {
                     // ج) حالة وجود هيكل خطة في البداية متبوع بمقدمة مكررة
-                    const introRegex = /(?:^|\n)\s*(?:#+\s*|\*{1,3}\s*)?(?:المقدمة|مقدمة|مدخل\s+عام)(?:\*{1,3})?[\s:\-]*\n/gi;
+                    const introRegex = /(?:^|\n)\s*(?:#+\s*|\*{1,3}\s*)?(?:المقدمة|مقدمة|مدخل\s+عام|Introduction|General\s+Introduction|Introduction\s+générale)(?:\*{1,3})?[\s:\-]*\n/gi;
                     const matches = [...bodyText.matchAll(introRegex)];
                     if (matches.length >= 2) {
                         const firstIdx = matches[0].index;
                         const secondIdx = matches[1].index;
                         const between = bodyText.substring(firstIdx, secondIdx);
                         const betweenLines = between.split('\n').map(l => stripStructuralMarkdown(l)).filter(l => l);
-                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة)/i.test(l));
+                        const isOutlineOnly = betweenLines.every(l => l.length < 120 && /^(?:المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|المقدمة|مقدمة|الخاتمة|خاتمة|فهرس|خطة|Chapitre|Chapter|Section|Sous-section|Subsection|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study|Introduction|Conclusion|Sommaire|Plan|Outline)/i.test(l));
                         if (isOutlineOnly) {
                             extractedPlan = betweenLines.join('\n');
                             bodyText = bodyText.substring(0, firstIdx) + '\n' + bodyText.substring(secondIdx);
@@ -495,7 +498,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
             }
 
             let titleLineToSkip = '';
-            const isStructuralHeading = /^(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب)(?:[\s:\-–—\(\[\{.\d]|$)/i;
+            const isStructuralHeading = /^(?:المقدمة|مقدمة|مدخل\s+عام|مدخل|تمهيد|خطة\s+البحث|خطة|فهرس|المحتويات|هيكل\s+البحث|المبحث|مبحث|المطلب|مطلب|دراسة\s+حالة|الفرع|فرع|أولاً|ثانياً|ثالثاً|رابعاً|خامساً|الخاتمة|خاتمة|قائمة|المصادر|المراجع|الفصل|فصل|الباب|باب|Introduction|General\s+Introduction|Introduction\s+générale|Conclusion|General\s+Conclusion|Conclusion\s+générale|Chapitre|Chapter|Section|Sous-section|Subsection|Partie|Part|Bibliographie|Références|References|Bibliography|Works\s+Cited|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study|Sommaire|Table\s+des\s+matières|Table\s+of\s+Contents|Plan|Outline)(?:[\s:\-–—\(\[\{.\d]|$)/i;
 
             if (!detectedTitle && rawLines.length > 0) {
                 const firstLine = rawLines[0].trim();
@@ -525,10 +528,10 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 };
             }
 
-            const mabhathHeadingRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-            const matlabHeadingRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-            const caseFirstHeadingRe = /^(?:أولاً|أولا)\s*[:\-–—\.]+/i;
-            const caseSecondHeadingRe = /^(?:ثانياً|ثانيا)\s*[:\-–—\.]+/i;
+            const mabhathHeadingRe = new RegExp(`^(?:(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}|(?:Chapitre|Chapter)\\s+${ANY_STRUCT_ORD})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+            const matlabHeadingRe = new RegExp(`^(?:(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}|(?:Section|Sous-section|Subsection)\\s+${ANY_STRUCT_ORD})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+            const caseFirstHeadingRe = /^(?:أولاً|أولا|Premièrement|First)\s*[:\-–—\.]+/i;
+            const caseSecondHeadingRe = /^(?:ثانياً|ثانيا|Deuxièmement|Second)\s*[:\-–—\.]+/i;
 
             let pendingMabhath = '';
             let pendingPreambleLines = [];
@@ -570,9 +573,9 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 }
 
                 // المقدمة
-                if (/^(?:المقدمة|مقدمة|مقدمة\s+البحث|مدخل\s+عام)[\s:\-]*$/i.test(headingLine)) {
+                if (/^(?:المقدمة|مقدمة|مقدمة\s+البحث|مدخل\s+عام|Introduction|General\s+Introduction|Introduction\s+générale)[\s:\-]*$/i.test(headingLine)) {
                     flushPendingMabhathIfOrphaned();
-                    startNewSection('intro', 'المقدمة', '');
+                    startNewSection('intro', stripDisplayMarkdown(line) || 'المقدمة', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
                     resetCaseStudyState();
@@ -580,9 +583,9 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 }
 
                 // الخاتمة
-                if (/^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث)[\s:\-]*$/i.test(headingLine)) {
+                if (/^(?:الخاتمة|الخـاتـمـــة|الخــاتـمـــة|خاتمة|خاتمة\s+البحث|Conclusion|General\s+Conclusion|Conclusion\s+générale)[\s:\-]*$/i.test(headingLine)) {
                     flushPendingMabhathIfOrphaned();
-                    startNewSection('conclusion', 'الخــاتـمـــة', '');
+                    startNewSection('conclusion', stripDisplayMarkdown(line) || 'الخــاتـمـــة', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
                     resetCaseStudyState();
@@ -590,9 +593,9 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 }
 
                 // قائمة المراجع
-                if (/^(?:قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع|قائمة\s+المراجع|المراجع\s+والمصادر|المراجع)[\s:\-]*$/i.test(headingLine)) {
+                if (/^(?:قائمة\s+المصادر\s+والمراجع|المصادر\s+والمراجع|قائمة\s+المراجع|المراجع\s+والمصادر|المراجع|Bibliographie|Références|References|Bibliography|Works\s+Cited|Sources\s+et\s+Références)[\s:\-]*$/i.test(headingLine)) {
                     flushPendingMabhathIfOrphaned();
-                    startNewSection('references', 'قائمة المصادر والمراجع', '');
+                    startNewSection('references', stripDisplayMarkdown(line) || 'قائمة المصادر والمراجع', '');
                     pendingMabhath = '';
                     pendingPreambleLines = [];
                     resetCaseStudyState();
@@ -602,15 +605,15 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 // المبحث (مع دعم الماركداون والشرطات والنقاط والأرقام)
                 if (mabhathHeadingRe.test(headingLine)) {
                     flushPendingMabhathIfOrphaned();
-                    pendingMabhath = headingLine;
+                    pendingMabhath = stripDisplayMarkdown(line);
                     pendingPreambleLines = [];
                     resetCaseStudyState();
                     continue;
                 }
 
                 // دراسة حالة (قسم مستقل قبل الخاتمة بدون تسميته كمبحث)
-                const isExplicitCaseStudyColon = /^(?:دراسة\s+حالة|الجانب\s+التطبيقي\s*[:\-–—]?\s*دراسة\s+حالة)\s*[:\-–—]/i.test(headingLine);
-                const isStandaloneCaseStudyTitle = /^دراسة\s+حالة(?:\s+(?:ميدانية|تطبيقية))?(?:\s+(?:حول|عن)\s+.+)?$/i.test(headingLine) && headingLine.length <= 75 && !/[.،؟!]$/.test(headingLine);
+                const isExplicitCaseStudyColon = /^(?:دراسة\s+حالة|الجانب\s+التطبيقي\s*[:\-–—]?\s*دراسة\s+حالة|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study)\s*[:\-–—]/i.test(headingLine);
+                const isStandaloneCaseStudyTitle = /^(?:دراسة\s+حالة|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study)(?:\s+(?:ميدانية|تطبيقية|pratique|empirique))?(?:\s+(?:حول|عن|sur|on)\s+.+)?$/i.test(headingLine) && headingLine.length <= 85 && !/[.،؟!]$/.test(headingLine);
                 if (!isBulletPrefixed && headingLine.length <= 140 && (isExplicitCaseStudyColon || isStandaloneCaseStudyTitle)) {
                     flushPendingMabhathIfOrphaned();
                     pendingMabhath = stripDisplayMarkdown(line);
@@ -661,7 +664,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
 
                 // المطلب (مع دعم الماركداون والشرطات والنقاط والأرقام)
                 if (matlabHeadingRe.test(headingLine)) {
-                    startNewSection('matlab', pendingMabhath, headingLine);
+                    startNewSection('matlab', pendingMabhath, stripDisplayMarkdown(line));
                     if (pendingPreambleLines.length > 0) {
                         curSection.lines.push(...pendingPreambleLines);
                         pendingPreambleLines = [];
@@ -717,12 +720,12 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                     }
                     const trimmed = entry.trim();
                     const headingTrimmed = stripStructuralMarkdown(trimmed);
-                    if (/^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة)\s*[:\-]?$/i.test(headingTrimmed)) {
+                    if (/^(?:الهوامش|المراجع|قائمة\s+الهوامش|هوامش\s+الصفحة|Notes|Footnotes|Notes\s+de\s+bas\s+de\s+page)\s*[:\-]?$/i.test(headingTrimmed)) {
                         inFootnotesBlock = true;
                         return;
                     }
 
-                    const isCitationTerm = /(?:ص\s*\.?\s*\d+|دار\s+|نشر|مطبعة|طبعة|جامعة|مرجع\s+سبق|مجلة|أطروحة|مذكرة)/i.test(trimmed);
+                    const isCitationTerm = /(?:ص\s*\.?\s*\d+|p\.\s*\d+|pp\.\s*\d+|دار\s+|نشر|مطبعة|طبعة|éd\.|ed\.|vol\.|univ\.|press|éditions|جامعة|مرجع\s+سبق|op\.\s*cit|ibid|in\s*:|مجلة|أطروحة|مذكرة)/i.test(trimmed);
                     const isFn = (sec.type !== 'references') && (
                                  /^[\^]\s*\d+/.test(trimmed) || 
                                  /^\[\d+\]/.test(trimmed) ||
@@ -899,7 +902,12 @@ export function parseRawText(rawInput: string, options?: LayoutOptions): ParseRe
             const { pages, planText } = paginateResearch(analysis, options, { formatBullet: formatBulletContent });
 
             if (pages.length === 0) {
-                throw new ParseError('لم يتم العثور على أقسام واضحة في النص. تأكد من احتواء النص على كلمات مثل (المقدمة، المبحث، المطلب، الخاتمة).');
+                const isLatin = options?.language === 'fr' || options?.language === 'en';
+                throw new ParseError(
+                    isLatin
+                        ? 'Aucune section académique valide trouvée. Assurez-vous que le texte contient (Introduction, Chapitre/Chapter, Section, Conclusion).'
+                        : 'لم يتم العثور على أقسام واضحة في النص. تأكد من احتواء النص على كلمات مثل (المقدمة، المبحث، المطلب، الخاتمة).'
+                );
             }
 
             return {

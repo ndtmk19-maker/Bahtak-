@@ -71,9 +71,12 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
   const showLeft = !!logo && (pos === 'both' || pos === 'left');
   const students = cs.studentsText.split('\n').filter((s) => s.trim() !== '');
   const black = theme === 'black';
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const studentsHeading = doc.language === 'fr' ? 'Préparé par :' : doc.language === 'en' ? 'Prepared by:' : 'إعداد الطلبة:';
+  const supervisorHeading = doc.language === 'fr' ? 'Sous la direction de :' : doc.language === 'en' ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
 
   return (
-    <div className={`a4-page cover-theme-${theme}`} id="preview-cover">
+    <div className={`a4-page cover-theme-${theme} ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-cover">
       <div className={`page-border ${black ? 'cover-black-border' : 'cover-gold-border'}`}>
         <div className={`page-inner-border ${black ? 'cover-black-inner-border' : 'cover-gold-inner-border'}`}>
           <div className="cover-page-container">
@@ -105,7 +108,7 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
             <div className="cover-footer">
               <div className="cover-info-grid">
                 <div className="cover-info-box">
-                  <div className="cover-info-heading">إعداد الطلبة:</div>
+                  <div className="cover-info-heading">{studentsHeading}</div>
                   <div className="cover-info-names">
                     {students.map((s, i) => (
                       <span key={i}>{s.trim()}</span>
@@ -113,7 +116,7 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
                   </div>
                 </div>
                 <div className="cover-info-box">
-                  <div className="cover-info-heading">تحت إشراف الأستاذ(ة):</div>
+                  <div className="cover-info-heading">{supervisorHeading}</div>
                   <div className="cover-info-names">
                     <span>{cs.supervisor}</span>
                     <span style={{ marginTop: '3mm', fontWeight: 700 }}>{cs.group}</span>
@@ -132,8 +135,9 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
 export function PlanPage({ doc }: { doc: DocumentState }) {
   const ps = doc.planState;
   const b = borderStyles(doc.borderStyle);
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
   return (
-    <div className="a4-page" id="preview-plan">
+    <div className={`a4-page ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-plan">
       <div className="page-border" style={b.outer}>
         <div className="page-inner-border" style={b.inner}>
           <div className="page-content">
@@ -155,7 +159,7 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
             </div>
           </div>
           <div className="doc-footer">
-            <div className="doc-page-number">- أ -</div>
+            <div className="doc-page-number">- {isLatin ? 'i' : 'أ'} -</div>
           </div>
         </div>
       </div>
@@ -166,14 +170,23 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
 export function ContentPage({ doc, page, index }: { doc: DocumentState; page: ResearchPage; index: number }) {
   const b = borderStyles(doc.borderStyle);
   const safeContent = useMemo(() => sanitizePageHtml(page.content), [page.content]);
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const nameLabel = doc.language === 'fr' ? 'Nom et Prénom :' : doc.language === 'en' ? 'Name:' : 'الاسم واللقب:';
+  const fawjLabel = doc.language === 'fr' ? 'Groupe :' : doc.language === 'en' ? 'Group:' : 'الفوج:';
+
   return (
-    <div className={`a4-page ${doc.layoutMode === 'card' ? 'two-columns-mode' : ''}`} style={{ fontFamily: doc.fontFamily }} id={`preview-page-${index}`}>
+    <div
+      className={`a4-page ${isLatin ? 'lang-ltr' : ''} ${doc.layoutMode === 'card' ? 'two-columns-mode' : ''}`}
+      dir={isLatin ? 'ltr' : 'rtl'}
+      style={{ fontFamily: doc.fontFamily }}
+      id={`preview-page-${index}`}
+    >
       <div className="page-border" style={b.outer}>
         <div className="page-inner-border" style={b.inner}>
           {doc.showStudentInfo && (
             <div className="doc-student-info">
-              <div>الاسم واللقب: {doc.studentName}</div>
-              <div>الفوج: {doc.studentFawj}</div>
+              <div>{nameLabel} {doc.studentName}</div>
+              <div>{fawjLabel} {doc.studentFawj}</div>
             </div>
           )}
           <div className="page-content" style={{ fontSize: `${doc.fontSize}pt`, lineHeight: doc.lineHeight }}>

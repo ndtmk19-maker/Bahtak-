@@ -1,6 +1,8 @@
 // قياسات صفحة A4 الفعلية وأداة قياس الأسطر المستعملة في توزيع النص على الصفحات.
 // كل الأرقام هنا مشتقة من styles/paper.css؛ عند تعديل الحشوات أو الإطارات هناك يجب تحديثها هنا.
 
+import type { ResearchLanguage } from '../types';
+
 export type MajorSectionBreak = 'smart' | 'always';
 
 export interface LayoutOptions {
@@ -14,6 +16,8 @@ export interface LayoutOptions {
   showStudentInfo?: boolean;
   /** 'card' = بطاقة قراءة بعمودين */
   layoutMode?: string;
+  /** لغة البحث: العربية، الفرنسية أو الإنجليزية */
+  language?: ResearchLanguage;
   /**
    * سياسة بدء المباحث والخاتمة:
    * - smart: صفحة جديدة إلا إذا كانت الصفحة الحالية شبه فارغة (تفادي صفحات بثلاثة أسطر)
@@ -27,6 +31,7 @@ export interface PageMetrics {
   lineHeight: number;
   fontFamily: string;
   majorSectionBreak: MajorSectionBreak;
+  language?: ResearchLanguage;
   /** عرض عمود المتن بالمليمتر */
   columnWidthMm: number;
   /** عرض منطقة الهوامش السفلية (تمتد على كامل عرض الإطار حتى في وضع العمودين) */
@@ -71,6 +76,7 @@ export function resolvePageMetrics(opts: LayoutOptions = {}): PageMetrics {
     lineHeight,
     fontFamily: opts.fontFamily || DEFAULT_LAYOUT.fontFamily,
     majorSectionBreak: opts.majorSectionBreak ?? 'always',
+    language: opts.language,
     columnWidthMm: twoColumns ? (frameW - COLUMN_GAP) / 2 : frameW,
     footerWidthMm: frameW,
     // في وضع العمودين تتضاعف السعة تقريباً مع فاقد بسيط لموازنة الأعمدة

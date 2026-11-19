@@ -123,6 +123,8 @@ export function buildDocxFileName(title?: string): string {
   return `${base || 'بحث_أكاديمي_منسق'}.docx`;
 }
 
+let activeDocRtl = true;
+
 // ترتيب عناصر w:rPr مطابق لـ ECMA-376 CT_RPr:
 // rFonts -> b/bCs -> i/iCs -> color -> sz/szCs -> u -> vertAlign -> rtl -> lang
 function buildRunPr(opts: {
@@ -135,8 +137,8 @@ function buildRunPr(opts: {
   superscript?: boolean;
   rtl?: boolean;
 }): string {
-  const font = opts.font || 'Amiri';
-  const rtl = opts.rtl !== false;
+  const font = opts.font || (activeDocRtl ? 'Amiri' : 'Times New Roman');
+  const rtl = opts.rtl !== undefined ? opts.rtl : activeDocRtl;
   const parts: string[] = [
     `<w:rFonts w:ascii="${xmlEscape(font)}" w:hAnsi="${xmlEscape(font)}" w:cs="${xmlEscape(font)}"/>`,
   ];
@@ -635,6 +637,13 @@ function buildCoverSectionXml(
   startShapeId: { val: number },
 ): { bodyXml: string; sectPrXml: string } {
   const cs = doc.coverState;
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const bidiVisualTag = isLatin ? '' : '<w:bidiVisual/>';
+  const studentsHeading = doc.language === 'fr' ? 'Préparé par :' : doc.language === 'en' ? 'Prepared by:' : 'إعداد الطلبة:';
+  const supervisorHeading = doc.language === 'fr' ? 'Sous la direction de :' : doc.language === 'en' ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
+  const infoJc = isLatin ? 'left' : 'right';
+
   const isGold = cs.theme === 'gold';
   const accentColor = isGold ? 'C5A059' : '000000';
   const titleColor = isGold ? '0F2952' : '000000';
@@ -669,36 +678,36 @@ function buildCoverSectionXml(
   const showLeftLogo = !!(logo && logoRId && (pos === 'both' || pos === 'left'));
 
   const rightLogoCellContent = showRightLogo
-    ? `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildInlineLogoRun(logoRId!, logo!, maxLogoMm, startShapeId.val++)}</w:p>`
-    : `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
+    ? `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildInlineLogoRun(logoRId!, logo!, maxLogoMm, startShapeId.val++)}</w:p>`
+    : `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
 
   const leftLogoCellContent = showLeftLogo
-    ? `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>${buildInlineLogoRun(logoRId!, logo!, maxLogoMm, startShapeId.val++)}</w:p>`
-    : `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
+    ? `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>${buildInlineLogoRun(logoRId!, logo!, maxLogoMm, startShapeId.val++)}</w:p>`
+    : `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
 
   const headerLines: string[] = [];
   if (cs.country?.trim()) {
     headerLines.push(
-      `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="35" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.country.trim(), { font: 'Cairo', sizePt: 15, bold: true, color: countryColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.country.trim(), { font: 'Cairo', sizePt: 15, bold: true, color: countryColor })}</w:p>`,
     );
   }
   if (cs.ministry?.trim()) {
     headerLines.push(
-      `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.ministry.trim(), { font: 'Cairo', sizePt: 11.5, bold: !isGold, color: ministryColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.ministry.trim(), { font: 'Cairo', sizePt: 11.5, bold: !isGold, color: ministryColor })}</w:p>`,
     );
   }
   if (cs.universityName?.trim()) {
     headerLines.push(
-      `<w:p><w:pPr><w:bidi/><w:spacing w:before="25" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.universityName.trim(), { font: 'Cairo', sizePt: 13, bold: true, color: univColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="25" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.universityName.trim(), { font: 'Cairo', sizePt: 13, bold: true, color: univColor })}</w:p>`,
     );
   }
   if (cs.facultyName?.trim()) {
     headerLines.push(
-      `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="20" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.facultyName.trim(), { font: 'Cairo', sizePt: 11, bold: true, color: facultyColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="20" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.facultyName.trim(), { font: 'Cairo', sizePt: 11, bold: true, color: facultyColor })}</w:p>`,
     );
   }
   if (headerLines.length === 0) {
-    headerLines.push('<w:p><w:pPr><w:bidi/></w:pPr></w:p>');
+    headerLines.push(`<w:p><w:pPr>${bidiTag}</w:pPr></w:p>`);
   }
 
   const noBordersXml =
@@ -706,11 +715,11 @@ function buildCoverSectionXml(
   const zeroCellMarXml =
     '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar>';
 
-  const headerNestedTable = `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${sideColW}"/><w:gridCol w:w="${centerColW}"/><w:gridCol w:w="${sideColW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${sideColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${rightLogoCellContent}</w:tc><w:tc><w:tcPr><w:tcW w:w="${centerColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${headerLines.join('')}</w:tc><w:tc><w:tcPr><w:tcW w:w="${sideColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${leftLogoCellContent}</w:tc></w:tr></w:tbl>`;
+  const headerNestedTable = `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${sideColW}"/><w:gridCol w:w="${centerColW}"/><w:gridCol w:w="${sideColW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${sideColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${rightLogoCellContent}</w:tc><w:tc><w:tcPr><w:tcW w:w="${centerColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${headerLines.join('')}</w:tc><w:tc><w:tcPr><w:tcW w:w="${sideColW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${leftLogoCellContent}</w:tc></w:tr></w:tbl>`;
 
   // الخط العلوي الصغير تحت الترويسة (.cover-top-line) — ينهي الخلية بـ <w:p> وفق متطلبات ECMA-376
   const topLineIndent = Math.round((usableW - 1800) / 2);
-  const topAccentLineP = `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="10" w:space="4" w:color="${accentColor}"/></w:pBdr><w:bidi/><w:spacing w:before="20" w:after="0" w:line="80" w:lineRule="exact"/><w:ind w:left="${topLineIndent}" w:right="${topLineIndent}"/></w:pPr></w:p>`;
+  const topAccentLineP = `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="10" w:space="4" w:color="${accentColor}"/></w:pBdr>${bidiTag}<w:spacing w:before="20" w:after="0" w:line="80" w:lineRule="exact"/><w:ind w:left="${topLineIndent}" w:right="${topLineIndent}"/></w:pPr></w:p>`;
 
   // منتصف الغلاف: نوع البحث + العنوان الرئيسي الكبير + العنوان الفرعي + الفاصل الماسي
   const students = (cs.studentsText || '')
@@ -747,39 +756,39 @@ function buildCoverSectionXml(
   const supColW = usableW - studentColW - spacerColW; // 3600
 
   const studentsCellParagraphs = [
-    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="130" w:line="240" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun('إعداد الطلبة:', { font: 'Cairo', sizePt: 12.5, bold: true, color: infoHeadingColor })}</w:p>`,
+    `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="130" w:line="240" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(studentsHeading, { font: 'Cairo', sizePt: 12.5, bold: true, color: infoHeadingColor })}</w:p>`,
     ...(students.length > 0
       ? students.map(
           (st) =>
-            `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="75" w:line="250" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun(st, { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
+            `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="75" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(st, { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
         )
-      : [`<w:p><w:pPr><w:bidi/></w:pPr></w:p>`]),
+      : [`<w:p><w:pPr>${bidiTag}</w:pPr></w:p>`]),
   ].join('');
 
   const supervisorCellParagraphs = [
-    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="130" w:line="240" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun('تحت إشراف الأستاذ(ة):', { font: 'Cairo', sizePt: 12.5, bold: true, color: infoHeadingColor })}</w:p>`,
+    `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="130" w:line="240" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(supervisorHeading, { font: 'Cairo', sizePt: 12.5, bold: true, color: infoHeadingColor })}</w:p>`,
     ...(cs.supervisor?.trim()
       ? [
-          `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="140" w:line="250" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun(cs.supervisor.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
+          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="140" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(cs.supervisor.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
         ]
       : []),
     ...(cs.group?.trim()
       ? [
-          `<w:p><w:pPr><w:bidi/><w:spacing w:before="40" w:after="60" w:line="250" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun(cs.group.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
+          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="40" w:after="60" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(cs.group.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
         ]
       : []),
-    ...(!cs.supervisor?.trim() && !cs.group?.trim() ? [`<w:p><w:pPr><w:bidi/></w:pPr></w:p>`] : []),
+    ...(!cs.supervisor?.trim() && !cs.group?.trim() ? [`<w:p><w:pPr>${bidiTag}</w:pPr></w:p>`] : []),
   ].join('');
 
-  const footerGridTable = `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${studentColW}"/><w:gridCol w:w="${spacerColW}"/><w:gridCol w:w="${supColW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${studentColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${studentsCellParagraphs}</w:tc><w:tc><w:tcPr><w:tcW w:w="${spacerColW}" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:bidi/></w:pPr></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="${supColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${supervisorCellParagraphs}</w:tc></w:tr></w:tbl>`;
+  const footerGridTable = `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${studentColW}"/><w:gridCol w:w="${spacerColW}"/><w:gridCol w:w="${supColW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${studentColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${studentsCellParagraphs}</w:tc><w:tc><w:tcPr><w:tcW w:w="${spacerColW}" w:type="dxa"/></w:tcPr><w:p><w:pPr>${bidiTag}</w:pPr></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="${supColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${supervisorCellParagraphs}</w:tc></w:tr></w:tbl>`;
 
-  const academicYearP = `<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="12" w:space="8" w:color="${academicYearBorderColor}"/></w:pBdr><w:bidi/><w:spacing w:before="280" w:after="0" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun((cs.academicYear || '').trim(), { font: 'Cairo', sizePt: 12.5, bold: true, color: titleColor })}</w:p>`;
+  const academicYearP = `<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="12" w:space="8" w:color="${academicYearBorderColor}"/></w:pBdr>${bidiTag}<w:spacing w:before="280" w:after="0" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun((cs.academicYear || '').trim(), { font: 'Cairo', sizePt: 12.5, bold: true, color: titleColor })}</w:p>`;
 
-  const outerCoverTable = `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${usableW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="2200" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${headerNestedTable}${topAccentLineP}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${row2Height}" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${bodyParagraphs.join('')}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="3100" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>${footerGridTable}${academicYearP}</w:tc></w:tr></w:tbl>`;
+  const outerCoverTable = `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${usableW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="2200" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${headerNestedTable}${topAccentLineP}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${row2Height}" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${bodyParagraphs.join('')}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="3100" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>${footerGridTable}${academicYearP}</w:tc></w:tr></w:tbl>`;
 
   // ترتيب عناصر CT_SectPr: pgSz -> pgMar -> pgBorders -> bidi
   const coverBorderXml = buildPageBordersXml('double', isGold ? 'C5A059' : '000000');
-  const sectPrXml = `<w:sectPr><w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${mm(17)}" w:right="${rightMargin}" w:bottom="${mm(15)}" w:left="${leftMargin}" w:header="450" w:footer="450" w:gutter="0"/>${coverBorderXml}<w:bidi/></w:sectPr>`;
+  const sectPrXml = `<w:sectPr><w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${mm(17)}" w:right="${rightMargin}" w:bottom="${mm(15)}" w:left="${leftMargin}" w:header="450" w:footer="450" w:gutter="0"/>${coverBorderXml}${bidiTag}</w:sectPr>`;
 
   return { bodyXml: outerCoverTable, sectPrXml };
 }
@@ -790,6 +799,8 @@ function buildPlanSectionXml(
   footerRId: string,
   isFirstSection: boolean,
 ): { bodyXml: string; sectPrXml: string } {
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
   const ps = doc.planState;
   const sideM = mm(18);
   const usableW = A4_W_DXA - sideM * 2; // 9864 dxa (174mm)
@@ -832,31 +843,33 @@ function buildPlanSectionXml(
     const titleText = row.isMain ? row.title : `•  ${row.title}`;
 
     // ترتيب CT_PPrBase: pBdr -> tabs -> bidi -> spacing -> ind -> jc
+    const jcVal = isLatin ? 'left' : 'right';
     paragraphs.push(
-      `<w:p><w:pPr>${bdr}${tabs}<w:bidi/>${spacing}${ind}<w:jc w:val="right"/></w:pPr>${buildTextRun(titleText, { font: titleFont, sizePt: titlePt, bold: row.isMain, color: titleColor })}${pageRuns}</w:p>`,
+      `<w:p><w:pPr>${bdr}${tabs}${bidiTag}${spacing}${ind}<w:jc w:val="${jcVal}"/></w:pPr>${buildTextRun(titleText, { font: titleFont, sizePt: titlePt, bold: row.isMain, color: titleColor })}${pageRuns}</w:p>`,
     );
   }
 
   // ترتيب CT_SectPr: footerReference -> type -> pgSz -> pgMar -> pgBorders -> bidi
   const nextPageXml = isFirstSection ? '' : '<w:type w:val="nextPage"/>';
   const borderXml = buildPageBordersXml(doc.borderStyle);
-  const sectPrXml = `<w:sectPr><w:footerReference w:type="default" r:id="${footerRId}"/>${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${mm(14)}" w:right="${sideM}" w:bottom="${mm(16.5)}" w:left="${sideM}" w:header="450" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}<w:bidi/></w:sectPr>`;
+  const sectPrXml = `<w:sectPr><w:footerReference w:type="default" r:id="${footerRId}"/>${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${mm(14)}" w:right="${sideM}" w:bottom="${mm(16.5)}" w:left="${sideM}" w:header="450" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}${bidiTag}</w:sectPr>`;
 
   return { bodyXml: paragraphs.join(''), sectPrXml };
 }
 
-function buildFootnoteSeparatorTableXml(blockWidthDxa: number): string {
-  // جدول RTL بدون حدود خارجية لعرض خط فاصل قصير (38% من عرض الصفحة يميناً) مثل تصميم PDF
-  // متوافق كلياً مع Google Docs و Word Online و WPS Office و Microsoft Word
+function buildFootnoteSeparatorTableXml(blockWidthDxa: number, isLatin: boolean = false): string {
+  // جدول بدون حدود خارجية لعرض خط فاصل قصير (38% من عرض الصفحة) مثل تصميم PDF
   const sepW = Math.max(1200, Math.round(blockWidthDxa * 0.38));
   const restW = Math.max(0, blockWidthDxa - sepW);
   const noBorder = 'w:val="none" w:sz="0" w:space="0" w:color="auto"';
   const emptyTblBorders = `<w:tblBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom ${noBorder}/><w:right ${noBorder}/><w:insideH ${noBorder}/><w:insideV ${noBorder}/></w:tblBorders>`;
   const sepCellBorders = `<w:tcBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="333333"/><w:right ${noBorder}/></w:tcBorders>`;
   const blankCellBorders = `<w:tcBorders><w:top ${noBorder}/><w:left ${noBorder}/><w:bottom ${noBorder}/><w:right ${noBorder}/></w:tcBorders>`;
-  const tinyPara = `<w:p><w:pPr><w:keepNext/><w:bidi/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const bidiVisualTag = isLatin ? '' : '<w:bidiVisual/>';
+  const tinyPara = `<w:p><w:pPr><w:keepNext/>${bidiTag}<w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
 
-  return `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${blockWidthDxa}" w:type="dxa"/>${emptyTblBorders}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${sepW}"/><w:gridCol w:w="${restW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="40" w:hRule="exact"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${sepW}" w:type="dxa"/>${sepCellBorders}</w:tcPr>${tinyPara}</w:tc><w:tc><w:tcPr><w:tcW w:w="${restW}" w:type="dxa"/>${blankCellBorders}</w:tcPr>${tinyPara}</w:tc></w:tr></w:tbl>`;
+  return `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${blockWidthDxa}" w:type="dxa"/>${emptyTblBorders}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${sepW}"/><w:gridCol w:w="${restW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="40" w:hRule="exact"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${sepW}" w:type="dxa"/>${sepCellBorders}</w:tcPr>${tinyPara}</w:tc><w:tc><w:tcPr><w:tcW w:w="${restW}" w:type="dxa"/>${blankCellBorders}</w:tcPr>${tinyPara}</w:tc></w:tr></w:tbl>`;
 }
 
 function buildContentSectionXml(
@@ -868,6 +881,9 @@ function buildContentSectionXml(
   chartAssets: ChartAssetMap = new Map(),
   shapeCounter: { val: number } = { val: 100 },
 ): { bodyXml: string; sectPrXml: string } {
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const bidiVisualTag = isLatin ? '' : '<w:bidiVisual/>';
   const sideM = mm(17);
   const topM = doc.showStudentInfo ? mm(17.5) : mm(14);
   const bottomM = mm(16.5);
@@ -1077,17 +1093,18 @@ function buildContentSectionXml(
           `<w:p><w:pPr>${pb}<w:bidi/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`,
         );
       }
-      trailingPageParagraphs.push(buildFootnoteSeparatorTableXml(fnBlockW));
+      trailingPageParagraphs.push(buildFootnoteSeparatorTableXml(fnBlockW, isLatin));
       pageFnList.forEach((fnRaw, fnIdx) => {
         const fnText = (fnRaw || '').replace(/\r\n?/g, ' ').replace(/\n+/g, ' ').trim();
         const keepNext = fnIdx < pageFnList.length - 1 ? '<w:keepNext/>' : '';
+        const jcVal = isLatin ? 'left' : 'right';
         trailingPageParagraphs.push(
-          `<w:p><w:pPr>${keepNext}<w:keepLines/><w:bidi/><w:spacing w:before="${fnIdx === 0 ? 75 : 0}" w:after="40" w:line="280" w:lineRule="auto"/><w:jc w:val="right"/></w:pPr>${buildTextRun(String(fnIdx + 1), { font: mainFont, sizePt: 9, bold: true, color: '1E3A8A', superscript: true })}${buildTextRun(` ${fnText}`, { font: mainFont, sizePt: 9, color: '222222' })}</w:p>`,
+          `<w:p><w:pPr>${keepNext}<w:keepLines/>${bidiTag}<w:spacing w:before="${fnIdx === 0 ? 75 : 0}" w:after="40" w:line="280" w:lineRule="auto"/><w:jc w:val="${jcVal}"/></w:pPr>${buildTextRun(String(fnIdx + 1), { font: mainFont, sizePt: 9, bold: true, color: '1E3A8A', superscript: true })}${buildTextRun(` ${fnText}`, { font: mainFont, sizePt: 9, color: '222222' })}</w:p>`,
         );
       });
     } else if (trailingPageParagraphs.length === 0 && pageParagraphCount === 0) {
       const pb = consumePageBreak();
-      trailingPageParagraphs.push(`<w:p><w:pPr>${pb}<w:bidi/><w:jc w:val="both"/></w:pPr></w:p>`);
+      trailingPageParagraphs.push(`<w:p><w:pPr>${pb}${bidiTag}<w:jc w:val="both"/></w:pPr></w:p>`);
     }
 
     bodyChunks.push(...trailingPageParagraphs);
@@ -1102,13 +1119,15 @@ function buildContentSectionXml(
       ? `<w:cols w:num="2" w:space="${mm(8)}" w:sep="1" w:equalWidth="1"/>`
       : '';
 
-  const sectPrXml = `<w:sectPr>${headerRefXml}<w:footerReference w:type="default" r:id="${footerRId}"/>${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${topM}" w:right="${sideM}" w:bottom="${bottomM}" w:left="${sideM}" w:header="${doc.showStudentInfo ? mm(10) : 450}" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}<w:pgNumType w:start="1"/>${colsXml}<w:bidi/></w:sectPr>`;
+  const sectPrXml = `<w:sectPr>${headerRefXml}<w:footerReference w:type="default" r:id="${footerRId}"/>${nextPageXml}<w:pgSz w:w="${A4_W_DXA}" w:h="${A4_H_DXA}"/><w:pgMar w:top="${topM}" w:right="${sideM}" w:bottom="${bottomM}" w:left="${sideM}" w:header="${doc.showStudentInfo ? mm(10) : 450}" w:footer="${mm(10.8)}" w:gutter="0"/>${borderXml}<w:pgNumType w:start="1"/>${colsXml}${bidiTag}</w:sectPr>`;
 
   return { bodyXml: bodyChunks.join(''), sectPrXml };
 }
 
-function buildPlanFooterXml(): string {
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun('- أ -', { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:ftr>`;
+function buildPlanFooterXml(isLatin: boolean = false): string {
+  const pNum = isLatin ? '- i -' : '- أ -';
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(pNum, { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:ftr>`;
 }
 
 function buildContentFooterXml(): string {
@@ -1116,34 +1135,49 @@ function buildContentFooterXml(): string {
 }
 
 function buildStudentHeaderXml(doc: DocumentState): string {
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
   const sideM = mm(17);
   const usableW = A4_W_DXA - sideM * 2;
   const colW = Math.floor(usableW / 2);
-  const nameText = `الاسم واللقب: ${doc.studentName || ''}`;
-  const fawjText = `الفوج: ${doc.studentFawj || ''}`;
+  const nameLabel = doc.language === 'fr' ? 'Nom et Prénom :' : doc.language === 'en' ? 'Name:' : 'الاسم واللقب:';
+  const fawjLabel = doc.language === 'fr' ? 'Groupe :' : doc.language === 'en' ? 'Group:' : 'الفوج:';
+  const nameText = `${nameLabel} ${doc.studentName || ''}`;
+  const fawjText = `${fawjLabel} ${doc.studentFawj || ''}`;
+  const bidiVisualTag = isLatin ? '' : '<w:bidiVisual/>';
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const leftJc = isLatin ? 'left' : 'right';
+  const rightJc = isLatin ? 'right' : 'left';
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${usableW}" w:type="dxa"/><w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="BBBBBB"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${colW}"/><w:gridCol w:w="${usableW - colW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0"/><w:jc w:val="right"/></w:pPr>${buildTextRun(nameText, { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="${usableW - colW}" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="0"/><w:jc w:val="left"/></w:pPr>${buildTextRun(fawjText, { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:tc></w:tr></w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p></w:hdr>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/><w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="single" w:sz="6" w:space="0" w:color="BBBBBB"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${colW}"/><w:gridCol w:w="${usableW - colW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/></w:tcPr><w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0"/><w:jc w:val="${leftJc}"/></w:pPr>${buildTextRun(nameText, { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="${usableW - colW}" w:type="dxa"/></w:tcPr><w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0"/><w:jc w:val="${rightJc}"/></w:pPr>${buildTextRun(fawjText, { font: 'Cairo', sizePt: 10, bold: true, color: '333333' })}</w:p></w:tc></w:tr></w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p></w:hdr>`;
 }
 
-function buildStylesXml(mainFont: string, fontSizePt: number, lineHeight: number): string {
+function buildStylesXml(mainFont: string, fontSizePt: number, lineHeight: number, isLatin: boolean = false, lang: string = 'ar'): string {
   const halfPts = Math.round((fontSizePt || 12.3) * 2);
   const line = Math.round((lineHeight || 1.62) * 240);
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const valLang = lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : 'en-US';
+  const bidiLang = lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : 'ar-DZ';
   // ترتيب CT_RPr: rFonts -> sz -> szCs -> lang
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/><w:lang w:val="en-US" w:bidi="ar-DZ"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:bidi/><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:bidi/><w:jc w:val="both"/></w:pPr></w:style></w:styles>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/><w:lang w:val="${valLang}" w:bidi="${bidiLang}"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr>${bidiTag}<w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr>${bidiTag}<w:jc w:val="both"/></w:pPr></w:style></w:styles>`;
 }
 
 function buildSettingsXml(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:defaultTabStop w:val="720"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word/2013/wordml" w:val="15"/></w:compat></w:settings>`;
 }
 
-function buildNumberingXml(mainFont: string, fontSizePt: number): string {
+function buildNumberingXml(mainFont: string, fontSizePt: number, isLatin: boolean = false): string {
   const halfPts = Math.round((fontSizePt || 12.3) * 2);
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="right"/><w:pPr><w:bidi/><w:ind w:left="520" w:hanging="240"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="1E293B"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/></w:rPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="right"/><w:pPr><w:bidi/><w:ind w:left="540" w:hanging="260"/></w:pPr><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:b/><w:bCs/><w:color w:val="111111"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num></w:numbering>`;
+  const bidiTag = isLatin ? '' : '<w:bidi/>';
+  const lvlJc = isLatin ? 'left' : 'right';
+  const indXml = isLatin ? '<w:ind w:left="520" w:hanging="240"/>' : '<w:ind w:right="520" w:hanging="240"/>';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="${lvlJc}"/><w:pPr>${bidiTag}${indXml}</w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:color w:val="1E293B"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/></w:rPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="${lvlJc}"/><w:pPr>${bidiTag}${indXml}</w:pPr><w:rPr><w:rFonts w:ascii="${xmlEscape(mainFont)}" w:hAnsi="${xmlEscape(mainFont)}" w:cs="${xmlEscape(mainFont)}"/><w:b/><w:bCs/><w:color w:val="111111"/><w:sz w:val="${halfPts}"/><w:szCs w:val="${halfPts}"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num></w:numbering>`;
 }
 
 export async function buildWordDocx(
   doc: DocumentState,
 ): Promise<{ buffer: ArrayBuffer; blob: Blob; fileName: string }> {
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  activeDocRtl = !isLatin;
   const cs = doc.coverState;
   const ps = doc.planState;
   const mainFont = resolvePrimaryFont(doc.fontFamily);
@@ -1216,7 +1250,7 @@ export async function buildWordDocx(
       partName: '/word/footer_plan.xml',
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml',
     });
-    entries.push({ name: 'word/footer_plan.xml', data: buildPlanFooterXml() });
+    entries.push({ name: 'word/footer_plan.xml', data: buildPlanFooterXml(isLatin) });
   }
 
   const footerContentRId = allocRel();
@@ -1305,10 +1339,10 @@ export async function buildWordDocx(
     { name: 'word/document.xml', data: documentXml },
     {
       name: 'word/styles.xml',
-      data: buildStylesXml(mainFont, doc.fontSize || 12.3, doc.lineHeight || 1.62),
+      data: buildStylesXml(mainFont, doc.fontSize || 12.3, doc.lineHeight || 1.62, isLatin, doc.language),
     },
     { name: 'word/settings.xml', data: buildSettingsXml() },
-    { name: 'word/numbering.xml', data: buildNumberingXml(mainFont, doc.fontSize || 12.3) },
+    { name: 'word/numbering.xml', data: buildNumberingXml(mainFont, doc.fontSize || 12.3, isLatin) },
   );
 
   const zipBytes = await createDocxZip(entries);

@@ -3,6 +3,7 @@ export type BorderStyle = 'double' | 'gold' | 'single' | 'none';
 export type CoverTheme = 'black' | 'gold';
 export type LogoPosition = 'both' | 'right' | 'left';
 export type LogoSize = 'large' | 'xlarge' | 'medium' | 'compact';
+export type ResearchLanguage = 'ar' | 'fr' | 'en';
 
 export interface ResearchPage {
   mabhathTitle: string;
@@ -43,6 +44,7 @@ export interface PlanState {
 }
 
 export interface DocumentState {
+  language?: ResearchLanguage;
   layoutMode: LayoutMode;
   fontFamily: string;
   fontSize: number;

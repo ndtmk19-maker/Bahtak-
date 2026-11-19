@@ -62,6 +62,7 @@ export function defaultSamplePages(): ResearchPage[] {
 
 export function createDefaultDocument(): DocumentState {
   return {
+    language: 'ar',
     layoutMode: 'research',
     fontFamily: "'Amiri', serif",
     fontSize: 12.3,
@@ -131,8 +132,25 @@ export const DEMO_RAW_TEXT = `بحث بعنوان: استراتيجيات الت
 [3] د. خالد بن عمر، الإدارة الإلكترونية ومستقبل التعليم، دار اليازوري العلمية، عمّان، 2022، ص 89.
 [4] د. نادية كمال، تحديات الرقمنة في التعليم العالي العربي، المجلة الدولية للتربية والتنمية، المجلد 12، 2023، ص 112.`;
 
-export const QUICK_AI_TOPICS = [
-  { label: 'التحول الرقمي والجامعات', topic: 'أثر التحول الرقمي ونظم المعلومات على أداء المؤسسات الجامعية' },
-  { label: 'التدقيق الداخلي والمؤسسات', topic: 'واقع التدقيق الداخلي وإدارة المخاطر في المؤسسات الجزائرية' },
-  { label: 'المسؤولية الاجتماعية والتنمية', topic: 'المسؤولية الاجتماعية للشركات ودورها في تحقيق التنمية المستدامة' },
-];
+export const QUICK_AI_TOPICS_BY_LANG = {
+  ar: [
+    { label: 'التحول الرقمي والجامعات', topic: 'أثر التحول الرقمي ونظم المعلومات على أداء المؤسسات الجامعية' },
+    { label: 'التدقيق الداخلي والمخاطر', topic: 'واقع التدقيق الداخلي وإدارة المخاطر في المؤسسات الاقتصادية' },
+    { label: 'المسؤولية الاجتماعية', topic: 'المسؤولية الاجتماعية للشركات ودورها في تحقيق التنمية المستدامة' },
+    { label: 'حوكمة الشركات', topic: 'دور حوكمة الشركات في تعزيز الشفافية والأداء المالي في المؤسسات' },
+  ],
+  fr: [
+    { label: 'Transformation Digitale', topic: "L'impact de la transformation digitale et des systèmes d'information sur la performance des organisations" },
+    { label: 'Audit Interne & Risques', topic: "La pratique de l'audit interne et du management des risques dans les entreprises contemporaines" },
+    { label: 'RSE & Développement Durable', topic: "La responsabilité sociétale des entreprises (RSE) et son rôle dans le développement durable" },
+    { label: 'Gouvernance d\'Entreprise', topic: "Le rôle de la gouvernance d'entreprise dans l'amélioration de la performance financière et la transparence" },
+  ],
+  en: [
+    { label: 'Digital Transformation', topic: 'The Impact of Digital Transformation and Information Systems on Organizational Performance' },
+    { label: 'Internal Audit & Risk', topic: 'Internal Audit Practices and Risk Management in Modern Corporate Enterprises' },
+    { label: 'CSR & Sustainability', topic: 'Corporate Social Responsibility (CSR) and its Contribution to Sustainable Development' },
+    { label: 'Corporate Governance', topic: 'The Role of Corporate Governance in Enhancing Financial Performance and Transparency' },
+  ],
+} as const;
+
+export const QUICK_AI_TOPICS = QUICK_AI_TOPICS_BY_LANG.ar;

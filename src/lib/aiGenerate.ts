@@ -65,6 +65,7 @@ export interface SectionProgress {
 export interface GenerateOptions {
   provider: AiProvider;
   apiKey: string;
+  language?: 'ar' | 'fr' | 'en';
   topic: string;
   length: AiLength;
   mabhathCount: string;
@@ -2176,6 +2177,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
 
   // 1. توليد خطة البحث الحقيقية بصيغة JSON من النموذج (مع الالتزام التام بخطة الطالب إن وجدت)
   let planRaw = '';
+  const currentLang = o.language || 'ar';
+  const isFr = currentLang === 'fr';
+  const isEn = currentLang === 'en';
+  const isLatin = isFr || isEn;
+
   try {
     planRaw = await call(
       buildPlanPrompt(
@@ -2186,6 +2192,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         caseCompany,
         hasCaseStudy,
         customMabahith ? { customMabahith, needInferredTitle } : undefined,
+        currentLang,
       ),
       null,
       {
@@ -2203,7 +2210,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     caseCompany = cleanPlanSuggestedCompany(plan.caseStudyCompany);
   }
   if (!plan || !plan.mabahith?.length) {
-    const fbPlan = buildFallbackPlan(analysis.caseStudy.coreTopic || provisionalCoverTitle, effectiveMabhathCount, o.matlabCount, o.length) as AiPlan;
+    const fbPlan = buildFallbackPlan(analysis.caseStudy.coreTopic || provisionalCoverTitle, effectiveMabhathCount, o.matlabCount, o.length, currentLang) as AiPlan;
     plan = customMabahith
       ? {
           ...fbPlan,
@@ -2233,11 +2240,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
 
   // شارات التوليد المتوازي اللحظي لكل الأقسام
   sections = [
-    { id: 'plan', label: 'خطة البحث', status: 'done', words: 0, seconds: elapsed() },
-    { id: 'intro', label: 'المقدمة', status: 'running', words: 0 },
-    ...p.mabahith.map((_, i) => ({ id: `mb${i}`, label: `المبحث ${i + 1}`, status: 'running' as const, words: 0 })),
-    ...(hasCaseStudy ? [{ id: 'casestudy', label: 'دراسة حالة', status: 'running' as const, words: 0 }] : []),
-    { id: 'conclusion', label: 'الخاتمة والمراجع', status: 'running', words: 0 },
+    { id: 'plan', label: isFr ? 'Plan de recherche' : isEn ? 'Research Outline' : 'خطة البحث', status: 'done', words: 0, seconds: elapsed() },
+    { id: 'intro', label: isFr ? 'Introduction' : isEn ? 'Introduction' : 'المقدمة', status: 'running', words: 0 },
+    ...p.mabahith.map((_, i) => ({ id: `mb${i}`, label: isFr ? `Chapitre ${i + 1}` : isEn ? `Chapter ${i + 1}` : `المبحث ${i + 1}`, status: 'running' as const, words: 0 })),
+    ...(hasCaseStudy ? [{ id: 'casestudy', label: isFr ? 'Étude de cas' : isEn ? 'Case Study' : 'دراسة حالة', status: 'running' as const, words: 0 }] : []),
+    { id: 'conclusion', label: isFr ? 'Conclusion et Bibliographie' : isEn ? 'Conclusion & References' : 'الخاتمة والمراجع', status: 'running', words: 0 },
   ];
   emit();
   o.onStage('writing');
@@ -2249,21 +2256,24 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   let conclusion = '';
 
   const refreshDraft = () => {
-    const cleanedIntro = cleanIntroText(intro);
+    const cleanedIntro = cleanIntroText(intro, currentLang);
     const total =
       countWords(cleanedIntro) +
       mbTexts.reduce((a, t) => a + countWords(t), 0) +
       (hasCaseStudy ? countWords(caseStudy) : 0) +
       countWords(conclusion);
-    let draft = `بحث بعنوان: ${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
+    const titlePrefix = isFr ? 'Recherche intitulée : ' : isEn ? 'Research Paper: ' : 'بحث بعنوان: ';
+    const introPending = isFr ? 'Introduction :\n(Rédaction en direct...)\n\n' : isEn ? 'Introduction:\n(Live streaming draft...)\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n';
+    const concPending = isFr ? 'Conclusion :\n(Rédaction en cours...)' : isEn ? 'Conclusion:\n(Drafting in progress...)' : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
+    let draft = `${titlePrefix}${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : introPending);
     p.mabahith.forEach((mb, i) => {
-      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
+      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || (isFr ? `Chapitre ${i + 1}` : isEn ? `Chapter ${i + 1}` : `المبحث ${i + 1}`)}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
     if (hasCaseStudy) {
-      const pendingCaseHeader = caseCompany ? `دراسة حالة: ${caseCompany}` : 'دراسة حالة تطبيقية';
+      const pendingCaseHeader = caseCompany ? (isFr ? `Étude de cas : ${caseCompany}` : isEn ? `Case Study: ${caseCompany}` : `دراسة حالة: ${caseCompany}`) : (isFr ? 'Étude de cas pratique' : isEn ? 'Empirical Case Study' : 'دراسة حالة تطبيقية');
       draft += caseStudy ? caseStudy.trim() + '\n\n' : `${pendingCaseHeader}\n(جاري تحرير دراسة الحالة بالتوازي...)\n\n`;
     }
-    draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
+    draft += conclusion ? conclusion.trim() : concPending;
     o.onDraft(draft, total);
   };
 
@@ -2309,7 +2319,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       throw err;
     },
   };
-  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany, hasCaseStudy)), tIntro.onChunk, {
+  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany, hasCaseStudy, currentLang)), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
@@ -2326,7 +2336,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         ? Math.max(300, Math.round((cfg.mabahithWords * mbMatalibCount) / totalMatalibCount))
         : Math.round(cfg.mabahithWords / (p.mabahith.length || 1));
       const dynamicMaxTokens = Math.min(8192, Math.max(cfg.mabhathMaxTokens, expectedMatalib.length * 1400));
-      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg, hasCaseStudy)), t.onChunk, {
+      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg, hasCaseStudy, currentLang)), t.onChunk, {
         temperature: 0.35,
         maxTokens: dynamicMaxTokens,
       });
@@ -2339,7 +2349,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         const perMatlabWords = Math.max(120, Math.round(perMb / expectedMatalib.length));
         try {
           const contRaw = await call(
-            withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg)),
+            withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg, currentLang)),
             (_c, acc) => {
               const previewCombined = `${trimTrailingEmptyMatlabStub(verifiedMbText)}\n\n${stripContinuationDuplicateHeader(acc, missingMatalib)}`;
               mbTexts[idx] = previewCombined;
@@ -2370,7 +2380,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
             if (!targetMt) continue;
             try {
               const retryRaw = await call(
-                withAddendum(buildMissingMatalibPrompt(p, mb, [targetMt], perMatlabWords, cfg)),
+                withAddendum(buildMissingMatalibPrompt(p, mb, [targetMt], perMatlabWords, cfg, currentLang)),
                 null,
                 {
                   temperature: 0.3,
@@ -2401,7 +2411,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         await waitMs(350 * (p.mabahith.length + 1));
         const tCs = track('casestudy', (v) => (caseStudy = v));
         try {
-          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg, analysis.caseStudy.coreTopic)), tCs.onChunk, {
+          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg, analysis.caseStudy.coreTopic, currentLang)), tCs.onChunk, {
             temperature: 0.35,
             maxTokens: 4096,
           });
@@ -2417,7 +2427,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tConc = track('conclusion', (v) => (conclusion = v));
   const taskConc = (async () => {
     await waitMs(350 * (p.mabahith.length + (hasCaseStudy ? 2 : 1)));
-    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany, hasCaseStudy)), tConc.onChunk, {
+    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany, hasCaseStudy, currentLang)), tConc.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.conclusionMaxTokens,
     }).then(tConc.done, tConc.fail);
@@ -2427,9 +2437,10 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   await Promise.all([taskIntro, ...taskMbs, taskCaseStudy, taskConc]);
   o.onStage('done');
 
-  const cleanedIntro = cleanIntroText(intro);
+  const cleanedIntro = cleanIntroText(intro, currentLang);
+  const titlePrefix = isFr ? 'Recherche intitulée : ' : isEn ? 'Research Paper: ' : 'بحث بعنوان: ';
   const parts = [
-    `بحث بعنوان: ${p.title.replace(/^#+\s*/, '').trim()}`,
+    `${titlePrefix}${p.title.replace(/^#+\s*/, '').trim()}`,
     cleanSection(cleanedIntro),
     ...mbTexts.map(cleanSection),
     ...(hasCaseStudy ? [cleanSection(sanitizeCaseStudyOutput(caseStudy, caseCompany))] : []),

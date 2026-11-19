@@ -44,25 +44,25 @@ export function normalizeDigits(text: string): string {
   return text.replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)));
 }
 
-/** «الجدول رقم (01): عنوان» أو «جدول 1 - عنوان» أو «تابع الجدول رقم (01): ...» */
+/** «الجدول رقم (01): عنوان» أو «جدول 1 - عنوان» أو «تابع الجدول رقم (01): ...» مع دعم الفرنسية والإنجليزية */
 export const TABLE_CAPTION_RE =
-  /^(?:\*\*)?\s*(تابع\s+)?(?:ال)?جدول\s*(?:رقم)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/;
+  /^(?:\*\*)?\s*(تابع\s+|(?:suite\s+)?du\s+)?(?:(?:ال)?جدول|Tableau|Table)\s*(?:رقم|n[°o]|number)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
-/** «الشكل رقم (01): عنوان» أو «رسم بياني 2: عنوان» */
+/** «الشكل رقم (01): عنوان» أو «رسم بياني 2: عنوان» مع دعم الفرنسية والإنجليزية */
 export const FIGURE_CAPTION_RE =
-  /^(?:\*\*)?\s*(?:ال)?(?:شكل|رسم\s+بياني|مخطط)\s*(?:رقم)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/;
+  /^(?:\*\*)?\s*(?:(?:ال)?(?:شكل|رسم\s+بياني|مخطط)|Figure|Chart)\s*(?:رقم|n[°o]|number)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
 /** «المصدر: ...» تحت الجدول أو الشكل */
-export const SOURCE_LINE_RE = /^(?:\*\*)?\s*(?:ال)?مصدر\s*(?:\*\*)?\s*[:\-–—]\s*(.+?)\s*(?:\*\*)?$/;
+export const SOURCE_LINE_RE = /^(?:\*\*)?\s*(?:(?:ال)?مصدر|Source)\s*(?:\*\*)?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
 /** وسم الشكل البياني في سطر واحد: [[CHART {...json...}]] */
-export const CHART_MARKER_RE = /^\[\[\s*(?:CHART|chart|شكل|رسم)\s*(\{[\s\S]*\})\s*\]\]$/;
+export const CHART_MARKER_RE = /^\[\[\s*(?:CHART|chart|شكل|رسم|figure)\s*(\{[\s\S]*\})\s*\]\]$/i;
 
 /** بداية كتلة شكل بياني مسيّجة ```chart (مقبولة احتياطياً من النماذج) */
 export const CHART_FENCE_START_RE = /^```\s*(?:chart|json)\s*$/i;
 
 /** أعمدة الترقيم الجاهزة التي تغني عن إضافة عمود «م» تلقائياً */
-const INDEX_HEADER_RE = /^(?:م|ر|ت|#|الرقم|رقم|الترتيب|ر\.م|ت\.ر)$/;
+const INDEX_HEADER_RE = /^(?:م|ر|ت|#|الرقم|رقم|الترتيب|ر\.م|ت\.ر|n°|no\.?|#)$/i;
 
 /** أقصى عدد للأعمدة والصفوف حتى يبقى الجدول مقروءاً ضمن عرض A4 */
 export const MAX_TABLE_COLUMNS = 7;
@@ -75,13 +75,29 @@ export function padNumber(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-export function tableLabel(num: number, caption: string, continued = false): string {
+export function tableLabel(num: number, caption: string, continued = false, lang?: 'ar' | 'fr' | 'en'): string {
   const title = caption.trim();
+  const isFr = lang === 'fr';
+  const isEn = lang === 'en';
+  if (isFr) {
+    return `${continued ? 'Suite du ' : ''}Tableau n° (${padNumber(num)})${title ? ` : ${title}` : ''}`;
+  }
+  if (isEn) {
+    return `${continued ? 'Cont. ' : ''}Table (${padNumber(num)})${title ? `: ${title}` : ''}`;
+  }
   return `${continued ? 'تابع ' : ''}الجدول رقم (${padNumber(num)})${title ? `: ${title}` : ''}`;
 }
 
-export function figureLabel(num: number, title: string): string {
+export function figureLabel(num: number, title: string, lang?: 'ar' | 'fr' | 'en'): string {
   const t = title.trim();
+  const isFr = lang === 'fr';
+  const isEn = lang === 'en';
+  if (isFr) {
+    return `Figure n° (${padNumber(num)})${t ? ` : ${t}` : ''}`;
+  }
+  if (isEn) {
+    return `Figure (${padNumber(num)})${t ? `: ${t}` : ''}`;
+  }
   return `الشكل رقم (${padNumber(num)})${t ? `: ${t}` : ''}`;
 }
 
