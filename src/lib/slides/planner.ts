@@ -7,6 +7,7 @@ import {
   type AnalyzedSection,
   type ResearchAnalysis,
 } from "../parser";
+import { htmlToPlain } from "../docBlocks";
 import {
   isStructuralTitleOnly,
   looksLikePlanLeak,
@@ -23,8 +24,9 @@ import type {
   Slide,
   SlideDeck,
 } from "./types";
+import type { ResearchLanguage } from "../../types";
 
-const ORDINALS = [
+const ORDINALS_AR = [
   "الأول",
   "الثاني",
   "الثالث",
@@ -36,6 +38,7 @@ const ORDINALS = [
   "التاسع",
   "العاشر",
 ];
+const ORDINALS_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
 export const DEFAULT_DECK_OPTIONS: DeckOptions = {
   density: "balanced",
@@ -89,12 +92,27 @@ const isLatin = (t: string) => {
   return latin > arabic;
 };
 
-/** فصل «المبحث الأول: العنوان» إلى بادئة وعنوان */
-export function splitHeading(raw: string): { kicker: string; title: string } {
-  const t = raw.replace(/^#+\s*/, "").trim();
-  const m = t.match(/^((?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)\s+[^:：\-–—]{1,20}?)\s*[:：\-–—]\s*(.+)$/);
-  if (m) return { kicker: m[1].trim(), title: m[2].trim() };
-  return { kicker: "", title: t.replace(/[:：]\s*$/, "") };
+/** فصل «المبحث الأول: العنوان» أو «Chapitre I : Titre» أو «Chapter 1: Title» إلى بادئة وعنوان */
+export function splitHeading(raw: string, lang: ResearchLanguage = "ar"): { kicker: string; title: string } {
+  let t = raw.replace(/^#+\s*/, "").trim();
+  let kicker = "";
+  for (let pass = 0; pass < 2; pass++) {
+    const m = t.match(
+      /^((?:(?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)|(?:Chapitre|Section|Partie|Sous-section|Axe)|(?:Chapter|Section|Part|Subsection|Axis))\s+[^:：\-–—]{1,25}?)\s*[:：\-–—]\s*(.+)$/i,
+    );
+    if (m) {
+      const candidateKicker = m[1].trim();
+      if (!kicker) {
+        kicker = candidateKicker;
+      } else if (lang !== "ar" && !isLatin(kicker) && isLatin(candidateKicker)) {
+        kicker = candidateKicker;
+      }
+      t = m[2].trim();
+    } else {
+      break;
+    }
+  }
+  return { kicker, title: t.replace(/[:：]\s*$/, "") };
 }
 
 const tidy = (t: string) =>
@@ -128,16 +146,17 @@ function splitSentences(text: string, maxChars = 230): string[] {
 }
 
 function labelled(text: string): Point {
+  const isLat = isLatin(text);
   const m = text.match(/^([^:：،.]{2,55}?)\s*[:：]\s*(.{3,})$/);
   if (m && m[1].split(/\s+/).length <= 8)
-    return { kind: "bullet", label: m[1].trim(), text: tidy(m[2]) };
-  return { kind: "bullet", text: tidy(text) };
+    return { kind: "bullet", label: m[1].trim(), text: tidy(m[2]), ...(isLat ? { ltr: true } : {}) };
+  return { kind: "bullet", text: tidy(text), ...(isLat ? { ltr: true } : {}) };
 }
 
 function itemToPoints(it: AnalyzedItem): Point[] {
   if (it.type === "subtitle" || it.type === "matlab_header") {
     const t = stripTags(it.rawText || it.cleanText).replace(/[:：]\s*$/, "");
-    return t ? [{ kind: "sub", text: t }] : [];
+    return t ? [{ kind: "sub", text: t, ...(isLatin(t) ? { ltr: true } : {}) }] : [];
   }
   if (it.type === "bullet") {
     // إعادة استعمال منسق القوائم الأكاديمي لعزل علامات التعداد (أولاً، 1-، أ-، [1])
@@ -146,17 +165,49 @@ function itemToPoints(it: AnalyzedItem): Point[] {
     const text = tidy(body);
     if (!text) return [];
     if (text.length > 260) return paragraphToPoints(text);
-    return [{ ...labelled(text), ...(isLatin(text) ? { ltr: true } : {}) }];
+    return [labelled(text)];
+  }
+  if (it.type === "table" && it.table) {
+    const tbl = it.table;
+    const pts: Point[] = [];
+    const allTblText = [tbl.caption, ...tbl.headers, ...tbl.rows.flat()].join(" ");
+    const isLat = isLatin(allTblText);
+    const cleanCaption = tbl.caption
+      .replace(/^(?:ال)?(?:الجدول|جدول)\s+رقم\s*\(?\d+\)?\s*[:：\-–—]?\s*/i, "")
+      .replace(/^(?:Tableau|Table)\s*(?:n°|no\.?)?\s*\(?\d+\)?\s*[:：\-–—]?\s*/i, "")
+      .trim();
+
+    if (cleanCaption) {
+      pts.push({ kind: "lead", text: `${cleanCaption}:`, ...(isLat ? { ltr: true } : {}) });
+    }
+
+    tbl.rows.slice(0, 4).forEach((r) => {
+      const cells = r.map((c) => htmlToPlain(c).trim()).filter(Boolean);
+      if (!cells.length) return;
+      if (cells.length === 1) {
+        pts.push({ kind: "bullet", text: cells[0], ...(isLat ? { ltr: true } : {}) });
+      } else {
+        const label = cells[0];
+        const val = cells.slice(1).join(" — ");
+        pts.push({ kind: "bullet", label, text: val, ...(isLat ? { ltr: true } : {}) });
+      }
+    });
+
+    if (pts.length) return pts;
   }
   return paragraphToPoints(stripTags(it.rawText));
 }
 
 function paragraphToPoints(text: string): Point[] {
   if (!text) return [];
-  if (/[:：]$/.test(text) && text.length <= 170) return [{ kind: "lead", text }];
-  return splitSentences(text).map((s) =>
-    /[:：]$/.test(s) ? { kind: "lead", text: s } : { kind: "bullet", text: tidy(s), prose: true },
-  );
+  const isLat = isLatin(text);
+  if (/[:：]$/.test(text) && text.length <= 170) return [{ kind: "lead", text, ...(isLat ? { ltr: true } : {}) }];
+  return splitSentences(text).map((s) => {
+    const sLat = isLatin(s);
+    return /[:：]$/.test(s)
+      ? { kind: "lead", text: s, ...(sLat ? { ltr: true } : {}) }
+      : { kind: "bullet", text: tidy(s), prose: true, ...(sLat ? { ltr: true } : {}) };
+  });
 }
 
 /** تجميع نقاط القسم في مجموعات يبدأ كل منها بعنوان فرعي */
@@ -185,7 +236,7 @@ function toGroups(sec: AnalyzedSection): Group[] {
 
 // ---------- بناء الهيكل المنطقي من التحليل ----------
 
-export function buildOutline(a: ResearchAnalysis): Outline {
+export function buildOutline(a: ResearchAnalysis, lang: ResearchLanguage = "ar"): Outline {
   const o: Outline = {
     intro: [],
     question: "",
@@ -221,17 +272,39 @@ export function buildOutline(a: ResearchAnalysis): Outline {
         ),
       );
     } else {
-      // المطلب: يفتح مبحثاً جديداً إن حمل عنوان مبحث، وإلا يتبع المبحث الجاري
+      // المطلب: يفتح مبحثاً جديداً إن حمل عنوان مبحث مختلف، وإلا يتبع المبحث الجاري
       if (sec.mabhathTitle.trim() || o.mabahith.length === 0) {
-        const h = splitHeading(sec.mabhathTitle || "");
-        const n = o.mabahith.length;
-        o.mabahith.push({
-          kicker: h.kicker || `المحور ${ORDINALS[n] || n + 1}`,
-          title: h.title || safeDetectedTitle || "محاور العرض",
-          matalib: [],
-        });
+        const h = splitHeading(sec.mabhathTitle || "", lang);
+        const lastMb = o.mabahith[o.mabahith.length - 1];
+        const isSameAsLast =
+          lastMb &&
+          sec.mabhathTitle.trim() &&
+          (h.title === lastMb.title ||
+            (h.kicker && h.kicker === lastMb.kicker) ||
+            sec.mabhathTitle.trim().toLowerCase() === `${lastMb.kicker}: ${lastMb.title}`.toLowerCase());
+
+        if (!isSameAsLast) {
+          const n = o.mabahith.length;
+          const defaultKicker =
+            lang === "fr"
+              ? `Axe ${ORDINALS_ROMAN[n] || n + 1}`
+              : lang === "en"
+                ? `Part ${n + 1}`
+                : `المحور ${ORDINALS_AR[n] || n + 1}`;
+          const defaultTitle =
+            lang === "fr"
+              ? "Axes de l'exposé"
+              : lang === "en"
+                ? "Presentation Topics"
+                : "محاور العرض";
+          o.mabahith.push({
+            kicker: h.kicker || defaultKicker,
+            title: h.title || safeDetectedTitle || defaultTitle,
+            matalib: [],
+          });
+        }
       }
-      const h = splitHeading(sec.matlabTitle || "");
+      const h = splitHeading(sec.matlabTitle || "", lang);
       o.mabahith[o.mabahith.length - 1].matalib.push({
         kicker: h.kicker,
         title: h.title,
@@ -328,9 +401,9 @@ function contentSlides(
   kicker: string,
   fallbackTitle: string,
   sectionNumber: number,
-  opts: DeckOptions,
+  opts: DeckOptions = DEFAULT_DECK_OPTIONS,
 ): Slide[] {
-  const m = DENSITY_METRICS[opts.density];
+  const m = DENSITY_METRICS[opts?.density || "balanced"] || DENSITY_METRICS.balanced;
   const chunks = chunkPoints(group.points, m);
   const notes = opts.includeNotes && group.notes.length ? group.notes.join("\n\n") : undefined;
   return chunks.map((pts, i) => ({
@@ -415,9 +488,10 @@ export function planDeck(
   meta: CoverMeta,
   opts: DeckOptions = DEFAULT_DECK_OPTIONS,
 ): SlideDeck {
-  const o = buildOutline(a);
+  const lang: ResearchLanguage = meta.language || (isLatin(meta.title || a.detectedTitle || "") ? "fr" : "ar");
+  const o = buildOutline(a, lang);
   const title = resolveDeckTitle(meta.title, a.detectedTitle, o);
-  const slides: Slide[] = [{ kind: "cover", meta: { ...meta, title } }];
+  const slides: Slide[] = [{ kind: "cover", meta: { ...meta, title, language: lang } }];
 
   const refs: Point[] = o.references.length
     ? o.references
@@ -428,15 +502,55 @@ export function planDeck(
       }));
   const showRefs = opts.includeReferences && refs.some((r) => r.kind === "bullet");
 
+  // نصوص وعناوين العرض حسب اللغة المختارة
+  const agendaTitle =
+    lang === "fr" ? "Sommaire de l'Exposé" : lang === "en" ? "Table of Contents" : "خطة العرض";
+  const introEntryTitle =
+    lang === "fr"
+      ? "Introduction et Problématique"
+      : lang === "en"
+        ? "Introduction & Problem Statement"
+        : "المقدمة والإشكالية";
+  const conclusionEntryTitle =
+    lang === "fr"
+      ? "Conclusion et Perspectives"
+      : lang === "en"
+        ? "Conclusion & Recommendations"
+        : "الخاتمة والنتائج";
+  const referencesEntryTitle =
+    lang === "fr"
+      ? "Sources et Bibliographie"
+      : lang === "en"
+        ? "References & Bibliography"
+        : "المصادر والمراجع";
+
   // 1. خطة العرض (من شجرة المباحث والمطالب)
   if (opts.includeAgenda) {
     const entries: AgendaEntry[] = [];
-    if (o.intro.length || o.question) entries.push({ title: "المقدمة والإشكالية", children: [] });
-    o.mabahith.forEach((mb) =>
-      entries.push({ title: mb.title, children: mb.matalib.map((mt) => mt.title).filter(Boolean) }),
-    );
-    if (o.conclusion.length) entries.push({ title: "الخاتمة والنتائج", children: [] });
-    if (showRefs) entries.push({ title: "المصادر والمراجع", children: [] });
+    if (o.intro.length || o.question) entries.push({ title: introEntryTitle, children: [] });
+    o.mabahith.forEach((mb) => {
+      const seenKids = new Set<string>();
+      const kids: string[] = [];
+      for (const mt of mb.matalib) {
+        let rawT = (mt.title || "").trim();
+        if (lang !== "ar") {
+          rawT = rawT.replace(/^(?:ال)?(?:مطلب|فرع)\s+[^\s:]+\s*[:：\-–—\.]+\s*/i, "").trim();
+        }
+        if (!rawT) continue;
+        const normKey = rawT.toLowerCase().replace(/\s+/g, " ");
+        if (!seenKids.has(normKey)) {
+          seenKids.add(normKey);
+          kids.push(rawT);
+        }
+      }
+      let mbTitle = mb.title;
+      if (lang !== "ar") {
+        mbTitle = mbTitle.replace(/^(?:ال)?(?:مبحث|فصل|محور)\s+[^\s:]+\s*[:：\-–—\.]+\s*/i, "").trim();
+      }
+      entries.push({ title: mbTitle, children: kids.slice(0, 3) });
+    });
+    if (o.conclusion.length) entries.push({ title: conclusionEntryTitle, children: [] });
+    if (showRefs) entries.push({ title: referencesEntryTitle, children: [] });
     if (entries.length >= 2) {
       const maxPer = entries.some((e) => e.children.length) ? 6 : 7;
       const parts = splitBalanced(entries, maxPer);
@@ -444,7 +558,7 @@ export function planDeck(
       parts.forEach((p, i) => {
         slides.push({
           kind: "agenda",
-          title: "خطة العرض",
+          title: agendaTitle,
           entries: p,
           startIndex: idx,
           part: i + 1,
@@ -456,10 +570,31 @@ export function planDeck(
   }
 
   // 2. المقدمة ثم الإشكالية
-  o.intro.forEach((g) => slides.push(...contentSlides(g, "المقدمة", "مدخل إلى الموضوع", 0, opts)));
-  if (o.question) slides.push({ kind: "question", kicker: "إشكالية البحث", text: o.question });
+  const introKicker = lang === "fr" ? "Introduction" : lang === "en" ? "Introduction" : "المقدمة";
+  const introFallback =
+    lang === "fr"
+      ? "Introduction générale"
+      : lang === "en"
+        ? "Introduction & Overview"
+        : "مدخل إلى الموضوع";
+  const questionKicker =
+    lang === "fr" ? "Problématique" : lang === "en" ? "Research Question" : "إشكالية البحث";
 
-  // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه
+  const rawIntroSlides: Slide[] = [];
+  o.intro.forEach((g) => rawIntroSlides.push(...contentSlides(g, introKicker, introFallback, 0, opts)));
+  const density = opts?.density || "balanced";
+  const maxIntroSlides = density === "airy" ? 1 : 2;
+  const introSlides = rawIntroSlides.slice(0, maxIntroSlides).map((s, idx) => ({
+    ...s,
+    part: idx + 1,
+    parts: Math.min(rawIntroSlides.length, maxIntroSlides),
+  }));
+  slides.push(...introSlides);
+  if (o.question) slides.push({ kind: "question", kicker: questionKicker, text: o.question });
+
+  // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه (بحد أقصى شريحتين لكل مطلب في الوضع القياسي لمنع التضخم)
+  const maxSlidesPerMatlab = density === "airy" ? 1 : density === "detailed" ? 3 : 2;
+
   o.mabahith.forEach((mb, i) => {
     if (opts.includeSectionDividers) {
       slides.push({
@@ -472,25 +607,75 @@ export function planDeck(
     }
     mb.matalib.forEach((mt) => {
       const kicker = [mb.kicker, mt.kicker].filter(Boolean).join(" · ");
+      const mtTitle = mt.title || mb.title;
+
+      let mtSlides: Slide[] = [];
       mt.groups.forEach((g) => {
-        const grp = g.title ? g : { ...g, title: mt.title || mb.title };
-        slides.push(
+        const grp = g.title ? g : { ...g, title: mtTitle };
+        mtSlides.push(
           ...contentSlides(
             grp,
             g.title ? [kicker, mt.title].filter(Boolean).join(" · ") : kicker,
-            mt.title || mb.title,
+            mtTitle,
             i + 1,
             opts,
           ),
         );
       });
+
+      if (mtSlides.length > maxSlidesPerMatlab) {
+        const allPoints = mt.groups.flatMap((g) => {
+          if (g.title && g.title !== mtTitle) {
+            return [{ kind: "sub" as const, text: g.title, ...(isLatin(g.title) ? { ltr: true } : {}) }, ...g.points];
+          }
+          return g.points;
+        });
+        const m = DENSITY_METRICS[density] || DENSITY_METRICS.balanced;
+        const chunks = chunkPoints(allPoints, m);
+        const cappedChunks = chunks.slice(0, maxSlidesPerMatlab);
+        mtSlides = cappedChunks.map((pts, idx) => ({
+          kind: "content" as const,
+          kicker,
+          title: mtTitle,
+          ...shapeChunk(pts),
+          part: idx + 1,
+          parts: cappedChunks.length,
+          sectionNumber: i + 1,
+          notes: opts.includeNotes && mt.groups.flatMap((g) => g.notes).length
+            ? mt.groups.flatMap((g) => g.notes).join("\n\n")
+            : undefined,
+        }));
+      } else {
+        mtSlides = mtSlides.map((s, idx) => ({
+          ...s,
+          part: idx + 1,
+          parts: mtSlides.length,
+        }));
+      }
+
+      slides.push(...mtSlides);
     });
   });
 
-  // 4. الخاتمة
-  o.conclusion.forEach((g) => slides.push(...contentSlides(g, "الخاتمة", "الخاتمة", 0, opts)));
+  // 4. الخاتمة (بحد أقصى شريحتين)
+  const conclusionKicker = lang === "fr" ? "Conclusion" : lang === "en" ? "Conclusion" : "الخاتمة";
+  const rawConclusionSlides: Slide[] = [];
+  o.conclusion.forEach((g) => rawConclusionSlides.push(...contentSlides(g, conclusionKicker, conclusionKicker, 0, opts)));
+  const maxConclusionSlides = density === "airy" ? 1 : 2;
+  const conclusionSlides = rawConclusionSlides.slice(0, maxConclusionSlides).map((s, idx) => ({
+    ...s,
+    part: idx + 1,
+    parts: Math.min(rawConclusionSlides.length, maxConclusionSlides),
+  }));
+  slides.push(...conclusionSlides);
 
   // 5. المراجع
+  const referencesTitle =
+    lang === "fr"
+      ? "Références Bibliographiques"
+      : lang === "en"
+        ? "References & Bibliography"
+        : "قائمة المصادر والمراجع";
   if (showRefs) {
     const m: BodyMetrics = { fontPt: 14, subPt: 15, gapPt: 6 };
     const chunks = chunkPoints(refs, m, BODY_BOX.w, BODY_BOX.h + 0.3);
@@ -498,7 +683,7 @@ export function planDeck(
     chunks.forEach((pts, i) => {
       slides.push({
         kind: "references",
-        title: "قائمة المصادر والمراجع",
+        title: referencesTitle,
         points: pts,
         startIndex: start,
         part: i + 1,
@@ -509,8 +694,14 @@ export function planDeck(
   }
 
   // 6. الختام
+  const closingTitle =
+    lang === "fr"
+      ? "Merci pour votre attention"
+      : lang === "en"
+        ? "Thank You for Your Attention"
+        : "شكراً لحسن الإصغاء";
   if (opts.includeClosing)
-    slides.push({ kind: "closing", title: "شكراً لحسن الإصغاء", subtitle: title });
+    slides.push({ kind: "closing", title: closingTitle, subtitle: title });
 
-  return { title, slides, structure: o.mabahith.map((mb) => mb.matalib.length) };
+  return { title, slides, structure: o.mabahith.map((mb) => mb.matalib.length), language: lang };
 }

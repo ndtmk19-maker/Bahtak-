@@ -44,25 +44,25 @@ export function normalizeDigits(text: string): string {
   return text.replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)));
 }
 
-/** «الجدول رقم (01): عنوان» أو «جدول 1 - عنوان» أو «تابع الجدول رقم (01): ...» */
+/** «الجدول رقم (01): عنوان» أو «جدول 1 - عنوان» أو «تابع الجدول رقم (01): ...» مع دعم الفرنسية والإنجليزية */
 export const TABLE_CAPTION_RE =
-  /^(?:\*\*)?\s*(تابع\s+)?(?:ال)?جدول\s*(?:رقم)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/;
+  /^(?:\*\*)?\s*(تابع\s+|(?:suite\s+)?du\s+)?(?:(?:ال)?جدول|Tableau|Table)\s*(?:رقم|n[°o]|number)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
-/** «الشكل رقم (01): عنوان» أو «رسم بياني 2: عنوان» */
+/** «الشكل رقم (01): عنوان» أو «رسم بياني 2: عنوان» مع دعم الفرنسية والإنجليزية */
 export const FIGURE_CAPTION_RE =
-  /^(?:\*\*)?\s*(?:ال)?(?:شكل|رسم\s+بياني|مخطط)\s*(?:رقم)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/;
+  /^(?:\*\*)?\s*(?:(?:ال)?(?:شكل|رسم\s+بياني|مخطط)|Figure|Chart)\s*(?:رقم|n[°o]|number)?\s*[([]?\s*([\d٠-٩]+)?\s*[)\]]?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
 /** «المصدر: ...» تحت الجدول أو الشكل */
-export const SOURCE_LINE_RE = /^(?:\*\*)?\s*(?:ال)?مصدر\s*(?:\*\*)?\s*[:\-–—]\s*(.+?)\s*(?:\*\*)?$/;
+export const SOURCE_LINE_RE = /^(?:\*\*)?\s*(?:(?:ال)?مصدر|Source)\s*(?:\*\*)?\s*[:\-–—.]\s*(.+?)\s*(?:\*\*)?$/i;
 
 /** وسم الشكل البياني في سطر واحد: [[CHART {...json...}]] */
-export const CHART_MARKER_RE = /^\[\[\s*(?:CHART|chart|شكل|رسم)\s*(\{[\s\S]*\})\s*\]\]$/;
+export const CHART_MARKER_RE = /^\[\[\s*(?:CHART|chart|شكل|رسم|figure)\s*(\{[\s\S]*\})\s*\]\]$/i;
 
 /** بداية كتلة شكل بياني مسيّجة ```chart (مقبولة احتياطياً من النماذج) */
 export const CHART_FENCE_START_RE = /^```\s*(?:chart|json)\s*$/i;
 
 /** أعمدة الترقيم الجاهزة التي تغني عن إضافة عمود «م» تلقائياً */
-const INDEX_HEADER_RE = /^(?:م|ر|ت|#|الرقم|رقم|الترتيب|ر\.م|ت\.ر)$/;
+const INDEX_HEADER_RE = /^(?:م|ر|ت|#|الرقم|رقم|الترتيب|ر\.م|ت\.ر|n°|no\.?|#)$/i;
 
 /** أقصى عدد للأعمدة والصفوف حتى يبقى الجدول مقروءاً ضمن عرض A4 */
 export const MAX_TABLE_COLUMNS = 7;
@@ -75,13 +75,37 @@ export function padNumber(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-export function tableLabel(num: number, caption: string, continued = false): string {
+export function tableLabel(num: number, caption: string, continued = false, lang?: 'ar' | 'fr' | 'en'): string {
   const title = caption.trim();
+  const latinCount = (title.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (title.match(/[\u0600-\u06FF]/g) || []).length;
+  const autoLang = latinCount > arabicCount ? 'fr' : 'ar';
+  const effectiveLang = lang || autoLang;
+  const isFr = effectiveLang === 'fr';
+  const isEn = effectiveLang === 'en';
+  if (isFr) {
+    return `${continued ? 'Suite du ' : ''}Tableau n° (${padNumber(num)})${title ? ` : ${title}` : ''}`;
+  }
+  if (isEn) {
+    return `${continued ? 'Cont. ' : ''}Table (${padNumber(num)})${title ? `: ${title}` : ''}`;
+  }
   return `${continued ? 'تابع ' : ''}الجدول رقم (${padNumber(num)})${title ? `: ${title}` : ''}`;
 }
 
-export function figureLabel(num: number, title: string): string {
+export function figureLabel(num: number, title: string, lang?: 'ar' | 'fr' | 'en'): string {
   const t = title.trim();
+  const latinCount = (t.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  const autoLang = latinCount > arabicCount ? 'fr' : 'ar';
+  const effectiveLang = lang || autoLang;
+  const isFr = effectiveLang === 'fr';
+  const isEn = effectiveLang === 'en';
+  if (isFr) {
+    return `Figure n° (${padNumber(num)})${t ? ` : ${t}` : ''}`;
+  }
+  if (isEn) {
+    return `Figure (${padNumber(num)})${t ? `: ${t}` : ''}`;
+  }
   return `الشكل رقم (${padNumber(num)})${t ? `: ${t}` : ''}`;
 }
 
@@ -207,8 +231,13 @@ export function parseMarkdownTable(lines: string[], caption = '', source = ''): 
   });
 
   const firstHeader = htmlToPlain(headers[0]);
+  const allTblText = [caption, ...headers, ...body.flat()].join(' ');
+  const latinCount = (allTblText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allTblText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = latinCount > arabicCount;
+
   if (rows.length >= 3 && !INDEX_HEADER_RE.test(firstHeader) && colCount < MAX_TABLE_COLUMNS) {
-    headers = ['م', ...headers];
+    headers = [isLat ? 'N°' : 'م', ...headers];
     rows = rows.map((r, i) => [String(i + 1), ...r]);
     aligns = ['center', ...aligns];
   }
@@ -275,16 +304,23 @@ export function renderTableHtml(table: TableData, num: number, opts: TableRender
           .join('')}</tr>`,
     )
     .join('');
-  const caption = formatInlineText(tableLabel(num, table.caption, opts.continued));
+  const allTblText = [table.caption, ...table.headers, ...table.rows.flat()].join(' ');
+  const latinCount = (allTblText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allTblText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = latinCount > arabicCount;
+  const dir = isLat ? 'ltr' : 'rtl';
+  const sourceLabel = isLat ? 'Source :' : 'المصدر:';
+
+  const caption = formatInlineText(tableLabel(num, table.caption, opts.continued, isLat ? 'fr' : 'ar'));
   const showSource = opts.showSource ?? false;
   const source =
     showSource && table.source
-      ? `<div class="doc-source"><strong>المصدر:</strong> ${formatInlineText(table.source)}</div>`
+      ? `<div class="doc-source"><strong>${sourceLabel}</strong> ${formatInlineText(table.source)}</div>`
       : '';
   return (
-    `<figure class="doc-table-block" data-table-number="${num}"${opts.continued ? ' data-continued="1"' : ''}>` +
+    `<figure class="doc-table-block" dir="${dir}" data-table-number="${num}"${opts.continued ? ' data-continued="1"' : ''}>` +
     `<figcaption class="doc-caption">${caption}</figcaption>` +
-    `<table class="doc-table" dir="rtl"><colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+    `<table class="doc-table" dir="${dir}"><colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
     `${source}</figure>`
   );
 }
@@ -571,16 +607,28 @@ export function renderFigureHtml(chart: ChartData, num: number): string {
 }
 
 /** نص مختصر يمثل الجدول/الشكل لأنظمة تعتمد على النص الخام (مثل العروض التقديمية) */
-export function tableSummary(table: TableData, num: number): string {
+export function tableSummary(table: TableData, num: number, lang?: 'ar' | 'fr' | 'en'): string {
+  const allText = [table.caption, ...table.headers, ...table.rows.flat()].join(' ');
+  const latinCount = (allText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = lang === 'fr' || lang === 'en' || latinCount > arabicCount;
+  const effectiveLang = lang || (isLat ? 'fr' : 'ar');
+  const separator = isLat ? '; ' : '؛ ';
   const rows = table.rows
     .slice(0, 6)
     .map((r) => r.map((c) => htmlToPlain(c)).filter(Boolean).join(' — '))
-    .join('؛ ');
-  return `${tableLabel(num, table.caption)}: ${rows}`;
+    .join(separator);
+  return `${tableLabel(num, table.caption, false, effectiveLang)}: ${rows}`;
 }
 
-export function chartSummary(chart: ChartData, num: number): string {
-  return `${figureLabel(num, chart.title)}: ${chart.data.map((d) => `${d.label} ${fmtValue(d.value, chart.unit)}`).join('، ')}`;
+export function chartSummary(chart: ChartData, num: number, lang?: 'ar' | 'fr' | 'en'): string {
+  const t = chart.title || '';
+  const latinCount = (t.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = lang === 'fr' || lang === 'en' || latinCount > arabicCount;
+  const effectiveLang = lang || (isLat ? 'fr' : 'ar');
+  const separator = isLat ? ', ' : '، ';
+  return `${figureLabel(num, chart.title, effectiveLang)}: ${chart.data.map((d) => `${d.label} ${fmtValue(d.value, chart.unit)}`).join(separator)}`;
 }
 
 /** استخراج كتل الجداول والأشكال من HTML الصفحة بالترتيب مع ما بينها من محتوى عادي */

@@ -22,6 +22,7 @@ import {
   sanitizeCoverTitleFromPlanLeak,
   type SectionProgress,
 } from "../lib/aiGenerate";
+import type { ResearchLanguage } from "../types";
 import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
@@ -63,6 +64,7 @@ interface Persisted {
   aiTopic: string;
   aiSize: SlideAiSize;
   caseStudyCompany: string;
+  language: ResearchLanguage;
 }
 
 export interface SlidesRun {
@@ -83,6 +85,7 @@ interface PresentationApi extends Persisted {
   setAiTopic: (t: string) => void;
   setAiSize: (s: SlideAiSize) => void;
   setCaseStudyCompany: (c: string) => void;
+  setLanguage: (lang: ResearchLanguage) => void;
   deck: SlideDeck | null;
   laid: LaidSlide[];
   theme: SlideTheme;
@@ -98,6 +101,26 @@ interface PresentationApi extends Persisted {
 
 const KEY = "bahtak_presentation_v2";
 const LEGACY_KEY = "bahtak_presentation_v1";
+
+const DEFAULT_SUBTITLES: Record<ResearchLanguage, string> = {
+  ar: "عرض تقديمي",
+  fr: "Exposé académique",
+  en: "Academic Presentation",
+};
+
+const KNOWN_DEFAULT_SUBTITLES = new Set([
+  "",
+  "عرض تقديمي",
+  "عرض تقديمي لمقياس",
+  "عرض تقديمي لمقياس...",
+  "Exposé académique",
+  "Exposé",
+  "Présentation",
+  "Présentation académique",
+  "Academic Presentation",
+  "Presentation",
+]);
+
 const EMPTY_META: PresentationMeta = {
   title: "",
   subtitle: "عرض تقديمي",
@@ -111,17 +134,18 @@ const EMPTY_META: PresentationMeta = {
   logoUrl: "",
 };
 
-function createDefaultPersisted(): Persisted {
+function createDefaultPersisted(lang: ResearchLanguage = "ar"): Persisted {
   return {
     mode: "draft",
     draftText: "",
-    meta: { ...EMPTY_META },
+    meta: { ...EMPTY_META, subtitle: DEFAULT_SUBTITLES[lang] },
     themeId: DEFAULT_THEME_ID,
     autoTheme: true,
     options: { ...DEFAULT_DECK_OPTIONS },
     aiTopic: "",
     aiSize: "standard",
     caseStudyCompany: "",
+    language: lang,
   };
 }
 
@@ -134,7 +158,11 @@ function load(): Persisted | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Persisted>;
+    const lang: ResearchLanguage = p.language || "ar";
     const rawMeta = { ...EMPTY_META, ...(p.meta || {}) };
+    if (lang !== "ar" && (!rawMeta.subtitle || KNOWN_DEFAULT_SUBTITLES.has(rawMeta.subtitle.trim()))) {
+      rawMeta.subtitle = DEFAULT_SUBTITLES[lang];
+    }
     const aiTopic = p.aiTopic || "";
     const caseStudyCompany = p.caseStudyCompany || "";
     let cleanMetaTitle = rawMeta.title || "";
@@ -180,6 +208,7 @@ function load(): Persisted | null {
       aiTopic,
       aiSize: p.aiSize || "standard",
       caseStudyCompany,
+      language: p.language || "ar",
     };
     if (cleanMetaTitle !== (rawMeta.title || "")) {
       try {
@@ -238,6 +267,21 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     hasUserEditedRef.current = true;
     setState((s) => ({ ...s, options: { ...s.options, ...p } }));
   }, []);
+  const setLanguage = useCallback((lang: ResearchLanguage) => {
+    hasUserEditedRef.current = true;
+    setState((s) => {
+      const curSub = (s.meta.subtitle || "").trim();
+      const shouldUpdateSubtitle = KNOWN_DEFAULT_SUBTITLES.has(curSub);
+      return {
+        ...s,
+        language: lang,
+        meta: {
+          ...s.meta,
+          subtitle: shouldUpdateSubtitle ? DEFAULT_SUBTITLES[lang] : s.meta.subtitle,
+        },
+      };
+    });
+  }, []);
 
   // التحليل البنيوي المشترك ← خطة الشرائح (يُعاد حسابه مع كل تعديل على المسودة)
   const draft = useDeferredValue(state.draftText);
@@ -254,15 +298,17 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       supervisor: state.meta.supervisor,
       year: state.meta.year,
       logo: state.meta.logoUrl,
+      language: state.language || "ar",
     }),
-    [state.meta],
+    [state.meta, state.language],
   );
   const { deck, error } = useMemo(() => {
     if (!draft.trim()) return { deck: null, error: "" };
     try {
       return { deck: buildDeckFromText(draft, coverMeta, state.options), error: "" };
     } catch (e) {
-      return { deck: null, error: e instanceof ParseError ? e.message : "تعذر تحليل المسودة." };
+      console.error("buildDeckFromText failed:", e);
+      return { deck: null, error: e instanceof Error ? e.message : "تعذر تحليل المسودة." };
     }
   }, [draft, coverMeta, state.options]);
 
@@ -276,10 +322,15 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       state.autoTheme ? suggestTheme(deck?.title || cleanTopicHint, draft) : getTheme(state.themeId),
     [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
-  const laid = useMemo(
-    () => (deck ? layoutDeck(deck, theme, state.options) : []),
-    [deck, theme, state.options],
-  );
+  const laid = useMemo(() => {
+    if (!deck) return [];
+    try {
+      return layoutDeck(deck, theme, state.options);
+    } catch (e) {
+      console.error("layoutDeck failed:", e);
+      return [];
+    }
+  }, [deck, theme, state.options]);
 
   const reset = useCallback(() => {
     runIdRef.current += 1;
@@ -345,6 +396,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         topic,
         caseStudyCompany: caseCompany,
         size: state.aiSize,
+        language: state.language || "ar",
         customUrl,
         customModel,
         onResolvedPlan: (resolvedPlan) => {
@@ -397,7 +449,20 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         pickSafe(analysis.cleanedTopic) ||
         (looksLikePlanLeak(topic) || isStructuralTitleOnly(topic) ? "عرض تقديمي أكاديمي" : topic);
       hasUserEditedRef.current = true;
-      setState((s) => ({ ...s, draftText: text, meta: { ...s.meta, title: cleanCoverTitle } }));
+      setState((s) => {
+        const curLang = s.language || "ar";
+        const curSub = (s.meta.subtitle || "").trim();
+        const shouldUpdateSub = KNOWN_DEFAULT_SUBTITLES.has(curSub) || !curSub;
+        return {
+          ...s,
+          draftText: text,
+          meta: {
+            ...s.meta,
+            title: cleanCoverTitle,
+            subtitle: shouldUpdateSub ? DEFAULT_SUBTITLES[curLang] : s.meta.subtitle,
+          },
+        };
+      });
       setRun((r) => ({ ...r, running: false, stage: "done" }));
       setCompletedVersion((v) => v + 1);
       ui.toast("اكتمل توليد محتوى العرض", {
@@ -422,7 +487,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         runningRef.current = false;
       }
     }
-  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, state.caseStudyCompany, ui]);
+  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, state.caseStudyCompany, state.language, ui]);
 
   const exportPptx = useCallback(async () => {
     if (!deck || !laid.length) {
@@ -488,6 +553,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setAiTopic: (aiTopic) => patch({ aiTopic }),
       setAiSize: (aiSize) => patch({ aiSize }),
       setCaseStudyCompany: (caseStudyCompany) => patch({ caseStudyCompany }),
+      setLanguage,
       deck,
       laid,
       theme,
@@ -505,6 +571,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       patch,
       setMeta,
       setOptions,
+      setLanguage,
       deck,
       laid,
       theme,

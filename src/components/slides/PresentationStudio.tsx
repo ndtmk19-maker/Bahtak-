@@ -35,7 +35,7 @@ import { SlideCanvas } from "./SlideCanvas";
 import { usePresentation } from "../../state/PresentationContext";
 import { useResetApp } from "../../state/useResetApp";
 import { useUI } from "../../state/UIContext";
-import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from "../../data/defaults";
+import { DEMO_RAW_TEXT, QUICK_AI_TOPICS, QUICK_AI_TOPICS_BY_LANG } from "../../data/defaults";
 import { SLIDE_THEMES, type Slide, type SlideTheme } from "../../lib/slides";
 import { SLIDE_AI_SIZES, type SlideAiSize } from "../../lib/slides/ai";
 import {
@@ -45,6 +45,7 @@ import {
   sanitizeCoverTitleFromPlanLeak,
 } from "../../lib/aiGenerate";
 import { TopicAnalysisCard } from "../ui/TopicAnalysisCard";
+import { LanguageSelector } from "../ui/LanguageSelector";
 
 const KIND_LABEL: Record<Slide["kind"], string> = {
   cover: "الغلاف",
@@ -117,6 +118,8 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
       >
         <div className="mx-auto flex max-w-xl flex-col gap-4">
           <EditorIntro />
+          {/* اختيار لغة العرض التقديمي في الواجهة */}
+          <LanguageSelector />
           <MethodPicker />
           <ContentInput />
           <CoverFields />
@@ -251,7 +254,11 @@ function ContentInput() {
         value={p.draftText}
         onChange={(e) => p.setDraftText(e.target.value)}
         placeholder={
-          "عنوان العرض في السطر الأول\n\nالمقدمة:\n...\n\nالمبحث الأول: ...\nالمطلب الأول: ...\n- فكرة رئيسية: شرح موجز\n\nالخاتمة:\n...\n\nقائمة المصادر والمراجع:\n[1] ..."
+          p.language === "fr"
+            ? "Titre de l’exposé en première ligne\n\nIntroduction :\n...\n\nChapitre I : ...\nSection 1 : ...\n- Idée clé : explication concise\n\nConclusion :\n...\n\nBibliographie :\n[1] ..."
+            : p.language === "en"
+              ? "Presentation Title on the first line\n\nIntroduction:\n...\n\nChapter 1: ...\nSection 1: ...\n- Key idea: brief explanation\n\nConclusion:\n...\n\nReferences:\n[1] ..."
+              : "عنوان العرض في السطر الأول\n\nالمقدمة:\n...\n\nالمبحث الأول: ...\nالمطلب الأول: ...\n- فكرة رئيسية: شرح موجز\n\nالخاتمة:\n...\n\nقائمة المصادر والمراجع:\n[1] ..."
         }
         className="field min-h-[260px] resize-y font-serif text-[0.95rem] leading-[1.85] scroll-thin"
       />
@@ -290,9 +297,25 @@ function ContentInput() {
 
 function AiFields() {
   const p = usePresentation();
+  const currentLang = p.language || "ar";
+  const quickTopics = QUICK_AI_TOPICS_BY_LANG[currentLang] || QUICK_AI_TOPICS_BY_LANG.ar;
   const topicAnalysis = analyzeStudentTopic(p.aiTopic, p.caseStudyCompany);
   const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
+
+  const topicPlaceholder =
+    currentLang === "fr"
+      ? "Écrivez le sujet de l'exposé directement (ex: « L'Impact du Marketing Digital »)\nou collez le plan complet (Introduction, Chapitre I, Section 1...)"
+      : currentLang === "en"
+        ? "Enter presentation topic (e.g. \"Artificial Intelligence in Healthcare\")\nor paste the full outline (Introduction, Chapter 1, Section 1...)"
+        : "اكتب عنوان العرض مباشرة مثل: «أثر التحول الرقمي على أداء المؤسسات الجامعية»\nأو ألصق هنا خطة العرض كاملة (المبحث الأول / المحور الأول، المطلب الأول... أو 1، 2...) ليُبنى العرض وفقها حرفياً.";
+
+  const casePlaceholder =
+    currentLang === "fr"
+      ? "Ex: Sonatrach, Mobilis, Condor... (laisser vide si non requis)"
+      : currentLang === "en"
+        ? "E.g. Sonatrach, Apple, Tesla... (leave blank if not needed)"
+        : "مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)";
 
   const depthHint = topicAnalysis.hasCustomPlan
     ? p.aiSize === "brief"
@@ -317,16 +340,14 @@ function AiFields() {
         }
         value={p.aiTopic}
         onChange={(e) => p.setAiTopic(e.target.value)}
-        placeholder={
-          "اكتب عنوان العرض مباشرة مثل: «أثر التحول الرقمي على أداء المؤسسات الجامعية»\nأو ألصق هنا خطة العرض كاملة (المبحث الأول / المحور الأول، المطلب الأول... أو 1، 2...) ليُبنى العرض وفقها حرفياً."
-        }
+        placeholder={topicPlaceholder}
         className="min-h-[104px]"
       />
       <div className="-mt-1 flex flex-wrap gap-1.5">
         <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">
-          أمثلة:
+          {currentLang === "fr" ? "Exemples :" : currentLang === "en" ? "Examples:" : "أمثلة:"}
         </span>
-        {QUICK_AI_TOPICS.map((q) => (
+        {quickTopics.map((q) => (
           <Chip
             key={q.label}
             onClick={() => p.setAiTopic(q.topic)}
@@ -357,7 +378,7 @@ function AiFields() {
         }
         value={p.caseStudyCompany}
         onChange={(e) => p.setCaseStudyCompany(e.target.value)}
-        placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+        placeholder={casePlaceholder}
         hint={
           topicAnalysis.caseStudyInPlanMabhath
             ? "أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ ستُعرض شرائحه في موضعه دون تكرار، أو اكتب اسماً محدداً هنا لإفراد شرائح تطبيقية مستقلة."
@@ -589,7 +610,8 @@ function LogoPicker() {
 }
 
 function CoverFields() {
-  const { meta, setMeta, deck } = usePresentation();
+  const { meta, setMeta, deck, language } = usePresentation();
+  const currentLang = language || "ar";
   const titleHasLeak =
     Boolean(meta.title.trim()) &&
     (looksLikePlanLeak(meta.title) || isStructuralTitleOnly(meta.title));
@@ -597,13 +619,13 @@ function CoverFields() {
     ? sanitizeCoverTitleFromPlanLeak(meta.title).cleaned
     : "";
   return (
-    <Section title="شريحة الغلاف" icon={<GraduationCap />}>
+    <Section title={currentLang === "fr" ? "Diapositive de Garde" : currentLang === "en" ? "Cover Slide" : "شريحة الغلاف"} icon={<GraduationCap />}>
       <TextInput
-        label="عنوان العرض"
+        label={currentLang === "fr" ? "Titre de l'exposé" : currentLang === "en" ? "Presentation Title" : "عنوان العرض"}
         value={meta.title}
         onChange={(e) => setMeta({ title: e.target.value })}
-        placeholder={deck?.title || "يُستخرج تلقائياً من المسودة"}
-        hint="اتركه فارغاً لاستعمال العنوان المكتشف في المسودة."
+        placeholder={deck?.title || (currentLang === "fr" ? "Extrait automatiquement de la rédaction" : currentLang === "en" ? "Extracted automatically from draft" : "يُستخرج تلقائياً من المسودة")}
+        hint={currentLang === "fr" ? "Laisser vide pour utiliser le titre extrait automatiquement." : currentLang === "en" ? "Leave blank to use the detected title." : "اتركه فارغاً لاستعمال العنوان المكتشف في المسودة."}
       />
       {titleHasLeak && (
         <Note icon={<CircleAlert />} tone="warn">
@@ -622,10 +644,16 @@ function CoverFields() {
         </Note>
       )}
       <TextInput
-        label="نوع العمل"
+        label={currentLang === "fr" ? "Type de travail (Sous-titre)" : currentLang === "en" ? "Type of Work (Subtitle)" : "نوع العمل"}
         value={meta.subtitle}
         onChange={(e) => setMeta({ subtitle: e.target.value })}
-        placeholder="عرض تقديمي لمقياس..."
+        placeholder={
+          currentLang === "fr"
+            ? "Exposé académique, Présentation de module..."
+            : currentLang === "en"
+              ? "Academic Presentation, Module project..."
+              : "عرض تقديمي لمقياس..."
+        }
       />
       <LogoPicker />
       <div className="grid grid-cols-2 gap-3">
@@ -849,7 +877,7 @@ function Stage({
   className: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion } =
+  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion, error } =
     usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
@@ -920,17 +948,34 @@ function Stage({
         <div className="grid flex-1 place-items-center p-8">
           <div className="max-w-sm text-center">
             <div className="mx-auto grid size-16 place-items-center rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-950 shadow-xs">
-              <Presentation className="size-7 text-zinc-700 dark:text-zinc-300" />
+              {error ? (
+                <CircleAlert className="size-7 text-amber-500" />
+              ) : (
+                <Presentation className="size-7 text-zinc-700 dark:text-zinc-300" />
+              )}
             </div>
             <h2 className="mt-4 font-serif text-xl font-bold text-zinc-900 dark:text-zinc-100">
-              ستظهر شرائحك هنا
+              {error ? "تعذر تنسيق الشرائح" : "ستظهر شرائحك هنا"}
             </h2>
             <p className="mt-1.5 text-[0.84rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {mode === "draft"
-                ? "اكتب أو ألصق مسودة العرض لتتكون الشرائح فوراً."
-                : "اكتب موضوع العرض واضغط توليد، وستُبنى الشرائح أثناء الكتابة."}
+              {error
+                ? error
+                : mode === "draft"
+                  ? "اكتب أو ألصق مسودة العرض لتتكون الشرائح فوراً."
+                  : "اكتب موضوع العرض واضغط توليد، وستُبنى الشرائح أثناء الكتابة."}
             </p>
-            {mode === "ai" && (
+            {error && mode === "ai" && (
+              <Button
+                className="mt-4"
+                size="sm"
+                variant="secondary"
+                icon={<ClipboardPaste className="size-3.5" />}
+                onClick={() => setMode("draft")}
+              >
+                مراجعة المسودة وتعديلها
+              </Button>
+            )}
+            {!error && mode === "ai" && (
               <Button
                 className="mt-4"
                 size="sm"

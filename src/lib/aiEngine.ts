@@ -163,12 +163,81 @@ function getDistinctFallbackMatalib(topic, mabhathIdx, count) {
     return list;
 }
 
-// دالة إنشاء خطة بديلة ذكية بمطالب متباينة تماماً لكل مبحث في حال تعذر الاتصال بالكامل
-function buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode) {
+// دالة إنشاء خطة بديلة ذكية بمطالب متباينة تماماً لكل مبحث في حال تعذر الاتصال بالكامل (مع دعم الفرنسية والإنجليزية)
+function buildFallbackPlan(topic, mabhathCount, matlabCount, lengthMode, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
     var mCount = Math.max(1, parseInt(mabhathCount, 10) || 2);
     var tCount = Math.max(1, parseInt(matlabCount, 10) || 2);
     var cleanTopic = sanitizeFallbackTopic(topic);
-    var topicRef = cleanTopic.length <= 42 ? cleanTopic : 'موضوع الدراسة';
+    var topicRef = cleanTopic.length <= 42 ? cleanTopic : (isFr ? 'le sujet d\'étude' : isEn ? 'the research topic' : 'موضوع الدراسة');
+
+    if (isFr) {
+        var ROMAN_LABELS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+        var frThemes = [
+            'Cadre conceptuel et théorique de ' + topicRef,
+            'Mécanismes opérationnels et dimensions pratiques de ' + topicRef,
+            'Défis, évaluation critique et perspectives futures de ' + topicRef,
+            'Cadre institutionnel et managérial de ' + topicRef,
+            'Analyse comparative et approches contemporaines de ' + topicRef
+        ];
+        var mabahithFr = [];
+        for (var i = 0; i < mCount; i++) {
+            var rom = ROMAN_LABELS[i] || String(i + 1);
+            var mTitle = 'Chapitre ' + rom + ' : ' + (frThemes[i] || ('Dimension analytique de ' + topicRef));
+            var matalibFr = [];
+            for (var j = 0; j < tCount; j++) {
+                matalibFr.push({
+                    title: 'Section ' + (j + 1) + ' : ' + (j === 0 ? 'Définition et fondements théoriques' : j === 1 ? 'Typologie et caractéristiques fondamentales' : 'Enjeux et applications pratiques')
+                });
+            }
+            mabahithFr.push({ title: mTitle, matalib: matalibFr });
+        }
+        return {
+            title: cleanTopic,
+            problematic: 'Quelles sont les dimensions conceptuelles et pratiques de ' + cleanTopic + ', et comment optimiser ses mécanismes opérationnels ?',
+            questions: [],
+            hypotheses: [
+                'Il existe une corrélation significative entre la rigueur méthodologique et la performance des pratiques appliquées.',
+                'L\'adoption de stratégies d\'optimisation permet de surmonter les principaux défis du secteur.'
+            ],
+            methodology: 'Méthodologie descriptive et analytique',
+            mabahith: mabahithFr
+        };
+    }
+
+    if (isEn) {
+        var enThemes = [
+            'Conceptual and Theoretical Framework of ' + topicRef,
+            'Operational Mechanisms and Practical Dimensions of ' + topicRef,
+            'Challenges, Critical Evaluation and Future Perspectives of ' + topicRef,
+            'Institutional and Managerial Framework of ' + topicRef,
+            'Comparative Analysis and Contemporary Trends in ' + topicRef
+        ];
+        var mabahithEn = [];
+        for (var i = 0; i < mCount; i++) {
+            var num = i + 1;
+            var mTitle = 'Chapter ' + num + ': ' + (enThemes[i] || ('Analytical Dimension of ' + topicRef));
+            var matalibEn = [];
+            for (var j = 0; j < tCount; j++) {
+                matalibEn.push({
+                    title: 'Section ' + (j + 1) + ': ' + (j === 0 ? 'Theoretical Foundations and Definitions' : j === 1 ? 'Key Classifications and Features' : 'Practical Applications and Implications')
+                });
+            }
+            mabahithEn.push({ title: mTitle, matalib: matalibEn });
+        }
+        return {
+            title: cleanTopic,
+            problematic: 'What are the conceptual and operational dimensions of ' + cleanTopic + ', and how can its systemic frameworks be optimized?',
+            questions: [],
+            hypotheses: [
+                'There is a significant positive correlation between theoretical foundation and empirical execution.',
+                'Implementing strategic optimization methodologies mitigates operational and systemic challenges.'
+            ],
+            methodology: 'Descriptive and Analytical Methodology',
+            mabahith: mabahithEn
+        };
+    }
 
     var mabahith = [];
     var mabhathThemes = [
@@ -542,8 +611,10 @@ export function fetchAiText(provider, apiKey, prompt, onChunk, options, customUr
     return fetchOpenAiStreamWithFallback(apiKey, url, model, prompt, onChunk, temp, maxTokens);
 }
 
-// صياغة خطة بحث أكاديمي دقيقة وواقعية بعدد المباحث والمطالب الدقيق دون أي تكرار
-export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudyCompany, caseStudyRequested, customPlanOptions) {
+// صياغة خطة بحث أكاديمي دقيقة وواقعية بعدد المباحث والمطالب الدقيق دون أي تكرار (مع دعم الفرنسية والإنجليزية)
+export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudyCompany, caseStudyRequested, customPlanOptions, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
     var exactTopic = (topic || '').trim();
     var customMabahith = customPlanOptions && Array.isArray(customPlanOptions.customMabahith) && customPlanOptions.customMabahith.length > 0
         ? customPlanOptions.customMabahith
@@ -554,7 +625,19 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
     var cleanCompany = (caseStudyCompany || '').trim();
     var isCaseStudy = !!cleanCompany || !!caseStudyRequested;
 
-    var mabhathAngles = [
+    var mabhathAngles = isFr ? [
+        'Cadre conceptuel et théorique du sujet',
+        'Mécanismes opérationnels et dimensions pratiques',
+        'Défis, évaluation critique et perspectives futures',
+        'Cadre institutionnel et managérial',
+        'Analyse comparative et tendances contemporaines'
+    ] : isEn ? [
+        'Conceptual and Theoretical Framework',
+        'Operational Mechanisms and Practical Dimensions',
+        'Challenges, Critical Evaluation and Future Perspectives',
+        'Institutional and Managerial Dimensions',
+        'Comparative Analysis and Contemporary Trends'
+    ] : [
         'الإطار النظري والمفاهيمي للموضوع',
         'الآليات التطبيقية والممارسات العملية للموضوع',
         'التحديات والتقييم والآفاق المستقبلية للموضوع',
@@ -562,11 +645,12 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
         'الدراسة التحليلية والمقارنة والاتجاهات الحديثة'
     ];
 
+    var ROMAN_LABELS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
     var exampleMabahith = [];
     if (customMabahith) {
         for (var ci = 0; ci < mCount; ci++) {
             var cm = customMabahith[ci];
-            var ordCm = ORDINAL_LABELS[ci] || String(ci + 1);
+            var ordCm = isFr ? (ROMAN_LABELS[ci] || String(ci + 1)) : isEn ? String(ci + 1) : (ORDINAL_LABELS[ci] || String(ci + 1));
             var existingMatalib = Array.isArray(cm.matalib) && cm.matalib.length > 0 ? cm.matalib : null;
             var cmMatalib = [];
             if (existingMatalib) {
@@ -575,46 +659,82 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
                 }
             } else {
                 for (var fk = 0; fk < tCount; fk++) {
-                    var ordFk = ORDINAL_LABELS[fk] || String(fk + 1);
+                    var ordFk = isFr ? ('Section ' + (fk + 1)) : isEn ? ('Section ' + (fk + 1)) : ('المطلب ' + (ORDINAL_LABELS[fk] || String(fk + 1)));
                     cmMatalib.push({
-                        title: 'المطلب ' + ordFk + ': [عنوان فرعي مناسب وفريد يتبع "' + cm.title + '" دون تكرار]'
+                        title: ordFk + ': [' + (isFr ? 'Sous-titre spécifique' : isEn ? 'Specific subtitle' : 'عنوان فرعي مناسب وفريد يتبع "' + cm.title + '" دون تكرار') + ']'
                     });
                 }
             }
+            var mPrefix = isFr ? ('Chapitre ' + ordCm) : isEn ? ('Chapter ' + ordCm) : ('المبحث ' + ordCm);
             exampleMabahith.push({
-                title: cm.title || ('المبحث ' + ordCm),
+                title: cm.title || mPrefix,
                 matalib: cmMatalib
             });
         }
     } else {
         for (var i = 0; i < mCount; i++) {
-            var ordMb = ORDINAL_LABELS[i] || String(i + 1);
-            var angleHint = mabhathAngles[i] || ('المحور التحليلي ' + ordMb + ' للموضوع');
+            var ordMb = isFr ? (ROMAN_LABELS[i] || String(i + 1)) : isEn ? String(i + 1) : (ORDINAL_LABELS[i] || String(i + 1));
+            var angleHint = mabhathAngles[i] || (isFr ? ('Axe analytique ' + ordMb) : isEn ? ('Analytical dimension ' + ordMb) : ('المحور التحليلي ' + ordMb + ' للموضوع'));
             var exampleMatalib = [];
             for (var j = 0; j < tCount; j++) {
-                var ordMt = ORDINAL_LABELS[j] || String(j + 1);
+                var ordMt = isFr ? ('Section ' + (j + 1)) : isEn ? ('Section ' + (j + 1)) : ('المطلب ' + (ORDINAL_LABELS[j] || String(j + 1)));
                 exampleMatalib.push({
-                    title: 'المطلب ' + ordMt + ': [عنوان فرعي جديد وفريد يخص المبحث ' + ordMb + ' فقط ولا يتكرر في غيره]'
+                    title: ordMt + (isFr ? ' : [Sous-titre original]' : isEn ? ': [Original subtitle]' : ': [عنوان فرعي جديد وفريد يخص المبحث ' + ordMb + ' فقط ولا يتكرر في غيره]')
                 });
             }
+            var mbPrefix = isFr ? ('Chapitre ' + ordMb) : isEn ? ('Chapter ' + ordMb) : ('المبحث ' + ordMb);
             exampleMabahith.push({
-                title: 'المبحث ' + ordMb + ': [' + angleHint + ']',
+                title: mbPrefix + (isFr ? ' : [' : isEn ? ': [' : ': [') + angleHint + ']',
                 matalib: exampleMatalib
             });
         }
     }
 
     var schemaObj = {
-        title: needInferredTitle ? 'صغ عنواناً أكاديمياً موجزاً ودقيقاً يعبّر عن محاور هذه الخطة دون كتابة كلمة بحث أو خطة' : exactTopic,
-        problematic: 'صياغة إشكالية رئيسية واحدة فقط للبحث تكون جوهرية ومحكمة وتنتهي حتماً بعلامة استفهام (؟) كنص نثري متصل دون أي مطات أو نقاط ودون أي تساؤلات فرعية',
-        hypotheses: ['الفرضية الأولى...', 'الفرضية الثانية...'],
-        methodology: 'المنهج الوصفي التحليلي',
+        title: needInferredTitle ? (isFr ? 'Titre académique précis et concis' : isEn ? 'Precise and concise academic research title' : 'صغ عنواناً أكاديمياً موجزاً ودقيقاً يعبّر عن محاور هذه الخطة دون كتابة كلمة بحث أو خطة') : exactTopic,
+        problematic: isFr
+            ? 'Formulation d\'une problématique de recherche centrale unique se terminant impérativement par un point d\'interrogation (?)'
+            : isEn
+            ? 'Formulation of a single core research problem ending strictly with a question mark (?)'
+            : 'صياغة إشكالية رئيسية واحدة فقط للبحث تكون جوهرية ومحكمة وتنتهي حتماً بعلامة استفهام (؟) كنص نثري متصل دون أي مطات أو نقاط ودون أي تساؤلات فرعية',
+        hypotheses: isFr ? ['Première hypothèse...', 'Deuxième hypothèse...'] : isEn ? ['First hypothesis...', 'Second hypothesis...'] : ['الفرضية الأولى...', 'الفرضية الثانية...'],
+        methodology: isFr ? 'Méthodologie descriptive et analytique' : isEn ? 'Descriptive and Analytical Methodology' : 'المنهج الوصفي التحليلي',
         mabahith: exampleMabahith
     };
     if (isCaseStudy && !cleanCompany) {
-        schemaObj.caseStudyCompany = 'اسم شركة أو مؤسسة أو هيئة حقيقية مناسبة تماماً لتطبيق هذا الموضوع (مثل مؤسسة جزائرية أو عربية معروفة، دون كتابة عبارة دراسة حالة قبل الاسم)';
+        schemaObj.caseStudyCompany = isFr ? 'Nom d\'une entreprise ou institution réelle' : isEn ? 'Name of a real corporation or institution' : 'اسم شركة أو مؤسسة أو هيئة حقيقية مناسبة تماماً لتطبيق هذا الموضوع (مثل مؤسسة جزائرية أو عربية معروفة، دون كتابة عبارة دراسة حالة قبل الاسم)';
     }
     var schemaPreview = JSON.stringify(schemaObj, null, 2);
+
+    if (isFr) {
+        return 'Tu es un éminent professeur d\'université et doyen académique. Tu dois concevoir un plan de recherche universitaire rigoureux, équilibré et de haut niveau académique en français au format JSON strict.\n' +
+        'Titre exact demandé : « ' + exactTopic + ' »\n' +
+        'Nombre de chapitres requis exactement : ' + mCount + ' chapitres.\n' +
+        'Nombre de sections par chapitre exactement : ' + tCount + ' sections (soit un total de ' + (mCount * tCount) + ' sections distinctes).\n\n' +
+        'Règles strictes :\n' +
+        '1. Le tableau mabahith doit contenir exactement ' + mCount + ' chapitres, et chaque chapitre doit contenir exactement ' + tCount + ' sections.\n' +
+        '2. Les titres de chapitres doivent être formulés sous la forme « Chapitre I : ... », « Chapitre II : ... ».\n' +
+        '3. Les titres de sections doivent être formulés sous la forme « Section 1 : ... », « Section 2 : ... » sans aucun formatage markdown (** ou #).\n' +
+        '4. Chaque chapitre et section doit traiter un aspect original et non redondant.\n' +
+        '5. Formule une problématique claire se terminant par (?) et des hypothèses pertinentes.\n\n' +
+        'Tu dois renvoyer UNIQUEMENT un objet JSON valide conforme à ce schéma sans texte additionnel ni balises markdown :\n' +
+        schemaPreview;
+    }
+
+    if (isEn) {
+        return 'You are a distinguished university professor and academic dean. Generate a rigorous, well-structured academic research outline in English in strict JSON format.\n' +
+        'Exact Research Title: « ' + exactTopic + ' »\n' +
+        'Required Chapters count: exactly ' + mCount + ' chapters.\n' +
+        'Required Sections per chapter: exactly ' + tCount + ' sections (total of ' + (mCount * tCount) + ' distinct sections).\n\n' +
+        'Strict Guidelines:\n' +
+        '1. The mabahith array must contain exactly ' + mCount + ' chapters, each with ' + tCount + ' sections in matalib.\n' +
+        '2. Chapter titles formatted as « Chapter 1: ... », « Chapter 2: ... ».\n' +
+        '3. Section titles formatted as « Section 1: ... », « Section 2: ... » without markdown asterisks (** or #).\n' +
+        '4. Each section must cover a unique academic angle without repetition.\n' +
+        '5. Formulate a single core research problem ending with (?) and valid hypotheses.\n\n' +
+        'Return ONLY valid JSON matching this structure without any surrounding markdown code fences or explanatory text:\n' +
+        schemaPreview;
+    }
 
     var casePlanNote = '';
     if (cleanCompany) {
@@ -660,8 +780,59 @@ export function buildPlanPrompt(topic, mabhathCount, matlabCount, cfg, caseStudy
     schemaPreview;
 }
 
-// صياغة مقدمة أكاديمية كاملة مع هوامش مرقمة
-export function buildIntroPrompt(plan, cfg, caseStudyCompany, caseStudyRequested) {
+// صياغة مقدمة أكاديمية كاملة مع هوامش مرقمة (مع دعم الفرنسية والإنجليزية)
+export function buildIntroPrompt(plan, cfg, caseStudyCompany, caseStudyRequested, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+
+    if (isFr) {
+        var rawProbFr = (plan && plan.problematic ? String(plan.problematic) : '').trim();
+        if (rawProbFr && !/[?]$/.test(rawProbFr)) rawProbFr += ' ?';
+        if (!rawProbFr) rawProbFr = "Quelles sont les dimensions conceptuelles et pratiques de « " + (plan.title || 'ce sujet') + " », et comment optimiser ses mécanismes opérationnels ?";
+        return "Tu es un éminent professeur d'université et chercheur académique francophone. Rédige l'introduction générale académique complète de cette recherche :\n" +
+        "Titre de la recherche : « " + plan.title + " »\n" +
+        "Problématique centrale : " + rawProbFr + "\n\n" +
+        "Exigences de longueur : environ " + cfg.introWords + " mots rédigés dans un style académique soutenu et rigoureux.\n\n" +
+        "Structure méthodologique de l'introduction :\n" +
+        "1. Commence immédiatement par :\nIntroduction :\n" +
+        "2. Développe les paragraphes suivants de façon fluide et continue sans intertitres séparés :\n" +
+        "   - Cadre contextuel et accroche scientifique du sujet.\n" +
+        "   - Définitions conceptuelles des termes clés.\n" +
+        "   - Intérêt théorique et portée pratique de la recherche.\n" +
+        "   - Énoncé explicite de la problématique centrale se terminant impérativement par un point d'interrogation (ex: « La problématique centrale s'articule ainsi autour de l'interrogation suivante : " + rawProbFr + " »).\n" +
+        "   - Formulation des hypothèses de recherche et méthodologie adoptée.\n" +
+        "   - Annonce claire du plan des chapitres.\n" +
+        "3. Insère des appels de notes de bas de page [1], [2] à la fin des paragraphes.\n" +
+        "4. Termine obligatoirement par la section des notes :\n" +
+        "Notes de bas de page :\n" +
+        "[1] Auteur, Titre de l'ouvrage, Éditeur, Année, p. X.\n" +
+        "[2] Auteur, Titre de l'article, Revue scientifique, Vol. X, N° Y, Année, p. Z.";
+    }
+
+    if (isEn) {
+        var rawProbEn = (plan && plan.problematic ? String(plan.problematic) : '').trim();
+        if (rawProbEn && !/[?]$/.test(rawProbEn)) rawProbEn += '?';
+        if (!rawProbEn) rawProbEn = "What are the theoretical and operational dimensions of « " + (plan.title || 'this topic') + " », and how can its strategic frameworks be optimized?";
+        return "You are a distinguished university professor and academic researcher. Write the complete, peer-reviewed standard academic introduction for this paper:\n" +
+        "Research Title: « " + plan.title + " »\n" +
+        "Central Problem / Question: " + rawProbEn + "\n\n" +
+        "Length requirement: approximately " + cfg.introWords + " words in rigorous, formal academic English.\n\n" +
+        "Methodological structure of the Introduction:\n" +
+        "1. Start directly on line 1 with:\nIntroduction:\n" +
+        "2. Develop cohesive, well-connected academic paragraphs without arbitrary section subheadings:\n" +
+        "   - Background overview and contextual rationale.\n" +
+        "   - Academic definitions and conceptual framework.\n" +
+        "   - Significance and scholarly relevance of the study.\n" +
+        "   - Statement of the central research problem ending with a question mark (?).\n" +
+        "   - Research hypotheses and methodological approach.\n" +
+        "   - Brief outline of the study chapters.\n" +
+        "3. Insert footnote markers [1], [2] in text.\n" +
+        "4. Conclude with the footnotes block:\n" +
+        "Footnotes:\n" +
+        "[1] Author, Book Title, Publisher, Year, p. X.\n" +
+        "[2] Author, Article Title, Academic Journal, Vol. X, No. Y, Year, p. Z.";
+    }
+
     var rawProb = (plan && plan.problematic ? String(plan.problematic) : '').trim();
     if (rawProb && !/[؟?]$/.test(rawProb)) rawProb += '؟';
     if (!rawProb) rawProb = 'ما هي الأبعاد المفاهيمية والتطبيقية المرتبطة بـ ' + (plan.title || 'هذا الموضوع') + '، وكيف تسهم في الارتقاء بالأداء والممارسات العملية؟';
@@ -705,9 +876,17 @@ export function buildIntroPrompt(plan, cfg, caseStudyCompany, caseStudyRequested
 }
 
 // تنقية المقدمة والتأكد من وجود إشكالية رئيسية واحدة تنتهي بـ (؟) كنص نثري متصل، وأن الإشكالية هي آخر كتابة في متن المقدمة تماماً
-export function cleanIntroText(txt) {
+export function cleanIntroText(txt, lang) {
     if (!txt) return '';
     var res = String(txt).replace(/\r\n/g, '\n');
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+    var isLatin = isFr || isEn;
+
+    if (isLatin) {
+        res = res.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
+        return res;
+    }
 
     // فصل قسم الهوامش إن وجد في نهاية المقدمة لحمايته
     var fnMatch = res.match(/\n\s*(?:#+\s*)?(?:الهوامش|المراجع|قائمة\s+الهوامش)\s*:?\s*\n+[\s\S]*$/i);
@@ -829,8 +1008,69 @@ export function cleanIntroText(txt) {
     return body;
 }
 
-// صياغة مبحث أكاديمي كامل ومطالبه مع هوامش مرقمة لكل مطلب
-export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg, caseStudyRequested) {
+// صياغة مبحث أكاديمي كامل ومطالبه مع هوامش مرقمة لكل مطلب (مع دعم الفرنسية والإنجليزية)
+export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg, caseStudyRequested, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+
+    if (isFr) {
+        var matalibFr = mb.matalib || [];
+        var mtCountFr = matalibFr.length;
+        var minMatlabWordsFr = (cfg && cfg.minMatlabWords) || 400;
+        var perMatlabWordsFr = Math.max(minMatlabWordsFr, Math.round((targetWordsPerMb || 600) / Math.max(1, mtCountFr)));
+        var matalibListFr = matalibFr.map(function(mt, mIdx) {
+            return (mt.title || ('Section ' + (mIdx + 1)));
+        }).join('\n');
+        return "Tu es un enseignant-chercheur universitaire. Rédige le contenu intégral et approfondi de ce chapitre :\n" +
+        "Titre de la recherche : " + plan.title + "\n" +
+        "Chapitre à rédiger : " + mb.title + "\n" +
+        "Sections obligatoires à rédiger dans l'ordre :\n" + matalibListFr + "\n\n" +
+        "Exigences de rédaction :\n" +
+        "- Rédige environ " + perMatlabWordsFr + " mots par section (3 à 4 paragraphes académiques substantiels, denses et rigoureux).\n" +
+        "- Écris le titre exact de chaque section sur une ligne indépendante sans markdown (** ou #).\n" +
+        "- Insère des appels de notes de bas de page [1], [2]... avec références précises.\n" +
+        "- Si pertinent pour le sujet, inclus un tableau au format Markdown :\n" +
+        "  Tableau n° (01) : [Titre du tableau]\n" +
+        "  | Critère | Dimension A | Dimension B |\n" +
+        "  | ... | ... | ... |\n" +
+        "- Conclus chaque section par ses notes de bas de page :\n" +
+        "Notes de bas de page :\n" +
+        "[1] Auteur, Titre de l'ouvrage, Éditeur, Année, p. X.\n\n" +
+        "Règles strictes :\n" +
+        "1. Commence immédiatement par le titre du chapitre :\n" + mb.title + "\n" +
+        "2. Rédige l'intégralité des " + mtCountFr + " sections sans en omettre aucune.\n" +
+        "3. Ne rédige pas d'introduction générale ni de conclusion dans ce chapitre.";
+    }
+
+    if (isEn) {
+        var matalibEn = mb.matalib || [];
+        var mtCountEn = matalibEn.length;
+        var minMatlabWordsEn = (cfg && cfg.minMatlabWords) || 400;
+        var perMatlabWordsEn = Math.max(minMatlabWordsEn, Math.round((targetWordsPerMb || 600) / Math.max(1, mtCountEn)));
+        var matalibListEn = matalibEn.map(function(mt, mIdx) {
+            return (mt.title || ('Section ' + (mIdx + 1)));
+        }).join('\n');
+        return "You are a university professor and researcher. Write the full comprehensive academic text for this chapter:\n" +
+        "Research Title: " + plan.title + "\n" +
+        "Chapter to write: " + mb.title + "\n" +
+        "Required Sections to develop:\n" + matalibListEn + "\n\n" +
+        "Writing Requirements:\n" +
+        "- Write approximately " + perMatlabWordsEn + " words per section (3 to 4 substantial, evidence-based academic paragraphs).\n" +
+        "- Write each section title on an independent line without markdown bold (** or #).\n" +
+        "- Insert footnote references [1], [2]... with full academic citations.\n" +
+        "- Where appropriate, incorporate a Markdown table:\n" +
+        "  Table 1: [Table Title]\n" +
+        "  | Metric | Dimension A | Dimension B |\n" +
+        "  | ... | ... | ... |\n" +
+        "- Conclude each section with its footnotes:\n" +
+        "Footnotes:\n" +
+        "[1] Author, Book Title, Publisher, Year, p. X.\n\n" +
+        "Strict Guidelines:\n" +
+        "1. Start directly on line 1 with the chapter title:\n" + mb.title + "\n" +
+        "2. Develop all " + mtCountEn + " sections thoroughly in sequence.\n" +
+        "3. Do not include a general introduction or conclusion in this chapter.";
+    }
+
     var matalib = mb.matalib || [];
     var mtCount = matalib.length;
     // حد أدنى لكل مطلب يكفي لملء صفحة A4 بنسبة 85%–95% (انظر معايرة LENGTH_CONFIGS)
@@ -872,7 +1112,38 @@ export function buildMabhathPrompt(plan, mb, targetWordsPerMb, cfg, caseStudyReq
 }
 
 // استكمال مطالب ناقصة داخل مبحث لم يكمل النموذج كل مطالبه المحددة
-export function buildMissingMatalibPrompt(plan, mb, missingMatalib, perMatlabWords, cfg) {
+export function buildMissingMatalibPrompt(plan, mb, missingMatalib, perMatlabWords, cfg, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+
+    if (isFr) {
+        var listFr = (missingMatalib || []).map(function(mt) { return mt.title; }).join('\n');
+        return "Tu es un enseignant-chercheur universitaire. Les sections suivantes du chapitre « " + mb.title + " » doivent être rédigées maintenant de façon complète et approfondie :\n" +
+        "Titre de la recherche : " + plan.title + "\n" +
+        "Chapitre : " + mb.title + "\n" +
+        "Sections à rédiger maintenant :\n" + listFr + "\n\n" +
+        "Exigences :\n" +
+        "- Écris le titre exact de chaque section sur une ligne indépendante.\n" +
+        "- Rédige environ " + Math.max(perMatlabWords || 0, 380) + " mots par section avec des paragraphes académiques rigoureux.\n" +
+        "- Insère des appels de notes de bas de page [1], [2]... et termine par :\n" +
+        "Notes de bas de page :\n" +
+        "[1] Auteur, Titre de l'ouvrage, Éditeur, Année, p. X.";
+    }
+
+    if (isEn) {
+        var listEn = (missingMatalib || []).map(function(mt) { return mt.title; }).join('\n');
+        return "You are a university professor. The following sections of chapter « " + mb.title + " » need to be written now in full detail:\n" +
+        "Research Title: " + plan.title + "\n" +
+        "Chapter: " + mb.title + "\n" +
+        "Sections to write now:\n" + listEn + "\n\n" +
+        "Guidelines:\n" +
+        "- Write each section title on an independent line.\n" +
+        "- Write approximately " + Math.max(perMatlabWords || 0, 380) + " words per section with rigorous academic paragraphs.\n" +
+        "- Insert footnotes [1], [2]... and conclude with:\n" +
+        "Footnotes:\n" +
+        "[1] Author, Book Title, Publisher, Year, p. X.";
+    }
+
     var list = (missingMatalib || []).map(function(mt) {
         return mt.title;
     }).join('\n');
@@ -890,8 +1161,41 @@ export function buildMissingMatalibPrompt(plan, mb, missingMatalib, perMatlabWor
     '^2 اسم المؤلف، عنوان الدراسة، دار النشر، سنة النشر، ص...';
 }
 
-// صياغة دراسة حالة تطبيقية حول شركة أو مؤسسة تضاف بعد المباحث وقبل الخاتمة (نحو صفحتين A4: تعريف موجز + تفصيل تطبيقي عميق)
-export function buildCaseStudyPrompt(plan, company, cfg, coreTopicOverride) {
+// صياغة دراسة حالة تطبيقية حول شركة أو مؤسسة تضاف بعد المباحث وقبل الخاتمة
+export function buildCaseStudyPrompt(plan, company, cfg, coreTopicOverride, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+
+    if (isFr) {
+        var cleanCompanyFr = (company || '').trim() || "l'institution sélectionnée";
+        return "Tu es un chercheur universitaire expert en études de cas appliquées. Rédige une étude de cas empirique et professionnelle (2 à 3 pages A4) sur « " + cleanCompanyFr + " » :\n" +
+        "Titre de la recherche : " + (coreTopicOverride || plan.title) + "\n" +
+        "Entreprise / Institution étudiée : " + cleanCompanyFr + "\n\n" +
+        "Structure obligatoire :\n" +
+        "Étude de cas : " + cleanCompanyFr + "\n" +
+        "Premièrement : Présentation générale de " + cleanCompanyFr + "\n" +
+        "(1 à 2 paragraphes concis définissant l'institution, son secteur et ses missions).\n\n" +
+        "Deuxièmement : Analyse empirique et application au sein de " + cleanCompanyFr + "\n" +
+        "(5 à 6 paragraphes analytiques et appliqués détaillant la mise en œuvre pratique, les résultats et les défis).\n\n" +
+        "Notes de bas de page :\n" +
+        "[1] Rapport annuel ou source documentée, Année, p. X.";
+    }
+
+    if (isEn) {
+        var cleanCompanyEn = (company || '').trim() || "the selected institution";
+        return "You are an academic researcher specializing in empirical case studies. Write an empirical case study section (2 to 3 A4 pages) on « " + cleanCompanyEn + " »:\n" +
+        "Research Title: " + (coreTopicOverride || plan.title) + "\n" +
+        "Target Organization: " + cleanCompanyEn + "\n\n" +
+        "Structure:\n" +
+        "Case Study: " + cleanCompanyEn + "\n" +
+        "1. Overview of " + cleanCompanyEn + "\n" +
+        "(1 to 2 concise paragraphs introducing the organization and core operations).\n\n" +
+        "2. Practical Application and Empirical Analysis in " + cleanCompanyEn + "\n" +
+        "(5 to 6 in-depth analytical paragraphs examining implementation, outcomes, and challenges).\n\n" +
+        "Footnotes:\n" +
+        "[1] Annual report or documented source, Year, p. X.";
+    }
+
     var cleanCompany = (company || '').trim();
     var cleanTopic = sanitizeFallbackTopic(coreTopicOverride || (plan && plan.title));
     var hasNamedEntity = cleanCompany.length > 0;
@@ -947,8 +1251,83 @@ export function buildCaseStudyPrompt(plan, company, cfg, coreTopicOverride) {
     '- لا تكتب مقدمة عامة ولا خاتمة ولا قائمة مصادر ومراجع نهائية في هذا القسم.';
 }
 
-// صياغة خاتمة وقائمة مصادر ومراجع كاملة ومفصلة
-export function buildConclusionPrompt(plan, cfg, caseStudyCompany, caseStudyRequested) {
+// صياغة خاتمة وقائمة مصادر ومراجع كاملة ومفصلة (مع دعم الفرنسية والإنجليزية)
+export function buildConclusionPrompt(plan, cfg, caseStudyCompany, caseStudyRequested, lang) {
+    var isFr = lang === 'fr';
+    var isEn = lang === 'en';
+
+    if (isFr) {
+        var mbTitlesSummaryFr = plan.mabahith.map(function(m){ return m.title; }).join(' — ');
+        return "Tu es un professeur d'université et chercheur émérite. Rédige la conclusion générale et la bibliographie complète de ce travail académique :\n" +
+        "Titre de la recherche : " + plan.title + "\n" +
+        "Chapitres du travail : " + mbTitlesSummaryFr + "\n\n" +
+        "Exigences de longueur et format :\n" +
+        "- Longueur de la conclusion : environ " + cfg.conclusionWords + " mots (3 à 4 paragraphes substantiels).\n" +
+        "- Nombre de références bibliographiques : entre 8 et " + cfg.maxRefs + " références fiables et de haute qualité académique (strictement limitées à une page A4).\n\n" +
+        "Structure obligatoire :\n" +
+        "1. Commence immédiatement par :\nConclusion :\n" +
+        "2. Développe :\n" +
+        "   - Synthèse analytique globale des résultats de l'étude.\n" +
+        "   - Confirmation ou infirmation des hypothèses de départ.\n" +
+        "   - Recommandations pratiques et managériales pour le secteur.\n" +
+        "   - Limites de la recherche et perspectives de travaux futurs.\n" +
+        "3. Insère les notes de bas de page de la conclusion :\n" +
+        "Notes de bas de page :\n" +
+        "[1] Auteur, Titre de l'ouvrage, Éditeur, Année, p. X.\n\n" +
+        "4. Fais suivre immédiatement par la bibliographie structurée par catégorie :\n\n" +
+        "Bibliographie :\n" +
+        "I. Ouvrages généraux et spécialisés :\n" +
+        "[1] Nom (Initiale), Titre de l'ouvrage, Éditeur, Ville, Année.\n" +
+        "[2] Nom (Initiale), Titre de l'ouvrage, Éditeur, Ville, Année.\n" +
+        "[3] Nom (Initiale), Titre de l'ouvrage, Éditeur, Ville, Année.\n" +
+        "[4] Nom (Initiale), Titre de l'ouvrage, Éditeur, Ville, Année.\n" +
+        "II. Articles de revues scientifiques et périodiques :\n" +
+        "[5] Nom (Initiale), « Titre de l'article », Revue Scientifique, Vol. X, N° Y, Année, pp. XX-YY.\n" +
+        "[6] Nom (Initiale), « Titre de l'article », Revue Scientifique, Vol. X, N° Y, Année, pp. XX-YY.\n" +
+        "[7] Nom (Initiale), « Titre de l'article », Revue Scientifique, Vol. X, N° Y, Année, pp. XX-YY.\n" +
+        "III. Thèses et mémoires universitaires :\n" +
+        "[8] Nom (Initiale), Titre de la thèse, Thèse de Doctorat / Mémoire de Master, Université, Année.\n" +
+        "IV. Rapports officiels et sources institutionnelles :\n" +
+        "[9] Institution / Organisme, Titre du rapport officiel, Année, URL.\n\n" +
+        "Ne mets aucun texte introductif ou de politesse en dehors de cette structure.";
+    }
+
+    if (isEn) {
+        var mbTitlesSummaryEn = plan.mabahith.map(function(m){ return m.title; }).join(' — ');
+        return "You are a university professor and academic researcher. Write the comprehensive conclusion and complete reference list for this research paper:\n" +
+        "Paper Title: " + plan.title + "\n" +
+        "Paper Chapters: " + mbTitlesSummaryEn + "\n\n" +
+        "Length & Standards:\n" +
+        "- Conclusion length: approximately " + cfg.conclusionWords + " words (3 to 4 substantial paragraphs).\n" +
+        "- Reference count: between 8 and " + cfg.maxRefs + " high-quality peer-reviewed references (must fit strictly on one single page).\n\n" +
+        "Mandatory Structure:\n" +
+        "1. Start directly on line 1 with:\nConclusion:\n" +
+        "2. Develop:\n" +
+        "   - Rigorous synthesis of key findings.\n" +
+        "   - Assessment of research questions and hypotheses.\n" +
+        "   - Actionable practical and policy recommendations.\n" +
+        "   - Study limitations and future research directions.\n" +
+        "3. Insert conclusion footnotes:\n" +
+        "Footnotes:\n" +
+        "[1] Author, Title, Publisher, Year, p. X.\n\n" +
+        "4. Follow immediately with the categorized reference list:\n\n" +
+        "References:\n" +
+        "1. Books and Monographs:\n" +
+        "[1] Author, Book Title, Publisher, City, Year.\n" +
+        "[2] Author, Book Title, Publisher, City, Year.\n" +
+        "[3] Author, Book Title, Publisher, City, Year.\n" +
+        "[4] Author, Book Title, Publisher, City, Year.\n" +
+        "2. Peer-Reviewed Journal Articles:\n" +
+        "[5] Author, \"Article Title\", Journal Name, Vol. X, No. Y, Year, pp. XX-YY.\n" +
+        "[6] Author, \"Article Title\", Journal Name, Vol. X, No. Y, Year, pp. XX-YY.\n" +
+        "[7] Author, \"Article Title\", Journal Name, Vol. X, No. Y, Year, pp. XX-YY.\n" +
+        "3. Dissertations and Theses:\n" +
+        "[8] Author, Dissertation Title, Ph.D. Dissertation / Master's Thesis, University, Year.\n" +
+        "4. Institutional Reports & Online Sources:\n" +
+        "[9] Organization, Report Title, Publisher, Year, URL.\n\n" +
+        "Do not include any conversational filler outside this structure.";
+    }
+
     var mbTitlesSummary = plan.mabahith.map(function(m){ return m.title; }).join(' - ');
     var cleanCompany = (caseStudyCompany || '').trim();
     var caseStudyInfo = cleanCompany

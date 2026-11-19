@@ -13,6 +13,7 @@ import {
   fetchAiText,
 } from './aiEngine';
 import { rotateSystemGeminiKey } from './aiKeys';
+import type { ResearchLanguage } from '../types';
 
 export type AiProvider = 'gemini' | 'groq' | 'openai' | 'openrouter';
 export type AiLength = 'short' | 'medium' | 'giant' | 'huge';
@@ -65,6 +66,7 @@ export interface SectionProgress {
 export interface GenerateOptions {
   provider: AiProvider;
   apiKey: string;
+  language?: 'ar' | 'fr' | 'en';
   topic: string;
   length: AiLength;
   mabhathCount: string;
@@ -83,6 +85,17 @@ export interface GenerateOptions {
   normalizePlan?: (plan: AiPlan) => AiPlan;
   /** يُستدعى فور اعتماد خطة البحث النهائية وعنوانها الموحّد للغلاف. */
   onResolvedPlan?: (plan: AiPlan) => void;
+  /** تجاوزات مخصصة لمقاييس الطول (مثلاً لشرائح العرض التقديمي لتفادي النصوص الطويلة). */
+  configOverrides?: {
+    introWords?: number;
+    mabahithWords?: number;
+    matlabParagraphs?: string;
+    minMatlabWords?: number;
+    conclusionWords?: number;
+    introMaxTokens?: number;
+    mabhathMaxTokens?: number;
+    conclusionMaxTokens?: number;
+  };
 }
 
 const countWords = (txt: string) => (txt ? txt.trim().split(/\s+/).filter(Boolean).length : 0);
@@ -1669,12 +1682,18 @@ function splitInlineStructuralHeadings(text: string): string {
   );
 }
 
-function stripStructuralPrefix(title: string, keyword: 'مبحث' | 'مطلب'): string {
-  const cleaned = stripHeadingMarkdown(title);
-  return cleaned
-    .replace(new RegExp(`^(?:ال)?${keyword}\\s+${ARABIC_ORD_PATTERN}(?:\\s*[:：\\-–—\\.]+)?\\s*`, 'i'), '')
-    .replace(new RegExp(`^(?:ال)?${keyword}\\s*[:：\\-–—]+\\s*`, 'i'), '')
-    .trim();
+export function stripStructuralPrefix(title: string, _keyword?: 'مبحث' | 'مطلب'): string {
+  let cleaned = stripHeadingMarkdown(title || '').trim();
+  for (let pass = 0; pass < 2; pass++) {
+    cleaned = cleaned
+      // بادئات عربية
+      .replace(/^(?:ال)?(?:مبحث|مطلب|فصل|محور|فرع)\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\s+عشر|الثاني\s+عشر|\d+|[أ-ي])(?:\s*[:：\-–—\.]+)?\s*/i, '')
+      .replace(/^(?:ال)?(?:مبحث|مطلب|فصل|محور|فرع)\s*[:：\-–—]+\s*/i, '')
+      // بادئات فرنسية وإنجليزية
+      .replace(/^(?:Chapitre|Chapter|Section|Sous-section|Subsection|Partie|Part|Axe|Axis)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+|[a-zA-Z]+)(?:\s*[:：\-–—\.]+)?\s*/i, '')
+      .replace(/^(?:Chapitre|Chapter|Section|Sous-section|Subsection|Partie|Part|Axe|Axis)\s*[:：\-–—]+\s*/i, '');
+  }
+  return cleaned.trim();
 }
 
 function normalizeArabicComparable(text: string): string {
@@ -1753,6 +1772,12 @@ export function parseAiPlanJson(planRaw: string): AiPlan | null {
  * توحيد الخطة الأكاديمية وضبط عدد المباحث والمطالب الدقيق (mCount × tCount)،
  * ومنع تكرار مطالب المبحث الأول داخل المبحث الثاني أو الثالث أو أي مبحث آخر.
  */
+const isLatinComparable = (t: string) => {
+  const latin = (t.match(/[A-Za-z]/g) || []).length;
+  const arabic = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  return latin > arabic;
+};
+
 export function normalizeResearchPlan(
   rawPlan: AiPlan | null | undefined,
   topic: string,
@@ -1763,6 +1788,7 @@ export function normalizeResearchPlan(
     hasCaseStudy?: boolean;
     customMabahith?: CustomPlanMabhath[];
     allowInferredTitle?: boolean;
+    language?: ResearchLanguage;
   },
 ): AiPlan {
   const rawExactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
@@ -1771,11 +1797,16 @@ export function normalizeResearchPlan(
   const exactTopic = topicSanitized.cleaned || 'دراسة أكاديمية وفق الخطة المحددة';
   const analysisTopic = (options?.coreTopic || exactTopic).trim() || exactTopic;
   const hasCaseStudy = !!options?.hasCaseStudy;
+  const planLang: ResearchLanguage = options?.language || (isLatinComparable(analysisTopic) ? 'fr' : 'ar');
+  const isFr = planLang === 'fr';
+  const isEn = planLang === 'en';
+  const ROMAN_WORDS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
   const mCount = customMabahith
     ? Math.max(1, Math.min(10, customMabahith.length))
     : Math.max(1, Math.min(6, parseInt(String(mabhathCountRaw), 10) || 2));
   const defaultTCount = Math.max(1, Math.min(6, parseInt(String(matlabCountRaw), 10) || 2));
-  const fb = buildFallbackPlan(analysisTopic, mCount, defaultTCount, 'medium') as AiPlan;
+  const fb = buildFallbackPlan(analysisTopic, mCount, defaultTCount, 'medium', planLang) as AiPlan;
 
   let finalTitle = exactTopic;
   if ((options?.allowInferredTitle || topicSanitized.hadLeak) && rawPlan?.title) {
@@ -1799,17 +1830,19 @@ export function normalizeResearchPlan(
   const usedMbTokens: string[][] = [];
   const usedMtTokens: string[][] = [];
   const normalizedMabahith: { title: string; matalib: { title: string }[] }[] = [];
-  const strayCaseStudyHeadingRe = /(?:^|[\s:\-–—«"(])دراسة\s+حال[ةه](?:$|[\s:\-–—»")])/i;
+  const strayCaseStudyHeadingRe = /(?:^|[\s:\-–—«"(])(?:دراسة\s+حال[ةه]|étude\s+de\s+cas|case\s+study)(?:$|[\s:\-–—»")])/i;
 
   for (let i = 0; i < mCount; i++) {
     const customMb = customMabahith ? customMabahith[i] : null;
     const rawMb = rawPlan?.mabahith?.[i];
-    const fbMbSub = stripStructuralPrefix(fb.mabahith[i]?.title || '', 'مبحث') || `المحور ${ORDINAL_WORDS[i] || i + 1}`;
+    const fbMbSub =
+      stripStructuralPrefix(fb.mabahith[i]?.title || '') ||
+      (isFr ? `Axe ${ROMAN_WORDS[i] || i + 1}` : isEn ? `Topic ${i + 1}` : `المحور ${ORDINAL_WORDS[i] || i + 1}`);
 
     let mbSub: string;
     if (customMb) {
-      const studentMbSub = stripStructuralPrefix(customMb.title || '', 'مبحث');
-      const aiMbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
+      const studentMbSub = stripStructuralPrefix(customMb.title || '');
+      const aiMbSub = stripStructuralPrefix(rawMb?.title || '');
       mbSub =
         studentMbSub && !studentMbSub.startsWith('[')
           ? studentMbSub
@@ -1817,7 +1850,7 @@ export function normalizeResearchPlan(
             ? aiMbSub
             : fbMbSub;
     } else {
-      mbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
+      mbSub = stripStructuralPrefix(rawMb?.title || '');
       if (
         !mbSub ||
         mbSub.startsWith('[') ||
@@ -1838,18 +1871,23 @@ export function normalizeResearchPlan(
     const customMatalib = customMb?.matalib && customMb.matalib.length > 0 ? customMb.matalib : null;
     const tCountForMb = customMatalib ? Math.min(10, customMatalib.length) : defaultTCount;
     const matalib: { title: string }[] = [];
+    const defaultMtFallback = isFr
+      ? `Section ${ROMAN_WORDS[i] || i + 1}.${i + 1}`
+      : isEn
+        ? `Section ${i + 1}`
+        : `المحور التطبيقي ${ORDINAL_WORDS[i] || i + 1}`;
 
     for (let j = 0; j < tCountForMb; j++) {
       let mtSub: string;
       if (customMatalib) {
-        mtSub = stripStructuralPrefix(customMatalib[j]?.title || '', 'مطلب');
+        mtSub = stripStructuralPrefix(customMatalib[j]?.title || '');
         if (!mtSub || mtSub.startsWith('[')) {
           const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, fallbackSeed));
-          mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
+          mtSub = picked || fallbackPool[j % fallbackPool.length] || defaultMtFallback;
         }
       } else {
         const rawMtTitle = rawMb?.matalib?.[j]?.title || '';
-        mtSub = stripStructuralPrefix(rawMtTitle, 'مطلب');
+        mtSub = stripStructuralPrefix(rawMtTitle);
         if (
           !mtSub ||
           mtSub.startsWith('[') ||
@@ -1857,17 +1895,27 @@ export function normalizeResearchPlan(
           isTooSimilarHeading(mtSub, usedMtTokens, analysisTopic)
         ) {
           const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, analysisTopic));
-          mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
+          mtSub = picked || fallbackPool[j % fallbackPool.length] || defaultMtFallback;
         }
       }
       usedMtTokens.push(toComparisonTokens(mtSub, fallbackSeed));
+      const mtFormattedTitle = isFr
+        ? `Section ${j + 1} : ${mtSub}`
+        : isEn
+          ? `Section ${j + 1}: ${mtSub}`
+          : `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`;
       matalib.push({
-        title: `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`,
+        title: mtFormattedTitle,
       });
     }
 
+    const mbFormattedTitle = isFr
+      ? `Chapitre ${ROMAN_WORDS[i] || i + 1} : ${mbSub}`
+      : isEn
+        ? `Chapter ${i + 1}: ${mbSub}`
+        : `المبحث ${ORDINAL_WORDS[i] || i + 1}: ${mbSub}`;
     normalizedMabahith.push({
-      title: `المبحث ${ORDINAL_WORDS[i] || i + 1}: ${mbSub}`,
+      title: mbFormattedTitle,
       matalib,
     });
   }
@@ -1960,8 +2008,12 @@ export function findMissingMatalibIndices(
   const count = expectedMatalib?.length || 0;
   if (count === 0) return [];
   const lines = splitInlineStructuralHeadings(mabhathText || '').replace(/\r\n/g, '\n').split('\n');
-  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+(${ARABIC_ORD_PATTERN})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-  const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش)\s*[:\-]?$/i;
+  const matlabArRe = new RegExp(`^(?:(?:ال)?مطلب|فرع)\\s+(${ARABIC_ORD_PATTERN}|\\d+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const matlabLatRe = /^(?:Section|Sous-section|Subsection|Partie|Part)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+)(?:[\s:\-–—\.\\(/]|$)/i;
+  const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش|Notes|Footnotes|Références|Bibliographie)\s*[:\-]?$/i;
+  const ROMAN_MAP: Record<string, number> = {
+    i: 0, ii: 1, iii: 2, iv: 3, v: 4, vi: 5, vii: 6, viii: 7, ix: 8, x: 9,
+  };
 
   const sectionBodies = new Map<number, number>();
   let curOrdIdx: number | null = null;
@@ -1978,13 +2030,36 @@ export function findMissingMatalibIndices(
     const stripped = stripHeadingMarkdown(line);
     if (!stripped) continue;
 
-    const m = stripped.match(matlabRe);
-    if (m) {
+    const mAr = stripped.match(matlabArRe);
+    const mLat = stripped.match(matlabLatRe);
+    if (mAr) {
       commitCurrent();
-      const ordKey = m[1].replace(/\s+/g, ' ').trim();
-      curOrdIdx = ORDINAL_INDEX_MAP[ordKey] ?? null;
+      const ordKey = mAr[1].replace(/\s+/g, ' ').trim();
+      curOrdIdx = ORDINAL_INDEX_MAP[ordKey] ?? (parseInt(ordKey, 10) - 1);
       curBodyChars = 0;
       continue;
+    } else if (mLat) {
+      commitCurrent();
+      const numKey = mLat[1].trim().toLowerCase();
+      curOrdIdx = ROMAN_MAP[numKey] !== undefined ? ROMAN_MAP[numKey] : (parseInt(numKey, 10) - 1);
+      curBodyChars = 0;
+      continue;
+    } else {
+      // مطابقة مرنة مع عناوين المطالب المتوقعة إن لم تُصغ ببادئة قياسية
+      let matchedIdx: number | null = null;
+      for (let k = 0; k < count; k++) {
+        const expClean = stripStructuralPrefix(expectedMatalib[k]?.title || '').trim().toLowerCase();
+        if (expClean && expClean.length > 5 && stripped.toLowerCase().includes(expClean)) {
+          matchedIdx = k;
+          break;
+        }
+      }
+      if (matchedIdx !== null) {
+        commitCurrent();
+        curOrdIdx = matchedIdx;
+        curBodyChars = 0;
+        continue;
+      }
     }
 
     if (curOrdIdx !== null) {
@@ -2004,8 +2079,8 @@ export function findMissingMatalibIndices(
 
 function stripContinuationDuplicateHeader(text: string, missingMatalib?: { title: string }[]): string {
   const lines = splitInlineStructuralHeadings(cleanSection(text).replace(/\r\n/g, '\n')).split('\n');
-  const mbRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-  const mtRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const mbRe = new RegExp(`^(?:(?:(?:ال)?مبحث|فصل|محور)\\s+(?:${ARABIC_ORD_PATTERN}|\\d+)|(?:Chapitre|Chapter)\\s+[0-9IVXLCDMivxlcdm]+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const mtRe = new RegExp(`^(?:(?:(?:ال)?مطلب|فرع)\\s+(?:${ARABIC_ORD_PATTERN}|\\d+)|(?:Section|Sous-section|Subsection|Partie|Part)\\s*(?:n°|no\\.?)?\\s*[0-9IVXLCDMivxlcdm]+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
   const out: string[] = [];
   let startedBodyOrMatlab = false;
   let mappedCount = 0;
@@ -2144,7 +2219,8 @@ export function sanitizeCaseStudyOutput(rawText: string, company?: string): stri
 }
 
 export async function generateResearch(o: GenerateOptions): Promise<string> {
-  const cfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
+  const baseCfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
+  const cfg = { ...baseCfg, ...(o.configOverrides || {}) };
   const started = Date.now();
   const elapsed = () => Math.round((Date.now() - started) / 100) / 10;
   const call = (prompt: string, onChunk: ((c: string, acc: string) => void) | null, opts: Record<string, unknown>) =>
@@ -2176,6 +2252,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
 
   // 1. توليد خطة البحث الحقيقية بصيغة JSON من النموذج (مع الالتزام التام بخطة الطالب إن وجدت)
   let planRaw = '';
+  const currentLang = o.language || 'ar';
+  const isFr = currentLang === 'fr';
+  const isEn = currentLang === 'en';
+  const isLatin = isFr || isEn;
+
   try {
     planRaw = await call(
       buildPlanPrompt(
@@ -2186,6 +2267,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         caseCompany,
         hasCaseStudy,
         customMabahith ? { customMabahith, needInferredTitle } : undefined,
+        currentLang,
       ),
       null,
       {
@@ -2203,7 +2285,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     caseCompany = cleanPlanSuggestedCompany(plan.caseStudyCompany);
   }
   if (!plan || !plan.mabahith?.length) {
-    const fbPlan = buildFallbackPlan(analysis.caseStudy.coreTopic || provisionalCoverTitle, effectiveMabhathCount, o.matlabCount, o.length) as AiPlan;
+    const fbPlan = buildFallbackPlan(analysis.caseStudy.coreTopic || provisionalCoverTitle, effectiveMabhathCount, o.matlabCount, o.length, currentLang) as AiPlan;
     plan = customMabahith
       ? {
           ...fbPlan,
@@ -2224,6 +2306,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     hasCaseStudy,
     customMabahith,
     allowInferredTitle: needInferredTitle,
+    language: currentLang,
   });
   if (o.normalizePlan) plan = o.normalizePlan(plan);
   const safePlanTitle = sanitizeCoverTitleFromPlanLeak(plan.title || '', customMabahith).cleaned;
@@ -2233,11 +2316,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
 
   // شارات التوليد المتوازي اللحظي لكل الأقسام
   sections = [
-    { id: 'plan', label: 'خطة البحث', status: 'done', words: 0, seconds: elapsed() },
-    { id: 'intro', label: 'المقدمة', status: 'running', words: 0 },
-    ...p.mabahith.map((_, i) => ({ id: `mb${i}`, label: `المبحث ${i + 1}`, status: 'running' as const, words: 0 })),
-    ...(hasCaseStudy ? [{ id: 'casestudy', label: 'دراسة حالة', status: 'running' as const, words: 0 }] : []),
-    { id: 'conclusion', label: 'الخاتمة والمراجع', status: 'running', words: 0 },
+    { id: 'plan', label: isFr ? 'Plan de recherche' : isEn ? 'Research Outline' : 'خطة البحث', status: 'done', words: 0, seconds: elapsed() },
+    { id: 'intro', label: isFr ? 'Introduction' : isEn ? 'Introduction' : 'المقدمة', status: 'running', words: 0 },
+    ...p.mabahith.map((_, i) => ({ id: `mb${i}`, label: isFr ? `Chapitre ${i + 1}` : isEn ? `Chapter ${i + 1}` : `المبحث ${i + 1}`, status: 'running' as const, words: 0 })),
+    ...(hasCaseStudy ? [{ id: 'casestudy', label: isFr ? 'Étude de cas' : isEn ? 'Case Study' : 'دراسة حالة', status: 'running' as const, words: 0 }] : []),
+    { id: 'conclusion', label: isFr ? 'Conclusion et Bibliographie' : isEn ? 'Conclusion & References' : 'الخاتمة والمراجع', status: 'running', words: 0 },
   ];
   emit();
   o.onStage('writing');
@@ -2249,21 +2332,24 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   let conclusion = '';
 
   const refreshDraft = () => {
-    const cleanedIntro = cleanIntroText(intro);
+    const cleanedIntro = cleanIntroText(intro, currentLang);
     const total =
       countWords(cleanedIntro) +
       mbTexts.reduce((a, t) => a + countWords(t), 0) +
       (hasCaseStudy ? countWords(caseStudy) : 0) +
       countWords(conclusion);
-    let draft = `بحث بعنوان: ${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n');
+    const titlePrefix = isFr ? 'Recherche intitulée : ' : isEn ? 'Research Paper: ' : 'بحث بعنوان: ';
+    const introPending = isFr ? 'Introduction :\n(Rédaction en direct...)\n\n' : isEn ? 'Introduction:\n(Live streaming draft...)\n\n' : 'المقدمة:\n(جاري الكتابة بالبث المباشر بالتوازي...)\n\n';
+    const concPending = isFr ? 'Conclusion :\n(Rédaction en cours...)' : isEn ? 'Conclusion:\n(Drafting in progress...)' : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
+    let draft = `${titlePrefix}${p.title}\n\n` + (cleanedIntro ? cleanedIntro.trim() + '\n\n' : introPending);
     p.mabahith.forEach((mb, i) => {
-      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || `المبحث ${i + 1}`}\n(جاري تحرير المتن بالتوازي...)\n\n`;
+      draft += mbTexts[i] ? mbTexts[i].trim() + '\n\n' : `${mb.title || (isFr ? `Chapitre ${i + 1}` : isEn ? `Chapter ${i + 1}` : `المبحث ${i + 1}`)}\n(جاري تحرير المتن بالتوازي...)\n\n`;
     });
     if (hasCaseStudy) {
-      const pendingCaseHeader = caseCompany ? `دراسة حالة: ${caseCompany}` : 'دراسة حالة تطبيقية';
+      const pendingCaseHeader = caseCompany ? (isFr ? `Étude de cas : ${caseCompany}` : isEn ? `Case Study: ${caseCompany}` : `دراسة حالة: ${caseCompany}`) : (isFr ? 'Étude de cas pratique' : isEn ? 'Empirical Case Study' : 'دراسة حالة تطبيقية');
       draft += caseStudy ? caseStudy.trim() + '\n\n' : `${pendingCaseHeader}\n(جاري تحرير دراسة الحالة بالتوازي...)\n\n`;
     }
-    draft += conclusion ? conclusion.trim() : 'الخـاتـمـــة:\n(جاري الصياغة واستخراج قائمة المصادر والمراجع...)';
+    draft += conclusion ? conclusion.trim() : concPending;
     o.onDraft(draft, total);
   };
 
@@ -2293,11 +2379,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tIntro = {
     onChunk: (_c: string, acc: string) => {
       intro = acc;
-      patch('intro', { words: countWords(cleanIntroText(acc)) });
+      patch('intro', { words: countWords(cleanIntroText(acc, currentLang)) });
       refreshDraft();
     },
     done: (res: string) => {
-      const cleaned = cleanIntroText(res);
+      const cleaned = cleanIntroText(res, currentLang);
       intro = cleaned;
       patch('intro', { status: 'done', words: countWords(cleaned), seconds: elapsed() });
       refreshDraft();
@@ -2309,7 +2395,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
       throw err;
     },
   };
-  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany, hasCaseStudy)), tIntro.onChunk, {
+  const taskIntro = call(withAddendum(buildIntroPrompt(p, cfg, caseCompany, hasCaseStudy, currentLang)), tIntro.onChunk, {
     temperature: 0.35,
     maxTokens: cfg.introMaxTokens,
   }).then(tIntro.done, tIntro.fail);
@@ -2326,7 +2412,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         ? Math.max(300, Math.round((cfg.mabahithWords * mbMatalibCount) / totalMatalibCount))
         : Math.round(cfg.mabahithWords / (p.mabahith.length || 1));
       const dynamicMaxTokens = Math.min(8192, Math.max(cfg.mabhathMaxTokens, expectedMatalib.length * 1400));
-      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg, hasCaseStudy)), t.onChunk, {
+      const rawMbText = await call(withAddendum(buildMabhathPrompt(p, mb, perMb, cfg, hasCaseStudy, currentLang)), t.onChunk, {
         temperature: 0.35,
         maxTokens: dynamicMaxTokens,
       });
@@ -2339,7 +2425,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         const perMatlabWords = Math.max(120, Math.round(perMb / expectedMatalib.length));
         try {
           const contRaw = await call(
-            withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg)),
+            withAddendum(buildMissingMatalibPrompt(p, mb, missingMatalib, perMatlabWords, cfg, currentLang)),
             (_c, acc) => {
               const previewCombined = `${trimTrailingEmptyMatlabStub(verifiedMbText)}\n\n${stripContinuationDuplicateHeader(acc, missingMatalib)}`;
               mbTexts[idx] = previewCombined;
@@ -2370,7 +2456,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
             if (!targetMt) continue;
             try {
               const retryRaw = await call(
-                withAddendum(buildMissingMatalibPrompt(p, mb, [targetMt], perMatlabWords, cfg)),
+                withAddendum(buildMissingMatalibPrompt(p, mb, [targetMt], perMatlabWords, cfg, currentLang)),
                 null,
                 {
                   temperature: 0.3,
@@ -2401,7 +2487,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
         await waitMs(350 * (p.mabahith.length + 1));
         const tCs = track('casestudy', (v) => (caseStudy = v));
         try {
-          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg, analysis.caseStudy.coreTopic)), tCs.onChunk, {
+          const rawCs = await call(withAddendum(buildCaseStudyPrompt(p, caseCompany, cfg, analysis.caseStudy.coreTopic, currentLang)), tCs.onChunk, {
             temperature: 0.35,
             maxTokens: 4096,
           });
@@ -2417,7 +2503,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tConc = track('conclusion', (v) => (conclusion = v));
   const taskConc = (async () => {
     await waitMs(350 * (p.mabahith.length + (hasCaseStudy ? 2 : 1)));
-    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany, hasCaseStudy)), tConc.onChunk, {
+    return call(withAddendum(buildConclusionPrompt(p, cfg, caseCompany, hasCaseStudy, currentLang)), tConc.onChunk, {
       temperature: 0.35,
       maxTokens: cfg.conclusionMaxTokens,
     }).then(tConc.done, tConc.fail);
@@ -2427,9 +2513,10 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   await Promise.all([taskIntro, ...taskMbs, taskCaseStudy, taskConc]);
   o.onStage('done');
 
-  const cleanedIntro = cleanIntroText(intro);
+  const cleanedIntro = cleanIntroText(intro, currentLang);
+  const titlePrefix = isFr ? 'Recherche intitulée : ' : isEn ? 'Research Paper: ' : 'بحث بعنوان: ';
   const parts = [
-    `بحث بعنوان: ${p.title.replace(/^#+\s*/, '').trim()}`,
+    `${titlePrefix}${p.title.replace(/^#+\s*/, '').trim()}`,
     cleanSection(cleanedIntro),
     ...mbTexts.map(cleanSection),
     ...(hasCaseStudy ? [cleanSection(sanitizeCaseStudyOutput(caseStudy, caseCompany))] : []),

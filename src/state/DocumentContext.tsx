@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CoverState, DocumentState, PlanState, ResearchPage } from '../types';
-import { createDefaultDocument } from '../data/defaults';
+import { createDefaultDocument, getLocalizedCoverState, getLocalizedPlanTitle } from '../data/defaults';
 import { clearSavedDocument, loadSavedDocument, saveDocument } from '../lib/storage';
 import { imageToDataUrl } from '../lib/image';
 import { pageHtmlToText, textToPageHtml } from '../lib/pageText';
@@ -145,12 +145,18 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     setDoc((d) => {
       const existingTitle = d.coverState.title || '';
       const existingBad = looksLikePlanLeak(existingTitle) || isStructuralTitleOnly(existingTitle);
-      const nextTitle = safeDetectedTitle || (existingBad ? 'بحث أكاديمي منسق' : existingTitle);
+      const isFr = d.language === 'fr';
+      const isEn = d.language === 'en';
+      const defaultTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي حول';
+      const nextTitle = safeDetectedTitle || (existingBad ? defaultTitle : existingTitle);
+      const locCover = getLocalizedCoverState(d.coverState, d.language);
+      const nextPlanTitle = getLocalizedPlanTitle(d.planState.pageTitle, d.language);
+
       return {
         ...d,
         pages: r.pages,
-        coverState: { ...d.coverState, subtitle: '', title: nextTitle },
-        planState: { ...d.planState, itemsText: r.planText, researchTitle: '' },
+        coverState: { ...d.coverState, ...locCover, subtitle: '', title: nextTitle },
+        planState: { ...d.planState, itemsText: r.planText, researchTitle: '', pageTitle: nextPlanTitle },
       };
     });
     bump();

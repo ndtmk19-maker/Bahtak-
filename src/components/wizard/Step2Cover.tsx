@@ -10,6 +10,7 @@ import { useUI } from '../../state/UIContext';
 import { ALGERIAN_WILAYAS } from '../../data/universities';
 import { imageToDataUrl, readFileAsDataUrl } from '../../lib/image';
 import type { CoverTheme, LogoPosition, LogoSize } from '../../types';
+import { LanguageSelector } from '../ui/LanguageSelector';
 
 export function Step2Cover() {
   const { doc, updateCover, updateCoverWith } = useDocument();
@@ -47,6 +48,9 @@ export function Step2Cover() {
 
   return (
     <div className="flex flex-col gap-3.5">
+      {/* اختيار لغة البحث في الخطوة الأولى */}
+      <LanguageSelector />
+
       <ToggleRow
         title="تفعيل صفحة الغلاف الرسمية"
         description="تظهر كأول صفحة للبحث بإطار أكاديمي معتمد وفق النماذج الجامعية"
@@ -60,7 +64,7 @@ export function Step2Cover() {
           <TextInput label="تحت إشراف الأستاذ(ة)" value={cs.supervisor} placeholder="اسم ولقب الأستاذ المشرف..." onChange={(e) => updateCover({ supervisor: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <TextInput label="الفوج / الفصيلة" value={cs.group} placeholder="مثال: الفوج 03" onChange={(e) => updateCover({ group: e.target.value })} />
-            <TextInput label="السنة الجامعية" value={cs.academicYear} placeholder="مثال: 2025 - 2026" onChange={(e) => updateCover({ academicYear: e.target.value })} />
+            <TextInput label="السنة الجامعية" value={cs.academicYear} placeholder="مثال: 2026 - 2027" onChange={(e) => updateCover({ academicYear: e.target.value })} />
           </div>
         </Section>
 

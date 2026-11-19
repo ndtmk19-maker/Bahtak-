@@ -1,6 +1,7 @@
 import { useMemo, type CSSProperties } from 'react';
 import type { BorderStyle, DocumentState, ResearchPage } from '../../types';
 import { parsePlanRows } from '../../lib/plan';
+import { getLocalizedCoverState, getLocalizedPlanTitle } from '../../data/defaults';
 
 const FALLBACK_LOGO = '/assets/univ_logos/MESRS.png';
 
@@ -71,9 +72,23 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
   const showLeft = !!logo && (pos === 'both' || pos === 'left');
   const students = cs.studentsText.split('\n').filter((s) => s.trim() !== '');
   const black = theme === 'black';
+  const lang = doc.language || 'ar';
+  const isLatin = lang === 'fr' || lang === 'en';
+  const isFr = lang === 'fr';
+  const isEn = lang === 'en';
+  const studentsHeading = isFr ? 'Préparé par :' : isEn ? 'Prepared by:' : 'إعداد الطلبة:';
+  const supervisorHeading = isFr ? 'Sous la direction de :' : isEn ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
+
+  const loc = getLocalizedCoverState(cs, lang);
+  const country = loc.country || cs.country;
+  const ministry = loc.ministry || cs.ministry;
+  const workType = loc.workType || cs.workType;
+  const supervisor = loc.supervisor || cs.supervisor;
+  const group = loc.group || cs.group;
+  const academicYear = loc.academicYear || cs.academicYear;
 
   return (
-    <div className={`a4-page cover-theme-${theme}`} id="preview-cover">
+    <div className={`a4-page cover-theme-${theme} ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-cover">
       <div className={`page-border ${black ? 'cover-black-border' : 'cover-gold-border'}`}>
         <div className={`page-inner-border ${black ? 'cover-black-inner-border' : 'cover-gold-inner-border'}`}>
           <div className="cover-page-container">
@@ -81,8 +96,8 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
               <div className={`cover-header-wrap cover-logo-size-${cs.logoSize || 'large'}`}>
                 <div className="cover-logo-box cover-logo-right">{showRight ? <Logo src={logo} /> : <div className="cover-logo-placeholder" />}</div>
                 <div className="cover-header-center">
-                  <div className="cover-country">{cs.country}</div>
-                  <div className="cover-ministry">{cs.ministry}</div>
+                  <div className="cover-country">{country}</div>
+                  <div className="cover-ministry">{ministry}</div>
                   {cs.universityName && <div className="cover-university-line">{cs.universityName}</div>}
                   {cs.facultyName && <div className="cover-faculty-line">{cs.facultyName}</div>}
                   <div className="cover-top-line" />
@@ -92,7 +107,7 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
             </div>
 
             <div className="cover-body">
-              <div className="cover-type-label">{cs.workType}</div>
+              <div className="cover-type-label">{workType}</div>
               <div className="cover-main-title">{cs.title}</div>
               {cs.subtitle && <div className="cover-subtitle">{cs.subtitle}</div>}
               <div className="cover-diamond-divider">
@@ -105,7 +120,7 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
             <div className="cover-footer">
               <div className="cover-info-grid">
                 <div className="cover-info-box">
-                  <div className="cover-info-heading">إعداد الطلبة:</div>
+                  <div className="cover-info-heading">{studentsHeading}</div>
                   <div className="cover-info-names">
                     {students.map((s, i) => (
                       <span key={i}>{s.trim()}</span>
@@ -113,14 +128,14 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
                   </div>
                 </div>
                 <div className="cover-info-box">
-                  <div className="cover-info-heading">تحت إشراف الأستاذ(ة):</div>
+                  <div className="cover-info-heading">{supervisorHeading}</div>
                   <div className="cover-info-names">
-                    <span>{cs.supervisor}</span>
-                    <span style={{ marginTop: '3mm', fontWeight: 700 }}>{cs.group}</span>
+                    <span>{supervisor}</span>
+                    <span style={{ marginTop: '3mm', fontWeight: 700 }}>{group}</span>
                   </div>
                 </div>
               </div>
-              <div className="cover-academic-year">{cs.academicYear}</div>
+              <div className="cover-academic-year">{academicYear}</div>
             </div>
           </div>
         </div>
@@ -132,13 +147,17 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
 export function PlanPage({ doc }: { doc: DocumentState }) {
   const ps = doc.planState;
   const b = borderStyles(doc.borderStyle);
+  const lang = doc.language || 'ar';
+  const isLatin = lang === 'fr' || lang === 'en';
+  const displayedTitle = getLocalizedPlanTitle(ps.pageTitle, lang);
+
   return (
-    <div className="a4-page" id="preview-plan">
+    <div className={`a4-page ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-plan">
       <div className="page-border" style={b.outer}>
         <div className="page-inner-border" style={b.inner}>
           <div className="page-content">
             <div className="plan-header">
-              <div className="plan-main-title">{ps.pageTitle}</div>
+              <div className="plan-main-title">{displayedTitle}</div>
             </div>
             <div className="plan-items-container">
               {parsePlanRows(ps.itemsText).map((row, i) => (
@@ -155,7 +174,7 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
             </div>
           </div>
           <div className="doc-footer">
-            <div className="doc-page-number">- أ -</div>
+            <div className="doc-page-number">- {isLatin ? 'i' : 'أ'} -</div>
           </div>
         </div>
       </div>
@@ -166,14 +185,23 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
 export function ContentPage({ doc, page, index }: { doc: DocumentState; page: ResearchPage; index: number }) {
   const b = borderStyles(doc.borderStyle);
   const safeContent = useMemo(() => sanitizePageHtml(page.content), [page.content]);
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const nameLabel = doc.language === 'fr' ? 'Nom et Prénom :' : doc.language === 'en' ? 'Name:' : 'الاسم واللقب:';
+  const fawjLabel = doc.language === 'fr' ? 'Groupe :' : doc.language === 'en' ? 'Group:' : 'الفوج:';
+
   return (
-    <div className={`a4-page ${doc.layoutMode === 'card' ? 'two-columns-mode' : ''}`} style={{ fontFamily: doc.fontFamily }} id={`preview-page-${index}`}>
+    <div
+      className={`a4-page ${isLatin ? 'lang-ltr' : ''} ${doc.layoutMode === 'card' ? 'two-columns-mode' : ''}`}
+      dir={isLatin ? 'ltr' : 'rtl'}
+      style={{ fontFamily: doc.fontFamily }}
+      id={`preview-page-${index}`}
+    >
       <div className="page-border" style={b.outer}>
         <div className="page-inner-border" style={b.inner}>
           {doc.showStudentInfo && (
             <div className="doc-student-info">
-              <div>الاسم واللقب: {doc.studentName}</div>
-              <div>الفوج: {doc.studentFawj}</div>
+              <div>{nameLabel} {doc.studentName}</div>
+              <div>{fawjLabel} {doc.studentFawj}</div>
             </div>
           )}
           <div className="page-content" style={{ fontSize: `${doc.fontSize}pt`, lineHeight: doc.lineHeight }}>

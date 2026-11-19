@@ -26,10 +26,11 @@ import { Note, Section } from '../ui/Section';
 import { useConverter } from '../../state/ConverterContext';
 import { useUI } from '../../state/UIContext';
 import { useResetApp } from '../../state/useResetApp';
-import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from '../../data/defaults';
+import { DEMO_RAW_TEXT, QUICK_AI_TOPICS, QUICK_AI_TOPICS_BY_LANG } from '../../data/defaults';
 import { AI_LENGTHS, AI_PROVIDERS, analyzeStudentTopic, type AiLength, type AiProvider } from '../../lib/aiGenerate';
 import { hasSystemGeminiKey } from '../../lib/aiKeys';
 import { TopicAnalysisCard } from '../ui/TopicAnalysisCard';
+import { LanguageSelector } from '../ui/LanguageSelector';
 
 export function ContentPanel() {
   const { mode, setMode } = useConverter();
@@ -50,6 +51,9 @@ export function ContentPanel() {
           <span className="block text-[0.76rem] text-zinc-600 dark:text-zinc-400">دقيقة واحدة تشرح كل خطوة من كتابة البحث إلى طباعته A4 كـ PDF</span>
         </span>
       </button>
+
+      {/* اختيار لغة البحث في مقدمة لوحة المحتوى */}
+      <LanguageSelector />
 
       <Segmented
         label="طريقة إدخال المحتوى"
@@ -152,6 +156,22 @@ function AiMode() {
   const topicAnalysis = analyzeStudentTopic(form.topic, form.caseStudyCompany);
   const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
+  const currentLang = form.language || 'ar';
+  const quickTopics = QUICK_AI_TOPICS_BY_LANG[currentLang] || QUICK_AI_TOPICS_BY_LANG.ar;
+
+  const topicPlaceholder =
+    currentLang === 'fr'
+      ? 'Écrivez le sujet directement (ex: « Le Marketing Digital »)\nou collez le plan complet (Introduction, Chapitre I, Section 1...)'
+      : currentLang === 'en'
+        ? 'Enter the research topic (e.g. "Digital Marketing")\nor paste the full outline (Introduction, Chapter 1, Section 1...)'
+        : 'اكتب عنوان البحث مباشرة مثل: «التسويق الرقمي»\nأو ألصق هنا خطة البحث كاملة (المبحث الأول، المطلب الأول... أو 1، 2...) ليُبنى البحث وفقها حرفياً.';
+
+  const casePlaceholder =
+    currentLang === 'fr'
+      ? 'Ex: Sonatrach, Mobilis, Condor... (laisser vide si non requis)'
+      : currentLang === 'en'
+        ? 'E.g. Sonatrach, Mobilis, Apple... (leave blank if not needed)'
+        : 'مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)';
 
   return (
     <div className="flex animate-rise flex-col gap-3.5">
@@ -185,12 +205,14 @@ function AiMode() {
           }
           value={form.topic}
           onChange={(e) => setForm({ topic: e.target.value })}
-          placeholder={'اكتب عنوان البحث مباشرة مثل: «التسويق الرقمي»\nأو ألصق هنا خطة البحث كاملة (المبحث الأول، المطلب الأول... أو 1، 2...) ليُبنى البحث وفقها حرفياً.'}
+          placeholder={topicPlaceholder}
           className="min-h-[112px]"
         />
         <div className="-mt-1 flex flex-wrap gap-1.5">
-          <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">أمثلة سريعة:</span>
-          {QUICK_AI_TOPICS.map((q) => (
+          <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">
+            {currentLang === 'fr' ? 'Exemples rapides :' : currentLang === 'en' ? 'Quick examples:' : 'أمثلة سريعة:'}
+          </span>
+          {quickTopics.map((q) => (
             <Chip key={q.label} onClick={() => setForm({ topic: q.topic })} icon={<Lightbulb className="size-3" />}>
               {q.label}
             </Chip>
@@ -216,7 +238,7 @@ function AiMode() {
           }
           value={form.caseStudyCompany}
           onChange={(e) => setForm({ caseStudyCompany: e.target.value })}
-          placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+          placeholder={casePlaceholder}
           hint={
             topicAnalysis.caseStudyInPlanMabhath
               ? 'أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ سيُكتب في موضعه دون تكرار قسم إضافي، أو اكتب اسماً محدداً هنا لإفراد قسم تطبيقي مستقل.'

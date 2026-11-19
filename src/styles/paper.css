@@ -716,3 +716,155 @@
     margin-bottom: 4mm;
 }
 
+/* ==============================================================
+   أنماط اللغات اللاتينية (الفرنسية والإنجليزية - LTR Layout)
+   ============================================================== */
+.a4-page[dir="ltr"],
+.a4-page.lang-ltr {
+    direction: ltr;
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .page-content,
+.a4-page.lang-ltr .page-content {
+    text-align: justify;
+}
+
+.a4-page[dir="ltr"] .doc-mabhath-title,
+.a4-page.lang-ltr .doc-mabhath-title {
+    text-align: center;
+}
+
+.a4-page[dir="ltr"] .doc-matlab-title,
+.a4-page.lang-ltr .doc-matlab-title {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-subtitle,
+.a4-page.lang-ltr .doc-subtitle {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-ul,
+.a4-page.lang-ltr .doc-ul {
+    padding-left: 6.5mm;
+    padding-right: 0;
+}
+
+.a4-page[dir="ltr"] .doc-separator,
+.a4-page.lang-ltr .doc-separator {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.a4-page[dir="ltr"] .doc-footnotes,
+.a4-page.lang-ltr .doc-footnotes {
+    text-align: left;
+    font-family: inherit;
+}
+
+.a4-page[dir="ltr"] .doc-footnotes p,
+.a4-page.lang-ltr .doc-footnotes p {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-student-info,
+.a4-page.lang-ltr .doc-student-info {
+    direction: ltr;
+}
+
+.a4-page[dir="ltr"] .plan-row,
+.a4-page.lang-ltr .plan-row {
+    direction: ltr;
+}
+
+.a4-page[dir="ltr"] .plan-row-page,
+.a4-page.lang-ltr .plan-row-page {
+    text-align: right;
+}
+
+.a4-page[dir="ltr"] .cover-info-box,
+.a4-page.lang-ltr .cover-info-box {
+    text-align: left;
+}
+
+/* جداول اللغات اللاتينية (LTR) */
+.a4-page[dir="ltr"] .doc-table-block,
+.a4-page.lang-ltr .doc-table-block,
+.doc-table-block[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-caption,
+.a4-page.lang-ltr .doc-caption,
+.doc-table-block[dir="ltr"] .doc-caption {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table,
+.a4-page.lang-ltr .doc-table,
+.doc-table[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table th,
+.a4-page.lang-ltr .doc-table th,
+.doc-table[dir="ltr"] th {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table td.is-start,
+.a4-page.lang-ltr .doc-table td.is-start,
+.doc-table[dir="ltr"] td.is-start {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table td.is-end,
+.a4-page.lang-ltr .doc-table td.is-end,
+.doc-table[dir="ltr"] td.is-end {
+    text-align: right;
+}
+
+.a4-page[dir="ltr"] .doc-table th.doc-table-index,
+.a4-page.lang-ltr .doc-table th.doc-table-index,
+.a4-page[dir="ltr"] .doc-table td.doc-table-index,
+.a4-page.lang-ltr .doc-table td.doc-table-index,
+.doc-table[dir="ltr"] .doc-table-index {
+    text-align: center;
+}
+
+.a4-page[dir="ltr"] .doc-source,
+.a4-page.lang-ltr .doc-source,
+.doc-table-block[dir="ltr"] .doc-source {
+    text-align: left;
+}
+
+/* تنسيق خطة البحث اللاتينية */
+.a4-page[dir="ltr"] .plan-main-title,
+.a4-page.lang-ltr .plan-main-title {
+    font-family: inherit;
+    text-align: center;
+}
+
+.a4-page[dir="ltr"] .plan-row.main-row,
+.a4-page.lang-ltr .plan-row.main-row {
+    font-family: inherit;
+    font-weight: 700;
+}
+
+.a4-page[dir="ltr"] .plan-row.sub-row,
+.a4-page.lang-ltr .plan-row.sub-row {
+    padding-left: 7mm;
+    padding-right: 0;
+    font-family: inherit;
+}
+
+.a4-page[dir="ltr"] .plan-row-page,
+.a4-page.lang-ltr .plan-row-page {
+    font-family: inherit;
+    text-align: right;
+}
+
+

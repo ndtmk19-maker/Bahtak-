@@ -1,8 +1,165 @@
-import type { DocumentState, ResearchPage } from '../types';
+import type { CoverState, DocumentState, ResearchLanguage, ResearchPage } from '../types';
 
 export const PLACEHOLDER_TITLE = '[عنوان البحث هنا]';
 export const DEFAULT_STUDENTS_TEXT = '\n\n\n';
 export const LEGACY_STUDENTS_TEXT = 'الطالب(ة): الاسم واللقب\nالطالب(ة): الاسم واللقب';
+
+export const DEFAULT_LOCALIZED_COVER = {
+  ar: {
+    country: 'الجمهورية الجزائرية الديمقراطية الشعبية',
+    ministry: 'وزارة التعليم العالي والبحث العلمي',
+    workType: 'بحث أكاديمي حول',
+    supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
+    group: 'الفوج: 01',
+    academicYear: 'السنة الجامعية: 2026 / 2027',
+    planTitle: 'خـطّـة البـحـث',
+  },
+  fr: {
+    country: 'République Algérienne Démocratique et Populaire',
+    ministry: "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
+    workType: 'Travail de recherche académique',
+    supervisor: 'Dr. / Enseignant(e) du module',
+    group: 'Groupe : 01',
+    academicYear: 'Année universitaire : 2026 / 2027',
+    planTitle: 'Sommaire',
+  },
+  en: {
+    country: "People's Democratic Republic of Algeria",
+    ministry: 'Ministry of Higher Education and Scientific Research',
+    workType: 'Academic Research Paper',
+    supervisor: 'Dr. / Course Instructor',
+    group: 'Group: 01',
+    academicYear: 'Academic Year: 2026 / 2027',
+    planTitle: 'Table of Contents',
+  },
+} as const;
+
+export const KNOWN_COUNTRIES = new Set([
+  'الجمهورية الجزائرية الديمقراطية الشعبية',
+  'République Algérienne Démocratique et Populaire',
+  "People's Democratic Republic of Algeria",
+]);
+
+export const KNOWN_MINISTRIES = new Set([
+  'وزارة التعليم العالي والبحث العلمي',
+  "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
+  'Ministry of Higher Education and Scientific Research',
+]);
+
+export const KNOWN_WORK_TYPES = new Set([
+  'بحث أكاديمي منسق',
+  'بحث أكاديمي حول',
+  'Travail de recherche académique',
+  'Academic Research Paper',
+]);
+
+export const KNOWN_SUPERVISORS = new Set([
+  'د. / أستاذ(ة) المقياس المحترم(ة)',
+  'Dr. / Enseignant(e) du module',
+  'Dr. / Course Instructor',
+]);
+
+export const KNOWN_PLAN_TITLES = new Set([
+  'خـطّـة البـحـث',
+  'خطة البحث',
+  'Sommaire',
+  'Table of Contents',
+  'Table des matières',
+]);
+
+export const KNOWN_ACADEMIC_YEARS = new Set([
+  '2024 / 2025',
+  '2024/2025',
+  '2024 - 2025',
+  '2025 / 2026',
+  '2025/2026',
+  '2025 - 2026',
+  '2026 / 2027',
+  '2026/2027',
+  '2026 - 2027',
+]);
+
+export function getLocalizedCoverDefaults(lang?: ResearchLanguage): Partial<CoverState> {
+  const l = lang || 'ar';
+  return {
+    country: DEFAULT_LOCALIZED_COVER[l].country,
+    ministry: DEFAULT_LOCALIZED_COVER[l].ministry,
+    workType: DEFAULT_LOCALIZED_COVER[l].workType,
+    supervisor: DEFAULT_LOCALIZED_COVER[l].supervisor,
+    group: DEFAULT_LOCALIZED_COVER[l].group,
+    academicYear: DEFAULT_LOCALIZED_COVER[l].academicYear,
+  };
+}
+
+export function getLocalizedPlanTitle(currentTitle: string | undefined, lang?: ResearchLanguage): string {
+  const l = lang || 'ar';
+  if (!currentTitle || KNOWN_PLAN_TITLES.has(currentTitle.trim())) {
+    return DEFAULT_LOCALIZED_COVER[l].planTitle;
+  }
+  return currentTitle;
+}
+
+export function getLocalizedCoverState(cs: CoverState, lang?: ResearchLanguage): Partial<CoverState> {
+  const l = lang || 'ar';
+  const def = DEFAULT_LOCALIZED_COVER[l];
+  const patch: Partial<CoverState> = {};
+
+  if (!cs.country || KNOWN_COUNTRIES.has(cs.country.trim())) {
+    patch.country = def.country;
+  } else {
+    patch.country = cs.country;
+  }
+
+  if (!cs.ministry || KNOWN_MINISTRIES.has(cs.ministry.trim())) {
+    patch.ministry = def.ministry;
+  } else {
+    patch.ministry = cs.ministry;
+  }
+
+  if (!cs.workType || KNOWN_WORK_TYPES.has(cs.workType.trim())) {
+    patch.workType = def.workType;
+  } else {
+    patch.workType = cs.workType;
+  }
+
+  if (!cs.supervisor || KNOWN_SUPERVISORS.has(cs.supervisor.trim()) || cs.supervisor.includes('أستاذ(ة) المقياس')) {
+    patch.supervisor = def.supervisor;
+  } else {
+    patch.supervisor = cs.supervisor;
+  }
+
+  if (cs.group) {
+    const rawNum = cs.group.replace(/^(?:الفوج|Groupe|Group)\s*[:：]?\s*/i, '').trim();
+    if (l === 'fr') {
+      patch.group = rawNum ? `Groupe : ${rawNum}` : def.group;
+    } else if (l === 'en') {
+      patch.group = rawNum ? `Group: ${rawNum}` : def.group;
+    } else {
+      patch.group = rawNum ? `الفوج: ${rawNum}` : def.group;
+    }
+  } else {
+    patch.group = def.group;
+  }
+
+  if (cs.academicYear) {
+    const rawYear = cs.academicYear
+      .replace(/^(?:السنة\s+(?:الجامعية|الدراسية)|Année\s+universitaire|Academic\s+Year)\s*[:：]?\s*/i, '')
+      .trim();
+    const isKnownDefault = !rawYear || KNOWN_ACADEMIC_YEARS.has(rawYear);
+    const targetYear = isKnownDefault ? '2026 / 2027' : rawYear;
+    if (l === 'fr') {
+      patch.academicYear = `Année universitaire : ${targetYear}`;
+    } else if (l === 'en') {
+      patch.academicYear = `Academic Year: ${targetYear}`;
+    } else {
+      patch.academicYear = `السنة الجامعية: ${targetYear}`;
+    }
+  } else {
+    patch.academicYear = def.academicYear;
+  }
+
+  return patch;
+}
 
 export const LINKS = {
   charihatek: 'https://charihatek.netlify.app/',
@@ -62,6 +219,7 @@ export function defaultSamplePages(): ResearchPage[] {
 
 export function createDefaultDocument(): DocumentState {
   return {
+    language: 'ar',
     layoutMode: 'research',
     fontFamily: "'Amiri', serif",
     fontSize: 12.3,
@@ -89,7 +247,7 @@ export function createDefaultDocument(): DocumentState {
       studentsText: DEFAULT_STUDENTS_TEXT,
       supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
       group: 'الفوج: 01',
-      academicYear: 'السنة الجامعية: 2025 / 2026',
+      academicYear: 'السنة الجامعية: 2026 / 2027',
     },
     planState: {
       enabled: true,
@@ -131,8 +289,25 @@ export const DEMO_RAW_TEXT = `بحث بعنوان: استراتيجيات الت
 [3] د. خالد بن عمر، الإدارة الإلكترونية ومستقبل التعليم، دار اليازوري العلمية، عمّان، 2022، ص 89.
 [4] د. نادية كمال، تحديات الرقمنة في التعليم العالي العربي، المجلة الدولية للتربية والتنمية، المجلد 12، 2023، ص 112.`;
 
-export const QUICK_AI_TOPICS = [
-  { label: 'التحول الرقمي والجامعات', topic: 'أثر التحول الرقمي ونظم المعلومات على أداء المؤسسات الجامعية' },
-  { label: 'التدقيق الداخلي والمؤسسات', topic: 'واقع التدقيق الداخلي وإدارة المخاطر في المؤسسات الجزائرية' },
-  { label: 'المسؤولية الاجتماعية والتنمية', topic: 'المسؤولية الاجتماعية للشركات ودورها في تحقيق التنمية المستدامة' },
-];
+export const QUICK_AI_TOPICS_BY_LANG = {
+  ar: [
+    { label: 'التحول الرقمي والجامعات', topic: 'أثر التحول الرقمي ونظم المعلومات على أداء المؤسسات الجامعية' },
+    { label: 'التدقيق الداخلي والمخاطر', topic: 'واقع التدقيق الداخلي وإدارة المخاطر في المؤسسات الاقتصادية' },
+    { label: 'المسؤولية الاجتماعية', topic: 'المسؤولية الاجتماعية للشركات ودورها في تحقيق التنمية المستدامة' },
+    { label: 'حوكمة الشركات', topic: 'دور حوكمة الشركات في تعزيز الشفافية والأداء المالي في المؤسسات' },
+  ],
+  fr: [
+    { label: 'Transformation Digitale', topic: "L'impact de la transformation digitale et des systèmes d'information sur la performance des organisations" },
+    { label: 'Audit Interne & Risques', topic: "La pratique de l'audit interne et du management des risques dans les entreprises contemporaines" },
+    { label: 'RSE & Développement Durable', topic: "La responsabilité sociétale des entreprises (RSE) et son rôle dans le développement durable" },
+    { label: 'Gouvernance d\'Entreprise', topic: "Le rôle de la gouvernance d'entreprise dans l'amélioration de la performance financière et la transparence" },
+  ],
+  en: [
+    { label: 'Digital Transformation', topic: 'The Impact of Digital Transformation and Information Systems on Organizational Performance' },
+    { label: 'Internal Audit & Risk', topic: 'Internal Audit Practices and Risk Management in Modern Corporate Enterprises' },
+    { label: 'CSR & Sustainability', topic: 'Corporate Social Responsibility (CSR) and its Contribution to Sustainable Development' },
+    { label: 'Corporate Governance', topic: 'The Role of Corporate Governance in Enhancing Financial Performance and Transparency' },
+  ],
+} as const;
+
+export const QUICK_AI_TOPICS = QUICK_AI_TOPICS_BY_LANG.ar;

@@ -209,7 +209,7 @@ export async function exportDocumentPdf(
     });
 
     pdf.setProperties({
-      title: doc.coverState.title || "بحث أكاديمي منسق",
+      title: doc.coverState.title || "بحث أكاديمي حول",
       creator: "Bahtak — بحثك",
       subject: doc.coverState.workType || "بحث جامعي",
       author: doc.coverState.studentsText?.split("\n").map((s) => s.trim()).find(Boolean) || "Bahtak",

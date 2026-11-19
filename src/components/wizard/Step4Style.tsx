@@ -5,15 +5,30 @@ import { Section } from '../ui/Section';
 import { useDocument } from '../../state/DocumentContext';
 import type { BorderStyle, LayoutMode } from '../../types';
 
-const FONTS = [
-  { value: "'Amiri', serif", title: 'الأميري', desc: 'Amiri — الموصى به رسمياً', family: 'Amiri' },
-  { value: "'Cairo', sans-serif", title: 'القاهرة', desc: 'Cairo — عصري', family: 'Cairo' },
-  { value: "'Tajawal', sans-serif", title: 'تجوال', desc: 'Tajawal — هادئ', family: 'Tajawal' },
+const ARABIC_FONTS = [
+  { value: "'Amiri', serif", title: 'الأميري', desc: 'Amiri — الموصى به رسمياً', family: 'Amiri', previewWord: 'بحث' },
+  { value: "'Cairo', sans-serif", title: 'القاهرة', desc: 'Cairo — عصري', family: 'Cairo', previewWord: 'بحث' },
+  { value: "'Tajawal', sans-serif", title: 'تجوال', desc: 'Tajawal — هادئ', family: 'Tajawal', previewWord: 'بحث' },
+];
+
+const LATIN_FONTS = [
+  { value: "'Times New Roman', serif", title: 'Times New Roman', desc: 'Standard académique officiel', family: 'Times New Roman', previewWord: 'Aa' },
+  { value: "'Calibri', sans-serif", title: 'Calibri', desc: 'Moderne et lisible', family: 'Calibri', previewWord: 'Aa' },
+  { value: "'Garamond', serif", title: 'Garamond', desc: 'Classique élégant', family: 'Garamond', previewWord: 'Aa' },
+  { value: "'Arial', sans-serif", title: 'Arial', desc: 'Neutre et net', family: 'Arial', previewWord: 'Aa' },
 ];
 
 export function Step4Style() {
   const { doc, update } = useDocument();
-  const font = FONTS.find((f) => f.value === doc.fontFamily) || FONTS[0];
+  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const fonts = isLatin ? LATIN_FONTS : ARABIC_FONTS;
+  const font = fonts.find((f) => f.value === doc.fontFamily) || fonts[0];
+  const previewText =
+    doc.language === 'fr'
+      ? "L'intégration des technologies de l'information et de la communication constitue un levier fondamental dans le développement des organisations contemporaines."
+      : doc.language === 'en'
+        ? "The integration of information and communication technologies represents a fundamental pillar in the development of modern organizations."
+        : "تعتبر تكنولوجيا المعلومات والاتصال من أهم الركائز التي تقوم عليها المجتمعات المعاصرة، حيث ساهمت في إحداث ثورة علمية وتقنية غير مسبوقة.";
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -21,16 +36,16 @@ export function Step4Style() {
       <Section title="الخطوط وتنسيق النصوص" icon={<Type />}>
         <ChoiceCards
           label="خط المتن"
-          cols={3}
+          cols={isLatin ? 4 : 3}
           value={doc.fontFamily}
           onChange={(v) => update({ fontFamily: v })}
-          options={FONTS.map((f) => ({
+          options={fonts.map((f) => ({
             value: f.value,
             title: f.title,
             desc: f.desc,
             preview: (
               <span className="block rounded-lg bg-black/[0.04] dark:bg-white/[0.06] py-2 text-center text-[1.35rem] leading-none text-zinc-900 dark:text-white" style={{ fontFamily: f.value }}>
-                بحث
+                {f.previewWord}
               </span>
             ),
           }))}
@@ -46,8 +61,12 @@ export function Step4Style() {
               {font.title} | {doc.fontSize}pt | سطر {doc.lineHeight.toFixed(2)}
             </span>
           </figcaption>
-          <p className="bg-white dark:bg-zinc-900/60 px-4 py-3 text-justify text-zinc-900 dark:text-zinc-100" style={{ fontFamily: doc.fontFamily, fontSize: `${doc.fontSize}pt`, lineHeight: doc.lineHeight, textIndent: '8mm' }}>
-            تعتبر تكنولوجيا المعلومات والاتصال من أهم الركائز التي تقوم عليها المجتمعات المعاصرة، حيث ساهمت في إحداث ثورة علمية وتقنية غير مسبوقة.
+          <p
+            className="bg-white dark:bg-zinc-900/60 px-4 py-3 text-justify text-zinc-900 dark:text-zinc-100"
+            dir={isLatin ? 'ltr' : 'rtl'}
+            style={{ fontFamily: doc.fontFamily, fontSize: `${doc.fontSize}pt`, lineHeight: doc.lineHeight, textIndent: '8mm' }}
+          >
+            {previewText}
           </p>
         </figure>
       </Section>

@@ -29,6 +29,7 @@ import { LINKS } from "../data/defaults";
 import { SectionNav, useMediaQuery } from "./Navigation";
 import { isIOS, triggerPrintDocument } from "../lib/printDocument";
 import { trackEvent, trackApkDownload } from "../lib/analytics";
+import { LanguageSelector } from "./ui/LanguageSelector";
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery("(min-width: 1280px)");
@@ -269,6 +270,7 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <LanguageSelector variant="compact" className="hidden sm:inline-flex" />
         {!isSlides && <SaveIndicator status={saveStatus} />}
 
         <span className="mx-1 hidden h-6 w-px bg-black/10 dark:bg-white/10 lg:block" />
