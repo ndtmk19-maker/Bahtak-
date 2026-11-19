@@ -1,8 +1,151 @@
-import type { DocumentState, ResearchPage } from '../types';
+import type { CoverState, DocumentState, ResearchLanguage, ResearchPage } from '../types';
 
 export const PLACEHOLDER_TITLE = '[عنوان البحث هنا]';
 export const DEFAULT_STUDENTS_TEXT = '\n\n\n';
 export const LEGACY_STUDENTS_TEXT = 'الطالب(ة): الاسم واللقب\nالطالب(ة): الاسم واللقب';
+
+export const DEFAULT_LOCALIZED_COVER = {
+  ar: {
+    country: 'الجمهورية الجزائرية الديمقراطية الشعبية',
+    ministry: 'وزارة التعليم العالي والبحث العلمي',
+    workType: 'بحث أكاديمي منسق',
+    supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
+    group: 'الفوج: 01',
+    academicYear: 'السنة الجامعية: 2024 / 2025',
+    planTitle: 'خـطّـة البـحـث',
+  },
+  fr: {
+    country: 'République Algérienne Démocratique et Populaire',
+    ministry: "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
+    workType: 'Travail de recherche académique',
+    supervisor: 'Dr. / Enseignant(e) du module',
+    group: 'Groupe : 01',
+    academicYear: 'Année universitaire : 2024 / 2025',
+    planTitle: 'Sommaire',
+  },
+  en: {
+    country: "People's Democratic Republic of Algeria",
+    ministry: 'Ministry of Higher Education and Scientific Research',
+    workType: 'Academic Research Paper',
+    supervisor: 'Dr. / Course Instructor',
+    group: 'Group: 01',
+    academicYear: 'Academic Year: 2024 / 2025',
+    planTitle: 'Table of Contents',
+  },
+} as const;
+
+export const KNOWN_COUNTRIES = new Set([
+  'الجمهورية الجزائرية الديمقراطية الشعبية',
+  'République Algérienne Démocratique et Populaire',
+  "People's Democratic Republic of Algeria",
+]);
+
+export const KNOWN_MINISTRIES = new Set([
+  'وزارة التعليم العالي والبحث العلمي',
+  "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
+  'Ministry of Higher Education and Scientific Research',
+]);
+
+export const KNOWN_WORK_TYPES = new Set([
+  'بحث أكاديمي منسق',
+  'بحث أكاديمي حول',
+  'Travail de recherche académique',
+  'Academic Research Paper',
+]);
+
+export const KNOWN_SUPERVISORS = new Set([
+  'د. / أستاذ(ة) المقياس المحترم(ة)',
+  'Dr. / Enseignant(e) du module',
+  'Dr. / Course Instructor',
+]);
+
+export const KNOWN_PLAN_TITLES = new Set([
+  'خـطّـة البـحـث',
+  'خطة البحث',
+  'Sommaire',
+  'Table of Contents',
+  'Table des matières',
+]);
+
+export function getLocalizedCoverDefaults(lang?: ResearchLanguage): Partial<CoverState> {
+  const l = lang || 'ar';
+  return {
+    country: DEFAULT_LOCALIZED_COVER[l].country,
+    ministry: DEFAULT_LOCALIZED_COVER[l].ministry,
+    workType: DEFAULT_LOCALIZED_COVER[l].workType,
+    supervisor: DEFAULT_LOCALIZED_COVER[l].supervisor,
+    group: DEFAULT_LOCALIZED_COVER[l].group,
+    academicYear: DEFAULT_LOCALIZED_COVER[l].academicYear,
+  };
+}
+
+export function getLocalizedPlanTitle(currentTitle: string | undefined, lang?: ResearchLanguage): string {
+  const l = lang || 'ar';
+  if (!currentTitle || KNOWN_PLAN_TITLES.has(currentTitle.trim())) {
+    return DEFAULT_LOCALIZED_COVER[l].planTitle;
+  }
+  return currentTitle;
+}
+
+export function getLocalizedCoverState(cs: CoverState, lang?: ResearchLanguage): Partial<CoverState> {
+  const l = lang || 'ar';
+  const def = DEFAULT_LOCALIZED_COVER[l];
+  const patch: Partial<CoverState> = {};
+
+  if (!cs.country || KNOWN_COUNTRIES.has(cs.country.trim())) {
+    patch.country = def.country;
+  } else {
+    patch.country = cs.country;
+  }
+
+  if (!cs.ministry || KNOWN_MINISTRIES.has(cs.ministry.trim())) {
+    patch.ministry = def.ministry;
+  } else {
+    patch.ministry = cs.ministry;
+  }
+
+  if (!cs.workType || KNOWN_WORK_TYPES.has(cs.workType.trim())) {
+    patch.workType = def.workType;
+  } else {
+    patch.workType = cs.workType;
+  }
+
+  if (!cs.supervisor || KNOWN_SUPERVISORS.has(cs.supervisor.trim()) || cs.supervisor.includes('أستاذ(ة) المقياس')) {
+    patch.supervisor = def.supervisor;
+  } else {
+    patch.supervisor = cs.supervisor;
+  }
+
+  if (cs.group) {
+    const rawNum = cs.group.replace(/^(?:الفوج|Groupe|Group)\s*[:：]?\s*/i, '').trim();
+    if (l === 'fr') {
+      patch.group = rawNum ? `Groupe : ${rawNum}` : def.group;
+    } else if (l === 'en') {
+      patch.group = rawNum ? `Group: ${rawNum}` : def.group;
+    } else {
+      patch.group = rawNum ? `الفوج: ${rawNum}` : def.group;
+    }
+  } else {
+    patch.group = def.group;
+  }
+
+  if (cs.academicYear) {
+    const rawYear = cs.academicYear
+      .replace(/^(?:السنة\s+(?:الجامعية|الدراسية)|Année\s+universitaire|Academic\s+Year)\s*[:：]?\s*/i, '')
+      .trim();
+    if (l === 'fr') {
+      patch.academicYear = rawYear ? `Année universitaire : ${rawYear}` : def.academicYear;
+    } else if (l === 'en') {
+      patch.academicYear = rawYear ? `Academic Year: ${rawYear}` : def.academicYear;
+    } else {
+      patch.academicYear = rawYear ? `السنة الجامعية: ${rawYear}` : def.academicYear;
+    }
+  } else {
+    patch.academicYear = def.academicYear;
+  }
+
+  return patch;
+}
 
 export const LINKS = {
   charihatek: 'https://charihatek.netlify.app/',

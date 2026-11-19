@@ -1,6 +1,6 @@
 // تصدير البحث بصيغة Word الرسمية (.docx / OpenXML) مطابقة لتصميم PDF والأبعاد الأكاديمية A4
 import type { BorderStyle, DocumentState, LogoSize } from '../types';
-import { PLACEHOLDER_TITLE } from '../data/defaults';
+import { PLACEHOLDER_TITLE, getLocalizedCoverState, getLocalizedPlanTitle } from '../data/defaults';
 import { createDocxZip, type ZipEntryInput } from './docxZip';
 import { imageToDataUrl } from './image';
 import { parsePlanRows } from './plan';
@@ -637,12 +637,21 @@ function buildCoverSectionXml(
   startShapeId: { val: number },
 ): { bodyXml: string; sectPrXml: string } {
   const cs = doc.coverState;
-  const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const lang = doc.language || 'ar';
+  const isLatin = lang === 'fr' || lang === 'en';
   const bidiTag = isLatin ? '' : '<w:bidi/>';
   const bidiVisualTag = isLatin ? '' : '<w:bidiVisual/>';
-  const studentsHeading = doc.language === 'fr' ? 'Préparé par :' : doc.language === 'en' ? 'Prepared by:' : 'إعداد الطلبة:';
-  const supervisorHeading = doc.language === 'fr' ? 'Sous la direction de :' : doc.language === 'en' ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
+  const studentsHeading = lang === 'fr' ? 'Préparé par :' : lang === 'en' ? 'Prepared by:' : 'إعداد الطلبة:';
+  const supervisorHeading = lang === 'fr' ? 'Sous la direction de :' : lang === 'en' ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
   const infoJc = isLatin ? 'left' : 'right';
+
+  const loc = getLocalizedCoverState(cs, lang);
+  const country = (loc.country || cs.country || '').trim();
+  const ministry = (loc.ministry || cs.ministry || '').trim();
+  const workType = (loc.workType || cs.workType || '').trim();
+  const supervisor = (loc.supervisor || cs.supervisor || '').trim();
+  const group = (loc.group || cs.group || '').trim();
+  const academicYear = (loc.academicYear || cs.academicYear || '').trim();
 
   const isGold = cs.theme === 'gold';
   const accentColor = isGold ? 'C5A059' : '000000';
@@ -686,14 +695,14 @@ function buildCoverSectionXml(
     : `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
 
   const headerLines: string[] = [];
-  if (cs.country?.trim()) {
+  if (country) {
     headerLines.push(
-      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.country.trim(), { font: 'Cairo', sizePt: 15, bold: true, color: countryColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(country, { font: 'Cairo', sizePt: 15, bold: true, color: countryColor })}</w:p>`,
     );
   }
-  if (cs.ministry?.trim()) {
+  if (ministry) {
     headerLines.push(
-      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(cs.ministry.trim(), { font: 'Cairo', sizePt: 11.5, bold: !isGold, color: ministryColor })}</w:p>`,
+      `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="35" w:line="250" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(ministry, { font: 'Cairo', sizePt: 11.5, bold: !isGold, color: ministryColor })}</w:p>`,
     );
   }
   if (cs.universityName?.trim()) {
@@ -738,7 +747,7 @@ function buildCoverSectionXml(
   );
 
   const bodyParagraphs: string[] = [
-    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="240" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun((cs.workType || 'بحث أكاديمي حول').trim(), { font: 'Cairo', sizePt: 13, bold: true, color: workTypeColor })}</w:p>`,
+    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="240" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(workType || 'بحث أكاديمي منسق', { font: 'Cairo', sizePt: 13, bold: true, color: workTypeColor })}</w:p>`,
     `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="${cs.subtitle?.trim() ? 160 : 280}" w:line="324" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(titleText, { font: 'Cairo', sizePt: titleText.length > 85 ? 20 : 24, bold: true, color: titleColor })}</w:p>`,
   ];
   if (cs.subtitle?.trim()) {
@@ -767,22 +776,22 @@ function buildCoverSectionXml(
 
   const supervisorCellParagraphs = [
     `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="130" w:line="240" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(supervisorHeading, { font: 'Cairo', sizePt: 12.5, bold: true, color: infoHeadingColor })}</w:p>`,
-    ...(cs.supervisor?.trim()
+    ...(supervisor
       ? [
-          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="140" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(cs.supervisor.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
+          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="0" w:after="140" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(supervisor, { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
         ]
       : []),
-    ...(cs.group?.trim()
+    ...(group
       ? [
-          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="40" w:after="60" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(cs.group.trim(), { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
+          `<w:p><w:pPr>${bidiTag}<w:spacing w:before="40" w:after="60" w:line="250" w:lineRule="auto"/><w:jc w:val="${infoJc}"/></w:pPr>${buildTextRun(group, { font: 'Cairo', sizePt: 10.8, bold: true, color: infoBodyColor })}</w:p>`,
         ]
       : []),
-    ...(!cs.supervisor?.trim() && !cs.group?.trim() ? [`<w:p><w:pPr>${bidiTag}</w:pPr></w:p>`] : []),
+    ...(!supervisor && !group ? [`<w:p><w:pPr>${bidiTag}</w:pPr></w:p>`] : []),
   ].join('');
 
   const footerGridTable = `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${studentColW}"/><w:gridCol w:w="${spacerColW}"/><w:gridCol w:w="${supColW}"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="${studentColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${studentsCellParagraphs}</w:tc><w:tc><w:tcPr><w:tcW w:w="${spacerColW}" w:type="dxa"/></w:tcPr><w:p><w:pPr>${bidiTag}</w:pPr></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="${supColW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${supervisorCellParagraphs}</w:tc></w:tr></w:tbl>`;
 
-  const academicYearP = `<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="12" w:space="8" w:color="${academicYearBorderColor}"/></w:pBdr>${bidiTag}<w:spacing w:before="280" w:after="0" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun((cs.academicYear || '').trim(), { font: 'Cairo', sizePt: 12.5, bold: true, color: titleColor })}</w:p>`;
+  const academicYearP = `<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="12" w:space="8" w:color="${academicYearBorderColor}"/></w:pBdr>${bidiTag}<w:spacing w:before="280" w:after="0" w:line="260" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(academicYear, { font: 'Cairo', sizePt: 12.5, bold: true, color: titleColor })}</w:p>`;
 
   const outerCoverTable = `<w:tbl><w:tblPr>${bidiVisualTag}<w:tblW w:w="${usableW}" w:type="dxa"/>${noBordersXml}<w:tblLayout w:type="fixed"/>${zeroCellMarXml}</w:tblPr><w:tblGrid><w:gridCol w:w="${usableW}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="2200" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${headerNestedTable}${topAccentLineP}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${row2Height}" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${bodyParagraphs.join('')}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="3100" w:hRule="atLeast"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${usableW}" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>${footerGridTable}${academicYearP}</w:tc></w:tr></w:tbl>`;
 
@@ -818,7 +827,7 @@ function buildPlanSectionXml(
   const subIndent = mm(7);
 
   const paragraphs: string[] = [
-    `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="0" w:after="${dense === 2 ? 120 : 200}" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun((ps.pageTitle || 'خـطّـة البـحـث').trim(), { font: 'Cairo', sizePt: dense === 2 ? 16.5 : 18, bold: true, color: '000000' })}</w:p>`,
+    `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="222222"/></w:pBdr><w:bidi/><w:spacing w:before="0" w:after="${dense === 2 ? 120 : 200}" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(getLocalizedPlanTitle(ps.pageTitle, doc.language), { font: 'Cairo', sizePt: dense === 2 ? 16.5 : 18, bold: true, color: '000000' })}</w:p>`,
   ];
 
   for (const row of parsedRows) {

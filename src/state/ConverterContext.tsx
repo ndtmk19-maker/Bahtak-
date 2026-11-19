@@ -7,6 +7,7 @@ import { loadApiKey, loadRawText, saveApiKey, saveRawText } from '../lib/storage
 import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
 import type { ResearchLanguage } from '../types';
+import { getLocalizedCoverState, getLocalizedPlanTitle } from '../data/defaults';
 
 export type ConverterMode = 'paste' | 'ai';
 
@@ -185,31 +186,10 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         ...(isLatin ? { fontFamily: "'Times New Roman', serif" } : {}),
       });
 
-      if (isFr) {
-        updateCover({
-          country: 'République Algérienne Démocratique et Populaire',
-          ministry: "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
-          workType: 'Travail de recherche académique',
-          supervisor: 'Dr. / Enseignant(e) du module',
-          group: 'Groupe : 01',
-          academicYear: 'Année universitaire : 2024/2025',
-        });
-        updatePlan({
-          pageTitle: 'Sommaire',
-        });
-      } else if (isEn) {
-        updateCover({
-          country: "People's Democratic Republic of Algeria",
-          ministry: 'Ministry of Higher Education and Scientific Research',
-          workType: 'Academic Research Paper',
-          supervisor: 'Dr. / Course Instructor',
-          group: 'Group: 01',
-          academicYear: 'Academic Year: 2024/2025',
-        });
-        updatePlan({
-          pageTitle: 'Table of Contents',
-        });
-      }
+      updateCover(getLocalizedCoverState(doc.coverState, selectedLang));
+      updatePlan({
+        pageTitle: getLocalizedPlanTitle(doc.planState.pageTitle, selectedLang),
+      });
 
       const count = parse({ silent: true, text: finalText, overrideTitle: cleanCoverTitle });
       if (count) {

@@ -1,6 +1,7 @@
 import { useMemo, type CSSProperties } from 'react';
 import type { BorderStyle, DocumentState, ResearchPage } from '../../types';
 import { parsePlanRows } from '../../lib/plan';
+import { getLocalizedCoverState, getLocalizedPlanTitle } from '../../data/defaults';
 
 const FALLBACK_LOGO = '/assets/univ_logos/MESRS.png';
 
@@ -71,47 +72,20 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
   const showLeft = !!logo && (pos === 'both' || pos === 'left');
   const students = cs.studentsText.split('\n').filter((s) => s.trim() !== '');
   const black = theme === 'black';
-  const isLatin = doc.language === 'fr' || doc.language === 'en';
-  const isFr = doc.language === 'fr';
-  const isEn = doc.language === 'en';
+  const lang = doc.language || 'ar';
+  const isLatin = lang === 'fr' || lang === 'en';
+  const isFr = lang === 'fr';
+  const isEn = lang === 'en';
   const studentsHeading = isFr ? 'Préparé par :' : isEn ? 'Prepared by:' : 'إعداد الطلبة:';
   const supervisorHeading = isFr ? 'Sous la direction de :' : isEn ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
 
-  const country = isFr && cs.country === 'الجمهورية الجزائرية الديمقراطية الشعبية'
-    ? 'République Algérienne Démocratique et Populaire'
-    : isEn && cs.country === 'الجمهورية الجزائرية الديمقراطية الشعبية'
-    ? "People's Democratic Republic of Algeria"
-    : cs.country;
-
-  const ministry = isFr && cs.ministry === 'وزارة التعليم العالي والبحث العلمي'
-    ? "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique"
-    : isEn && cs.ministry === 'وزارة التعليم العالي والبحث العلمي'
-    ? 'Ministry of Higher Education and Scientific Research'
-    : cs.ministry;
-
-  const workType = isFr && cs.workType === 'بحث أكاديمي منسق'
-    ? 'Travail de recherche académique'
-    : isEn && cs.workType === 'بحث أكاديمي منسق'
-    ? 'Academic Research Paper'
-    : cs.workType;
-
-  const supervisor = isFr && (!cs.supervisor || cs.supervisor === 'د. / أستاذ(ة) المقياس المحترم(ة)' || cs.supervisor.includes('أستاذ(ة) المقياس'))
-    ? 'Dr. / Enseignant(e) du module'
-    : isEn && (!cs.supervisor || cs.supervisor === 'د. / أستاذ(ة) المقياس المحترم(ة)' || cs.supervisor.includes('أستاذ(ة) المقياس'))
-    ? 'Dr. / Course Instructor'
-    : cs.supervisor;
-
-  const group = isFr && cs.group
-    ? cs.group.replace(/^الفوج\s*[:：]?\s*/, 'Groupe : ')
-    : isEn && cs.group
-    ? cs.group.replace(/^الفوج\s*[:：]?\s*/, 'Group: ')
-    : cs.group;
-
-  const academicYear = isFr && cs.academicYear
-    ? cs.academicYear.replace(/^السنة\s+(?:الجامعية|الدراسية)\s*[:：]?\s*/, 'Année universitaire : ')
-    : isEn && cs.academicYear
-    ? cs.academicYear.replace(/^السنة\s+(?:الجامعية|الدراسية)\s*[:：]?\s*/, 'Academic Year: ')
-    : cs.academicYear;
+  const loc = getLocalizedCoverState(cs, lang);
+  const country = loc.country || cs.country;
+  const ministry = loc.ministry || cs.ministry;
+  const workType = loc.workType || cs.workType;
+  const supervisor = loc.supervisor || cs.supervisor;
+  const group = loc.group || cs.group;
+  const academicYear = loc.academicYear || cs.academicYear;
 
   return (
     <div className={`a4-page cover-theme-${theme} ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-cover">
@@ -173,11 +147,9 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
 export function PlanPage({ doc }: { doc: DocumentState }) {
   const ps = doc.planState;
   const b = borderStyles(doc.borderStyle);
-  const isLatin = doc.language === 'fr' || doc.language === 'en';
-  const defaultArPlanTitle = !ps.pageTitle || ps.pageTitle === 'خـطّـة البـحـث' || ps.pageTitle === 'خطة البحث';
-  const displayedTitle = isLatin && defaultArPlanTitle
-    ? (doc.language === 'fr' ? 'Sommaire' : 'Table of Contents')
-    : ps.pageTitle;
+  const lang = doc.language || 'ar';
+  const isLatin = lang === 'fr' || lang === 'en';
+  const displayedTitle = getLocalizedPlanTitle(ps.pageTitle, lang);
 
   return (
     <div className={`a4-page ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-plan">

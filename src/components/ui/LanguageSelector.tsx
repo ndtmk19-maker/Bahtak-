@@ -4,6 +4,7 @@ import { useDocument } from '../../state/DocumentContext';
 import { usePresentation } from '../../state/PresentationContext';
 import { useUI } from '../../state/UIContext';
 import type { ResearchLanguage } from '../../types';
+import { getLocalizedCoverState, getLocalizedPlanTitle } from '../../data/defaults';
 
 interface LanguageSelectorProps {
   variant?: 'card' | 'compact' | 'pill';
@@ -43,7 +44,7 @@ const LANGUAGES: Array<{
 
 export function LanguageSelector({ variant = 'card', className = '', showHint = true }: LanguageSelectorProps) {
   const { form, setForm } = useConverter();
-  const { doc, update } = useDocument();
+  const { doc, update, updateCover, updatePlan } = useDocument();
   const presentation = usePresentation();
   const { product } = useUI();
   const isSlides = product === 'slides';
@@ -57,6 +58,10 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
     update({
       language: lang,
       fontFamily: lang === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
+    });
+    updateCover(getLocalizedCoverState(doc.coverState, lang));
+    updatePlan({
+      pageTitle: getLocalizedPlanTitle(doc.planState.pageTitle, lang),
     });
     presentation.setLanguage(lang);
   };
