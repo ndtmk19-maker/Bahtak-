@@ -877,7 +877,7 @@ function Stage({
   className: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion } =
+  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion, error } =
     usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
@@ -948,17 +948,34 @@ function Stage({
         <div className="grid flex-1 place-items-center p-8">
           <div className="max-w-sm text-center">
             <div className="mx-auto grid size-16 place-items-center rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-950 shadow-xs">
-              <Presentation className="size-7 text-zinc-700 dark:text-zinc-300" />
+              {error ? (
+                <CircleAlert className="size-7 text-amber-500" />
+              ) : (
+                <Presentation className="size-7 text-zinc-700 dark:text-zinc-300" />
+              )}
             </div>
             <h2 className="mt-4 font-serif text-xl font-bold text-zinc-900 dark:text-zinc-100">
-              ستظهر شرائحك هنا
+              {error ? "تعذر تنسيق الشرائح" : "ستظهر شرائحك هنا"}
             </h2>
             <p className="mt-1.5 text-[0.84rem] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {mode === "draft"
-                ? "اكتب أو ألصق مسودة العرض لتتكون الشرائح فوراً."
-                : "اكتب موضوع العرض واضغط توليد، وستُبنى الشرائح أثناء الكتابة."}
+              {error
+                ? error
+                : mode === "draft"
+                  ? "اكتب أو ألصق مسودة العرض لتتكون الشرائح فوراً."
+                  : "اكتب موضوع العرض واضغط توليد، وستُبنى الشرائح أثناء الكتابة."}
             </p>
-            {mode === "ai" && (
+            {error && mode === "ai" && (
+              <Button
+                className="mt-4"
+                size="sm"
+                variant="secondary"
+                icon={<ClipboardPaste className="size-3.5" />}
+                onClick={() => setMode("draft")}
+              >
+                مراجعة المسودة وتعديلها
+              </Button>
+            )}
+            {!error && mode === "ai" && (
               <Button
                 className="mt-4"
                 size="sm"

@@ -400,9 +400,9 @@ function contentSlides(
   kicker: string,
   fallbackTitle: string,
   sectionNumber: number,
-  opts: DeckOptions,
+  opts: DeckOptions = DEFAULT_DECK_OPTIONS,
 ): Slide[] {
-  const m = DENSITY_METRICS[opts.density];
+  const m = DENSITY_METRICS[opts?.density || "balanced"] || DENSITY_METRICS.balanced;
   const chunks = chunkPoints(group.points, m);
   const notes = opts.includeNotes && group.notes.length ? group.notes.join("\n\n") : undefined;
   return chunks.map((pts, i) => ({
@@ -581,7 +581,8 @@ export function planDeck(
 
   const rawIntroSlides: Slide[] = [];
   o.intro.forEach((g) => rawIntroSlides.push(...contentSlides(g, introKicker, introFallback, 0, opts)));
-  const maxIntroSlides = opts.density === "airy" ? 1 : 2;
+  const density = opts?.density || "balanced";
+  const maxIntroSlides = density === "airy" ? 1 : 2;
   const introSlides = rawIntroSlides.slice(0, maxIntroSlides).map((s, idx) => ({
     ...s,
     part: idx + 1,
@@ -591,7 +592,7 @@ export function planDeck(
   if (o.question) slides.push({ kind: "question", kicker: questionKicker, text: o.question });
 
   // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه (بحد أقصى شريحتين لكل مطلب في الوضع القياسي لمنع التضخم)
-  const maxSlidesPerMatlab = opts.density === "airy" ? 1 : opts.density === "detailed" ? 3 : 2;
+  const maxSlidesPerMatlab = density === "airy" ? 1 : density === "detailed" ? 3 : 2;
 
   o.mabahith.forEach((mb, i) => {
     if (opts.includeSectionDividers) {
@@ -628,7 +629,7 @@ export function planDeck(
           }
           return g.points;
         });
-        const m = DENSITY_METRICS[opts.density];
+        const m = DENSITY_METRICS[density] || DENSITY_METRICS.balanced;
         const chunks = chunkPoints(allPoints, m);
         const cappedChunks = chunks.slice(0, maxSlidesPerMatlab);
         mtSlides = cappedChunks.map((pts, idx) => ({
@@ -659,7 +660,7 @@ export function planDeck(
   const conclusionKicker = lang === "fr" ? "Conclusion" : lang === "en" ? "Conclusion" : "الخاتمة";
   const rawConclusionSlides: Slide[] = [];
   o.conclusion.forEach((g) => rawConclusionSlides.push(...contentSlides(g, conclusionKicker, conclusionKicker, 0, opts)));
-  const maxConclusionSlides = opts.density === "airy" ? 1 : 2;
+  const maxConclusionSlides = density === "airy" ? 1 : 2;
   const conclusionSlides = rawConclusionSlides.slice(0, maxConclusionSlides).map((s, idx) => ({
     ...s,
     part: idx + 1,

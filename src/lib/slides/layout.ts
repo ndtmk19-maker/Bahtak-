@@ -12,6 +12,7 @@ import {
 import type { SlideIconName } from "./icons";
 import { heroColors, type SlideTheme } from "./themes";
 import type { DeckOptions, Point, Slide, SlideDeck } from "./types";
+import { DEFAULT_DECK_OPTIONS } from "./planner";
 
 export interface TRun {
   text: string;
@@ -560,7 +561,9 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
 
   // كدس النصوص من الأعلى إلى الأسفل دون أي تداخل
   const blocks: { paras: TPara[]; font: string; role: string; gap: number; logo?: boolean }[] = [];
-  const inst = [m.institution, m.faculty].filter((v) => v.trim());
+  const inst = [m.institution, m.faculty]
+    .filter((v): v is string => Boolean(v && typeof v === "string" && v.trim()))
+    .map((v) => v.trim());
   // ترويسة الغلاف: شعار الجامعة في بطاقة بيضاء وبجانبه اسم الجامعة والكلية
   const LOGO = 1.15;
   const hasLogo = !!m.logo;
@@ -575,13 +578,13 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
       role: "institution",
       gap: 0.45,
     });
-  const t = fit((k) => [para(m.title, Math.round(40 * k), fg, { bold: true })], area.w, 2.6, 0.65);
+  const t = fit((k) => [para(m.title || "", Math.round(40 * k), fg, { bold: true })], area.w, 2.6, 0.65);
   blocks.push({ paras: t.paras, font: th.fonts.head, role: "title", gap: 0.18 });
   const accentAt = blocks.length;
-  if (m.subtitle.trim())
+  if (m.subtitle && typeof m.subtitle === "string" && m.subtitle.trim())
     blocks.push({
       paras: [
-        para(m.subtitle, 18, th.cover === "full" ? heroColors(th).accent : c.secondary, {
+        para(m.subtitle.trim(), 18, th.cover === "full" ? heroColors(th).accent : c.secondary, {
           bold: true,
         }),
       ],
@@ -592,21 +595,22 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
   const people: TPara[] = [];
   const isLatCover = isLatinText(m.title || m.subtitle || "");
   const isFrCover = m.language === "fr" || (isLatCover && m.language !== "en");
-  if (m.presenters.length) {
+  const presenters = Array.isArray(m.presenters) ? m.presenters.filter(Boolean) : [];
+  if (presenters.length) {
     const label = isLatCover
       ? isFrCover
         ? "Présenté par :"
         : "Presented by:"
       : "إعداد:";
-    people.push(para(`${label} ${m.presenters.join(isLatCover ? ", " : "، ")}`, 15, fg));
+    people.push(para(`${label} ${presenters.join(isLatCover ? ", " : "، ")}`, 15, fg));
   }
-  if (m.supervisor.trim()) {
+  if (m.supervisor && typeof m.supervisor === "string" && m.supervisor.trim()) {
     const label = isLatCover
       ? isFrCover
         ? "Sous la direction de :"
         : "Supervised by:"
       : "إشراف:";
-    people.push(para(`${label} ${m.supervisor}`, 15, fg));
+    people.push(para(`${label} ${m.supervisor.trim()}`, 15, fg));
   }
   if (people.length)
     blocks.push({
@@ -615,8 +619,8 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
       role: "people",
       gap: 0.25,
     });
-  if (m.year.trim())
-    blocks.push({ paras: [para(m.year, 13, sub)], font: th.fonts.body, role: "year", gap: 0 });
+  if (m.year && typeof m.year === "string" && m.year.trim())
+    blocks.push({ paras: [para(m.year.trim(), 13, sub)], font: th.fonts.body, role: "year", gap: 0 });
 
   const hs = blocks.map((b) =>
     b.logo
@@ -1066,12 +1070,13 @@ function cardsBody(
 function contentSlide(
   s: Extract<Slide, { kind: "content" }>,
   th: SlideTheme,
-  opts: DeckOptions,
+  opts: DeckOptions = DEFAULT_DECK_OPTIONS,
   n: number,
   total: number,
 ): LaidSlide {
   const c = th.colors;
-  const m = DENSITY_METRICS[opts.density];
+  const effectiveOpts = opts || DEFAULT_DECK_OPTIONS;
+  const m = DENSITY_METRICS[effectiveOpts.density || "balanced"] || DENSITY_METRICS.balanced;
   const kicker = s.parts > 1 ? `${s.kicker} · ${s.part}/${s.parts}` : s.kicker;
   const ch = chrome(th, kicker, s.title, n, total);
   const prims = ch.prims;
@@ -1219,7 +1224,12 @@ function closingSlide(s: Extract<Slide, { kind: "closing" }>, th: SlideTheme): L
   return { bg: c.bg, prims, notes: s.notes };
 }
 
-export function layoutDeck(deck: SlideDeck, th: SlideTheme, opts: DeckOptions): LaidSlide[] {
+export function layoutDeck(
+  deck: SlideDeck,
+  th: SlideTheme,
+  opts: DeckOptions = DEFAULT_DECK_OPTIONS,
+): LaidSlide[] {
+  const effectiveOpts = opts || DEFAULT_DECK_OPTIONS;
   const total = deck.slides.length;
   return deck.slides.map((s, i) => {
     const n = i + 1;
@@ -1233,7 +1243,7 @@ export function layoutDeck(deck: SlideDeck, th: SlideTheme, opts: DeckOptions): 
       case "question":
         return questionSlide(s, th, n, total);
       case "content":
-        return contentSlide(s, th, opts, n, total);
+        return contentSlide(s, th, effectiveOpts, n, total);
       case "references":
         return referencesSlide(s, th, n, total);
       case "closing":

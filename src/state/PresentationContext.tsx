@@ -307,7 +307,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     try {
       return { deck: buildDeckFromText(draft, coverMeta, state.options), error: "" };
     } catch (e) {
-      return { deck: null, error: e instanceof ParseError ? e.message : "تعذر تحليل المسودة." };
+      console.error("buildDeckFromText failed:", e);
+      return { deck: null, error: e instanceof Error ? e.message : "تعذر تحليل المسودة." };
     }
   }, [draft, coverMeta, state.options]);
 
@@ -321,10 +322,15 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       state.autoTheme ? suggestTheme(deck?.title || cleanTopicHint, draft) : getTheme(state.themeId),
     [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
-  const laid = useMemo(
-    () => (deck ? layoutDeck(deck, theme, state.options) : []),
-    [deck, theme, state.options],
-  );
+  const laid = useMemo(() => {
+    if (!deck) return [];
+    try {
+      return layoutDeck(deck, theme, state.options);
+    } catch (e) {
+      console.error("layoutDeck failed:", e);
+      return [];
+    }
+  }, [deck, theme, state.options]);
 
   const reset = useCallback(() => {
     runIdRef.current += 1;
@@ -481,7 +487,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         runningRef.current = false;
       }
     }
-  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, state.caseStudyCompany, ui]);
+  }, [converter.apiKey, converter.form, state.aiSize, state.aiTopic, state.caseStudyCompany, state.language, ui]);
 
   const exportPptx = useCallback(async () => {
     if (!deck || !laid.length) {
