@@ -166,15 +166,33 @@ function itemToPoints(it: AnalyzedItem): Point[] {
     if (text.length > 260) return paragraphToPoints(text);
     return [labelled(text)];
   }
-  if (it.type === "table") {
-    let raw = it.rawText || it.cleanText || "";
-    const isLat = isLatin(raw);
-    if (isLat) {
-      raw = raw
-        .replace(/^(?:ال)?الجدول\s+رقم\s*\(?(\d+)\)?\s*[:：\-–—]?\s*/i, (_m, d) => `Tableau n° (${d}) : `)
-        .replace(/؛/g, ";");
+  if (it.type === "table" && it.table) {
+    const tbl = it.table;
+    const pts: Point[] = [];
+    const allTblText = [tbl.caption, ...tbl.headers, ...tbl.rows.flat()].join(" ");
+    const isLat = isLatin(allTblText);
+    const cleanCaption = tbl.caption
+      .replace(/^(?:ال)?(?:الجدول|جدول)\s+رقم\s*\(?\d+\)?\s*[:：\-–—]?\s*/i, "")
+      .replace(/^(?:Tableau|Table)\s*(?:n°|no\.?)?\s*\(?\d+\)?\s*[:：\-–—]?\s*/i, "")
+      .trim();
+
+    if (cleanCaption) {
+      pts.push({ kind: "lead", text: `${cleanCaption}:`, ...(isLat ? { ltr: true } : {}) });
     }
-    return paragraphToPoints(stripTags(raw));
+
+    tbl.rows.slice(0, 4).forEach((r) => {
+      const cells = r.map((c) => htmlToPlain(c).trim()).filter(Boolean);
+      if (!cells.length) return;
+      if (cells.length === 1) {
+        pts.push({ kind: "bullet", text: cells[0], ...(isLat ? { ltr: true } : {}) });
+      } else {
+        const label = cells[0];
+        const val = cells.slice(1).join(" — ");
+        pts.push({ kind: "bullet", label, text: val, ...(isLat ? { ltr: true } : {}) });
+      }
+    });
+
+    if (pts.length) return pts;
   }
   return paragraphToPoints(stripTags(it.rawText));
 }
