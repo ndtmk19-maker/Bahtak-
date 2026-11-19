@@ -1103,7 +1103,7 @@ function contentSlide(
             runs,
             size: Math.round(base * k),
             color: c.text,
-            align: (isLat ? "left" : "right") as const,
+            align: isLat ? "left" : "right",
             rtl: !isLat,
           },
         ];

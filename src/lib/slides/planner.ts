@@ -7,6 +7,7 @@ import {
   type AnalyzedSection,
   type ResearchAnalysis,
 } from "../parser";
+import { htmlToPlain } from "../docBlocks";
 import {
   isStructuralTitleOnly,
   looksLikePlanLeak,

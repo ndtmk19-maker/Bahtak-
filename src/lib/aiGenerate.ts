@@ -13,6 +13,7 @@ import {
   fetchAiText,
 } from './aiEngine';
 import { rotateSystemGeminiKey } from './aiKeys';
+import type { ResearchLanguage } from '../types';
 
 export type AiProvider = 'gemini' | 'groq' | 'openai' | 'openrouter';
 export type AiLength = 'short' | 'medium' | 'giant' | 'huge';
@@ -1771,6 +1772,12 @@ export function parseAiPlanJson(planRaw: string): AiPlan | null {
  * توحيد الخطة الأكاديمية وضبط عدد المباحث والمطالب الدقيق (mCount × tCount)،
  * ومنع تكرار مطالب المبحث الأول داخل المبحث الثاني أو الثالث أو أي مبحث آخر.
  */
+const isLatinComparable = (t: string) => {
+  const latin = (t.match(/[A-Za-z]/g) || []).length;
+  const arabic = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  return latin > arabic;
+};
+
 export function normalizeResearchPlan(
   rawPlan: AiPlan | null | undefined,
   topic: string,
@@ -2372,11 +2379,11 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
   const tIntro = {
     onChunk: (_c: string, acc: string) => {
       intro = acc;
-      patch('intro', { words: countWords(cleanIntroText(acc)) });
+      patch('intro', { words: countWords(cleanIntroText(acc, currentLang)) });
       refreshDraft();
     },
     done: (res: string) => {
-      const cleaned = cleanIntroText(res);
+      const cleaned = cleanIntroText(res, currentLang);
       intro = cleaned;
       patch('intro', { status: 'done', words: countWords(cleaned), seconds: elapsed() });
       refreshDraft();

@@ -168,6 +168,10 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         rawCandidateCoverTitle,
         analysis.hasCustomPlan ? analysis.customMabahith : undefined,
       );
+      const isFr = selectedLang === 'fr';
+      const isEn = selectedLang === 'en';
+      const isLatin = isFr || isEn;
+
       const pickSafe = (v?: string) => (v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : '');
       const defaultFallbackTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي منسق';
       const cleanCoverTitle =
@@ -175,10 +179,6 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
         pickSafe(analysis.caseStudy.coverTitle) ||
         pickSafe(analysis.cleanedTopic) ||
         (looksLikePlanLeak(exactUserTopic) || isStructuralTitleOnly(exactUserTopic) ? defaultFallbackTitle : exactUserTopic);
-      
-      const isFr = selectedLang === 'fr';
-      const isEn = selectedLang === 'en';
-      const isLatin = isFr || isEn;
 
       update({
         language: selectedLang,
