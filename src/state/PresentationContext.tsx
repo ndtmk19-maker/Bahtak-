@@ -23,6 +23,7 @@ import {
   type SectionProgress,
 } from "../lib/aiGenerate";
 import type { ResearchLanguage } from "../types";
+import { detectTopicLanguage } from "../lib/detectLanguage";
 import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
@@ -267,7 +268,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     hasUserEditedRef.current = true;
     setState((s) => ({ ...s, options: { ...s.options, ...p } }));
   }, []);
+  const manualLangRef = useRef(false);
   const setLanguage = useCallback((lang: ResearchLanguage) => {
+    manualLangRef.current = true;
     hasUserEditedRef.current = true;
     setState((s) => {
       const curSub = (s.meta.subtitle || "").trim();
@@ -390,13 +393,29 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     setRun({ running: true, stage: "plan", sections: [], words: 0, model: "" });
     try {
       let resolvedPlanTitle = "";
+      const detected = !manualLangRef.current ? detectTopicLanguage(topic) : null;
+      const effectiveLang = detected || state.language || "ar";
+      if (effectiveLang !== state.language) {
+        setState((s) => {
+          const curSub = (s.meta.subtitle || "").trim();
+          const shouldUpdateSubtitle = KNOWN_DEFAULT_SUBTITLES.has(curSub);
+          return {
+            ...s,
+            language: effectiveLang,
+            meta: {
+              ...s.meta,
+              subtitle: shouldUpdateSubtitle ? DEFAULT_SUBTITLES[effectiveLang] : s.meta.subtitle,
+            },
+          };
+        });
+      }
       const text = await generatePresentationDraft({
         provider,
         apiKey: key,
         topic,
         caseStudyCompany: caseCompany,
         size: state.aiSize,
-        language: state.language || "ar",
+        language: effectiveLang,
         customUrl,
         customModel,
         onResolvedPlan: (resolvedPlan) => {
@@ -443,18 +462,25 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       );
       const pickSafe = (v?: string) =>
         v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : "";
+      const fallbackCoverTitle =
+        effectiveLang === "fr"
+          ? "Exposé académique"
+          : effectiveLang === "en"
+          ? "Academic Presentation"
+          : "عرض تقديمي أكاديمي";
       const cleanCoverTitle =
         pickSafe(sanitizedCover.cleaned) ||
         pickSafe(analysis.caseStudy.coverTitle) ||
         pickSafe(analysis.cleanedTopic) ||
-        (looksLikePlanLeak(topic) || isStructuralTitleOnly(topic) ? "عرض تقديمي أكاديمي" : topic);
+        (looksLikePlanLeak(topic) || isStructuralTitleOnly(topic) ? fallbackCoverTitle : topic);
       hasUserEditedRef.current = true;
       setState((s) => {
-        const curLang = s.language || "ar";
+        const curLang = s.language || effectiveLang || "ar";
         const curSub = (s.meta.subtitle || "").trim();
         const shouldUpdateSub = KNOWN_DEFAULT_SUBTITLES.has(curSub) || !curSub;
         return {
           ...s,
+          language: curLang,
           draftText: text,
           meta: {
             ...s.meta,
@@ -550,7 +576,31 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setThemeId: (themeId) => patch({ themeId, autoTheme: false }),
       setAutoTheme: (autoTheme) => patch({ autoTheme }),
       setOptions,
-      setAiTopic: (aiTopic) => patch({ aiTopic }),
+      setAiTopic: (aiTopic) => {
+        if (!aiTopic.trim()) {
+          manualLangRef.current = false;
+        }
+        if (!manualLangRef.current) {
+          const detected = detectTopicLanguage(aiTopic);
+          if (detected && detected !== state.language) {
+            setState((s) => {
+              const curSub = (s.meta.subtitle || "").trim();
+              const shouldUpdateSubtitle = KNOWN_DEFAULT_SUBTITLES.has(curSub);
+              return {
+                ...s,
+                aiTopic,
+                language: detected,
+                meta: {
+                  ...s.meta,
+                  subtitle: shouldUpdateSubtitle ? DEFAULT_SUBTITLES[detected] : s.meta.subtitle,
+                },
+              };
+            });
+            return;
+          }
+        }
+        patch({ aiTopic });
+      },
       setAiSize: (aiSize) => patch({ aiSize }),
       setCaseStudyCompany: (caseStudyCompany) => patch({ caseStudyCompany }),
       setLanguage,

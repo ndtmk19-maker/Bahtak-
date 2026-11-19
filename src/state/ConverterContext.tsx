@@ -8,6 +8,7 @@ import { getEffectiveGeminiKey } from '../lib/aiKeys';
 import { trackEvent } from '../lib/analytics';
 import type { ResearchLanguage } from '../types';
 import { getLocalizedCoverState, getLocalizedPlanTitle } from '../data/defaults';
+import { detectTopicLanguage } from '../lib/detectLanguage';
 
 export type ConverterMode = 'paste' | 'ai';
 
@@ -59,6 +60,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
   const [form, setFormState] = useState<AiForm>({ provider: 'gemini', language: 'ar', topic: '', length: 'medium', mabhathCount: '3', matlabCount: '3', caseStudyCompany: '', customUrl: '', customModel: '' });
   const [run, setRun] = useState<AiRun>({ running: false, stage: 'idle', sections: [], words: 0, model: 'Gemini 2.5 Flash', startedAt: 0, duration: null });
   const runningRef = useRef(false);
+  const manualLangRef = useRef(false);
 
   useEffect(() => {
     if (runningRef.current) return;
@@ -74,6 +76,29 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
   const setForm = useCallback((p: Partial<AiForm>) => {
     setFormState((f) => {
       const next = { ...f, ...p };
+      // إذا قام المستخدم باختيار لغة البحث يدوياً من القائمة
+      if (p.language !== undefined && p.topic === undefined) {
+        manualLangRef.current = true;
+      }
+      // إذا مسح المستخدم الحقل بالكامل، يعاد تفعيل الاكتشاف التلقائي للعنوان الجديد
+      if (p.topic !== undefined && !p.topic.trim()) {
+        manualLangRef.current = false;
+      }
+      // التعرف التلقائي الذكي على لغة العنوان المدخل وتحويل النظام لتلك اللغة مباشرة
+      if (p.topic !== undefined && !manualLangRef.current) {
+        const detected = detectTopicLanguage(p.topic);
+        if (detected && detected !== f.language) {
+          next.language = detected;
+          update({
+            language: detected,
+            fontFamily: detected === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
+          });
+          updateCover(getLocalizedCoverState(doc.coverState, detected));
+          updatePlan({
+            pageTitle: getLocalizedPlanTitle(doc.planState.pageTitle, detected),
+          });
+        }
+      }
       // تغيير حجم البحث يضبط عدد المباحث والمطالب الافتراضي كما في النسخة الأصلية
       if (p.length && p.length !== f.length) {
         next.mabhathCount = AI_LENGTHS[p.length].mabhath;
@@ -81,7 +106,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, []);
+  }, [doc.coverState, doc.planState, update, updateCover, updatePlan]);
 
   const parse = useCallback(
     (opts?: { silent?: boolean; text?: string; overrideTitle?: string }) => {
@@ -137,7 +162,19 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
     setRun((r) => ({ ...r, running: true, stage: 'plan', sections: [], words: 0, startedAt, duration: null }));
     try {
       let resolvedPlanTitle = '';
-      const selectedLang = form.language || 'ar';
+      const detected = !manualLangRef.current ? detectTopicLanguage(exactUserTopic) : null;
+      const selectedLang: ResearchLanguage = detected || form.language || 'ar';
+      if (selectedLang !== form.language) {
+        setFormState((f) => ({ ...f, language: selectedLang }));
+        update({
+          language: selectedLang,
+          fontFamily: selectedLang === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
+        });
+        updateCover(getLocalizedCoverState(doc.coverState, selectedLang));
+        updatePlan({
+          pageTitle: getLocalizedPlanTitle(doc.planState.pageTitle, selectedLang),
+        });
+      }
       const finalText = await generateResearch({
         provider: form.provider,
         apiKey: effectiveKey,
