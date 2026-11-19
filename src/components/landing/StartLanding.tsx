@@ -4,7 +4,7 @@ import { BackgroundPaths } from '../ui/background-paths';
 import { MetallicButton } from '../ui/metallic-button';
 import { useUI } from '../../state/UIContext';
 import { useDocument } from '../../state/DocumentContext';
-import { TestimonialGlobe, getStoredAndDefaultReviews, type GlobeTestimonial } from '../ui/testimonial-globe';
+import { TestimonialGlobe, getStoredAndDefaultReviews, DEFAULT_ALGERIAN_REVIEWS, type GlobeTestimonial } from '../ui/testimonial-globe';
 import { getSupabaseReviews, type DbReview } from '../../lib/supabase';
 
 // إحداثيات قارية على اليابسة (الجزائر ومناطق متباعدة) لضمان عدم سقوط أي نقطة في البحر
@@ -40,14 +40,52 @@ export function StartLanding() {
     }, 1500);
   };
 
-  // جلب التقييمات الحية من قاعدة بيانات Supabase لجميع الزوار
+  // جلب التقييمات الحية من قاعدة بيانات Supabase لجميع الزوار مع تثبيت التعليق المختار في الصدارة
   const refreshReviews = useCallback(async () => {
     try {
       const dbReviews = await getSupabaseReviews();
       if (Array.isArray(dbReviews) && dbReviews.length > 0) {
-        const formatted: GlobeTestimonial[] = dbReviews.map((item, idx) => {
-          const coord = LAND_COORDINATES[idx % LAND_COORDINATES.length];
-          return {
+        // التعليق المثبت: خلفات محمد نزيم فضل الله
+        const pinnedId = 'df403c19-abbb-46a2-abce-133958f477c9';
+        const pinnedIndex = dbReviews.findIndex(
+          (r) =>
+            r.id === pinnedId ||
+            (r.name && r.name.includes('خلفات')) ||
+            (r.comment && r.comment.includes('سلكتني'))
+        );
+
+        const orderedReviews = [...dbReviews];
+        let pinnedDbItem: DbReview | undefined;
+        if (pinnedIndex > -1) {
+          [pinnedDbItem] = orderedReviews.splice(pinnedIndex, 1);
+        }
+
+        const formatted: GlobeTestimonial[] = [];
+
+        // إضافة التعليق المثبت في المرتبة الأولى دائماً
+        if (pinnedDbItem) {
+          formatted.push({
+            id: pinnedDbItem.id,
+            quote: typeof pinnedDbItem.comment === 'string' ? pinnedDbItem.comment.trim() : '',
+            name: pinnedDbItem.name,
+            role: 'طالب باحث',
+            company: pinnedDbItem.university,
+            city: pinnedDbItem.city || 'الجزائر العاصمة',
+            country: pinnedDbItem.country || 'DZ',
+            lat: 36.75,
+            lng: 3.06,
+            rating: pinnedDbItem.rating,
+            tone: 1,
+            isPinned: true,
+          });
+        } else {
+          formatted.push(DEFAULT_ALGERIAN_REVIEWS[0]);
+        }
+
+        // إضافة باقي التقييمات تباعاً
+        orderedReviews.forEach((item, idx) => {
+          const coord = LAND_COORDINATES[(idx + 1) % LAND_COORDINATES.length];
+          formatted.push({
             id: item.id,
             quote: typeof item.comment === 'string' ? item.comment.trim() : '',
             name: item.name,
@@ -58,9 +96,10 @@ export function StartLanding() {
             lat: coord.lat,
             lng: coord.lng,
             rating: item.rating,
-            tone: (((idx % 5) + 1) as 1 | 2 | 3 | 4 | 5),
-          };
+            tone: ((((idx + 1) % 5) + 1) as 1 | 2 | 3 | 4 | 5),
+          });
         });
+
         setReviews(formatted);
         return;
       }

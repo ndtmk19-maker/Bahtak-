@@ -31,6 +31,8 @@ export interface GlobeTestimonial {
   rating?: number;
   /** Ring color as a chart token number (--chart-1 … --chart-5). Cycles through all five by default. */
   tone?: Tone;
+  /** تعليق مثبت يظهر في المقدمة دائماً كتقييم مميز */
+  isPinned?: boolean;
 }
 
 export interface TestimonialGlobeLabels {
@@ -402,10 +404,17 @@ const QuoteCard = React.memo(function QuoteCard({ item, index, tone, roomy, mode
             </span>
           )}
         </div>
-        {/* شارة المدينة بالزاوية */}
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-          <span className="size-2 rounded-full bg-amber-400" />
-          <span>{item.city}</span>
+        {/* شارة المدينة وشارة التعليق المثبت بالزاوية */}
+        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+          {item.isPinned && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-400 px-2 py-0.5 text-[11px] font-bold shadow-xs">
+              📌 تعليق مثبت
+            </span>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-amber-400" />
+            <span>{item.city}</span>
+          </div>
         </div>
       </div>
       <blockquote
@@ -1615,6 +1624,20 @@ export function TestimonialGlobe({
 // التقييمات المعتمدة لطلبة وباحثي الجامعات الجزائرية (موزعة جغرافياً حول الكرة الأرضية)
 export const DEFAULT_ALGERIAN_REVIEWS: GlobeTestimonial[] = [
   {
+    id: "df403c19-abbb-46a2-abce-133958f477c9",
+    quote: "بسم الله مشاء الله على المنصة عندي بحث غير غدوة و مزال مدرتوش والله غير سلكتني درتها في 2 دقائق صافي بليزير كاين منصات هكذا لي يساعدو الطلبة في حياتهم الجامعية",
+    name: "خلفات محمد نزيم فضل الله",
+    role: "طالب باحث",
+    company: "جامعة الجزائر 3 - إبراهيم سلطان شيبوط",
+    city: "الجزائر العاصمة",
+    country: "DZ",
+    lat: 36.75,
+    lng: 3.06,
+    rating: 5,
+    tone: 1,
+    isPinned: true,
+  },
+  {
     id: "dz-algiers",
     quote: "نسقت بحث مقياس القانون مع الغلاف الأكاديمي وشعار الجامعة وشجرة الخطة في دقائق معدودة، وفر عليا ساعات طويلة من التنسيق اليدوي المرهق.",
     name: "أنيس بوقرة",
@@ -1625,7 +1648,7 @@ export const DEFAULT_ALGERIAN_REVIEWS: GlobeTestimonial[] = [
     lat: 36.75,
     lng: 3.06,
     rating: 5,
-    tone: 1,
+    tone: 2,
   },
   {
     id: "dz-oran",
@@ -1638,7 +1661,7 @@ export const DEFAULT_ALGERIAN_REVIEWS: GlobeTestimonial[] = [
     lat: 41.88,
     lng: -87.63,
     rating: 5,
-    tone: 2,
+    tone: 3,
   },
   {
     id: "dz-constantine",
@@ -1651,33 +1674,40 @@ export const DEFAULT_ALGERIAN_REVIEWS: GlobeTestimonial[] = [
     lat: 39.90,
     lng: 116.41,
     rating: 5,
-    tone: 3,
+    tone: 4,
   },
 ];
 
-/** دالة مساعدة لجلب كل التقييمات: المعتمدة + ما يضيفه المستخدمون محلياً */
+/** دالة مساعدة لجلب كل التقييمات: المعتمدة + ما يضيفه المستخدمون محلياً مع ضمان تصدر التعليق المثبت */
 export function getStoredAndDefaultReviews(): GlobeTestimonial[] {
   try {
     const raw = localStorage.getItem("bahtak_all_reviews");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // تحويل تقييمات المستخدمين إلى صيغة GlobeTestimonial مع الإبقاء على التعليق كما هو حتى يُحتسب الفارغ منها في الإحصاءات دون الظهور في الواجهة
-        const userReviews: GlobeTestimonial[] = parsed.map((item, idx) => ({
-          id: item.id || `user-rev-${idx}`,
-          quote: typeof item.comment === "string" ? item.comment.trim() : "",
-          name: item.name || "طالب باحث",
-          role: "تقييم طالب",
-          company: item.university || "جامعة جزائرية",
-          city: "الجزائر",
-          country: "DZ",
-          lat: 36.75 + (idx % 3) * 0.2 - 0.1,
-          lng: 3.06 + (idx % 3) * 0.3 - 0.1,
-          rating: item.rating || 5,
-          tone: (((idx % 5) + 1) as Tone),
-        }));
+        // تحويل تقييمات المستخدمين إلى صيغة GlobeTestimonial مع استبعاد التعليق المثبت لمنع تكراره
+        const userReviews: GlobeTestimonial[] = parsed
+          .filter(
+            (item) =>
+              item.id !== "df403c19-abbb-46a2-abce-133958f477c9" &&
+              !item.name?.includes("خلفات") &&
+              !item.comment?.includes("سلكتني")
+          )
+          .map((item, idx) => ({
+            id: item.id || `user-rev-${idx}`,
+            quote: typeof item.comment === "string" ? item.comment.trim() : "",
+            name: item.name || "طالب باحث",
+            role: "تقييم طالب",
+            company: item.university || "جامعة جزائرية",
+            city: "الجزائر",
+            country: "DZ",
+            lat: 36.75 + (idx % 3) * 0.2 - 0.1,
+            lng: 3.06 + (idx % 3) * 0.3 - 0.1,
+            rating: item.rating || 5,
+            tone: (((idx % 5) + 1) as Tone),
+          }));
 
-        return [...userReviews, ...DEFAULT_ALGERIAN_REVIEWS];
+        return [DEFAULT_ALGERIAN_REVIEWS[0], ...userReviews, ...DEFAULT_ALGERIAN_REVIEWS.slice(1)];
       }
     }
   } catch {
