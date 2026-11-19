@@ -52,7 +52,7 @@ const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
 export function ConverterProvider({ children }: { children: ReactNode }) {
   const { applyParsed, doc, update, updateCover } = useDocument();
   const ui = useUI();
-  const [mode, setMode] = useState<ConverterMode>('paste');
+  const [mode, setMode] = useState<ConverterMode>('ai');
   const [rawText, setRawTextState] = useState(loadRawText);
   const [apiKey, setApiKeyState] = useState(loadApiKey);
   const [form, setFormState] = useState<AiForm>({ provider: 'gemini', language: 'ar', topic: '', length: 'medium', mabhathCount: '3', matlabCount: '3', caseStudyCompany: '', customUrl: '', customModel: '' });

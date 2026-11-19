@@ -31,6 +31,7 @@ import { DEMO_RAW_TEXT, QUICK_AI_TOPICS_BY_LANG } from '../../data/defaults';
 import { AI_LENGTHS, AI_PROVIDERS, analyzeStudentTopic, type AiLength, type AiProvider } from '../../lib/aiGenerate';
 import { hasSystemGeminiKey } from '../../lib/aiKeys';
 import { TopicAnalysisCard } from '../ui/TopicAnalysisCard';
+import { LanguageSelector } from '../ui/LanguageSelector';
 import type { ResearchLanguage } from '../../types';
 
 export function Step1Input() {
@@ -53,6 +54,9 @@ export function Step1Input() {
           <span className="block text-[0.76rem] text-zinc-500 dark:text-zinc-400">دقيقة واحدة تشرح كل خطوة من كتابة البحث إلى طباعته A4 كـ PDF</span>
         </span>
       </button>
+
+      {/* اختيار لغة البحث في مقدمة الخطوة */}
+      <LanguageSelector />
 
       {/* بطاقتا اختيار طريقة الإدخال (Card-based RadioGroup) بتصميم متناسق مع هوية الموقع */}
       <div role="radiogroup" aria-label="طريقة إدخال البحث" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -188,19 +192,11 @@ function PasteModeFields() {
 
 function AiModeFields() {
   const { form, setForm, run, generate } = useConverter();
-  const { doc, update } = useDocument();
+  const { doc } = useDocument();
   const topicAnalysis = analyzeStudentTopic(form.topic, form.caseStudyCompany);
   const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
   const currentLang = form.language || 'ar';
-
-  const handleLangChange = (lang: ResearchLanguage) => {
-    setForm({ language: lang });
-    update({
-      language: lang,
-      fontFamily: lang === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
-    });
-  };
 
   const quickTopics = QUICK_AI_TOPICS_BY_LANG[currentLang] || QUICK_AI_TOPICS_BY_LANG.ar;
 
@@ -241,40 +237,6 @@ function AiModeFields() {
       </div>
 
       <Section title="موضوع وخطة البحث المطلوب" icon={<BookOpenCheck />}>
-        {/* اختيار لغة البحث */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[0.8rem] font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-              <Languages className="size-3.5 text-zinc-500" />
-              لغة إنجاز وتوليد البحث:
-            </span>
-            <span className="text-[0.72rem] font-medium text-zinc-500">
-              {currentLang === 'ar' ? 'العربية 🇩🇿 (الأميري - RTL)' : currentLang === 'fr' ? 'Français 🇫🇷 (Times New Roman - LTR)' : 'English 🇬🇧 (Times New Roman - LTR)'}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'ar' as const, flag: '🇩🇿', label: 'العربية' },
-              { id: 'fr' as const, flag: '🇫🇷', label: 'Français' },
-              { id: 'en' as const, flag: '🇬🇧', label: 'English' },
-            ].map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => handleLangChange(l.id)}
-                className={`flex items-center justify-center gap-2 rounded-xl border py-2 px-3 text-center transition-all cursor-pointer ${
-                  currentLang === l.id
-                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900 font-bold shadow-xs'
-                    : 'border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70 text-zinc-700 dark:text-zinc-300 hover:border-black/25 dark:hover:border-white/25'
-                }`}
-              >
-                <span className="text-sm">{l.flag}</span>
-                <span className="text-[0.82rem]">{l.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <TextArea
           id="ai-topic-input"
           label={

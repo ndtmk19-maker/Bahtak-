@@ -10,6 +10,7 @@ import { useUI } from '../../state/UIContext';
 import { ALGERIAN_WILAYAS } from '../../data/universities';
 import { imageToDataUrl, readFileAsDataUrl } from '../../lib/image';
 import type { CoverTheme, LogoPosition, LogoSize } from '../../types';
+import { LanguageSelector } from '../ui/LanguageSelector';
 
 export function Step2Cover() {
   const { doc, updateCover, updateCoverWith } = useDocument();
@@ -47,6 +48,9 @@ export function Step2Cover() {
 
   return (
     <div className="flex flex-col gap-3.5">
+      {/* اختيار لغة البحث في الخطوة الأولى */}
+      <LanguageSelector />
+
       <ToggleRow
         title="تفعيل صفحة الغلاف الرسمية"
         description="تظهر كأول صفحة للبحث بإطار أكاديمي معتمد وفق النماذج الجامعية"
