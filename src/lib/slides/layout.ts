@@ -406,10 +406,11 @@ function chrome(
   total: number,
 ): Chrome {
   const c = th.colors;
+  const isLat = isLatinText(title || kicker);
   const prims: Prim[] = [
-    { t: "rect", x: SLIDE_W - 0.16, y: 0, w: 0.16, h: SLIDE_H, fill: c.primary },
+    { t: "rect", x: isLat ? 0 : SLIDE_W - 0.16, y: 0, w: 0.16, h: SLIDE_H, fill: c.primary },
   ];
-  prims.push(...motif(th, { x: 0.3, y: 0.5, w: 1.15, h: 6.0 }, c.primary, c.accent));
+  prims.push(...motif(th, { x: isLat ? SLIDE_W - 1.45 : 0.3, y: 0.5, w: 1.15, h: 6.0 }, c.primary, c.accent));
   if (kicker)
     prims.push(
       text(
@@ -417,25 +418,45 @@ function chrome(
         0.42,
         BW,
         0.34,
-        [para(kicker, 13, c.secondary === c.text ? c.primary : c.secondary, { bold: true })],
+        [
+          para(kicker, 13, c.secondary === c.text ? c.primary : c.secondary, {
+            bold: true,
+            align: isLat ? "left" : "right",
+            rtl: !isLat,
+          }),
+        ],
         th.fonts.body,
         "kicker",
         "middle",
       ),
     );
-  const t = fit((s) => [para(title, Math.round(30 * s), c.text, { bold: true })], BW, 1.12, 0.7);
+  const t = fit(
+    (s) => [
+      para(title, Math.round(30 * s), c.text, {
+        bold: true,
+        align: isLat ? "left" : "right",
+        rtl: !isLat,
+      }),
+    ],
+    BW,
+    1.12,
+    0.7,
+  );
   const th1 = Math.max(0.6, t.h);
   prims.push(text(BX, 0.82, BW, th1, t.paras, th.fonts.head, "title", "top"));
   const uy = 0.82 + th1 + 0.1;
-  prims.push({ t: "rect", x: BX + BW - 1.1, y: uy, w: 1.1, h: 0.06, fill: c.accent });
+  const accentX = isLat ? BX : BX + BW - 1.1;
+  prims.push({ t: "rect", x: accentX, y: uy, w: 1.1, h: 0.06, fill: c.accent });
   prims.push({ t: "rect", x: BX, y: 6.86, w: BW, h: 0.012, fill: c.line });
+  const pageX = isLat ? BX + BW - 1.2 : BX;
+  const pageAlign = isLat ? "right" : "left";
   prims.push(
     text(
-      BX,
+      pageX,
       6.93,
       1.1,
       0.3,
-      [para(`${n} / ${total}`, 10, c.muted, { align: "left", rtl: false })],
+      [para(`${n} / ${total}`, 10, c.muted, { align: pageAlign, rtl: false })],
       th.fonts.body,
       "number",
       "middle",
@@ -653,9 +674,14 @@ function agendaSlide(
   total: number,
 ): LaidSlide {
   const c = th.colors;
+  const isLat = isLatinText(s.title || (s.entries[0]?.title ?? ""));
+  const defaultKicker =
+    s.parts > 1
+      ? (isLat ? `Sommaire · ${s.part}/${s.parts}` : `خطة العرض · ${s.part}/${s.parts}`)
+      : (isLat ? "Sommaire de l'Exposé" : "هيكل العرض");
   const ch = chrome(
     th,
-    s.parts > 1 ? `خطة العرض · ${s.part}/${s.parts}` : "هيكل العرض",
+    defaultKicker,
     s.title,
     n,
     total,
@@ -663,33 +689,76 @@ function agendaSlide(
   const prims = ch.prims;
   const avail = BODY_BOTTOM - ch.bodyTop;
   const tw = BW - 0.95;
-  const build = (k: number) =>
+  const bx = isLat ? BX : BX + BW - 0.62;
+  const textX = isLat ? BX + 0.85 : BX;
+
+  const build = (k: number, includeKids: boolean) =>
     s.entries.map((e) => ({
-      head: [para(e.title, Math.round(20 * k), c.text, { bold: true })],
-      kids: e.children.length ? [para(e.children.join("  ·  "), Math.round(14 * k), c.muted)] : [],
+      head: [
+        para(e.title, Math.round(20 * k), c.text, {
+          bold: true,
+          align: isLat ? "left" : "right",
+          rtl: !isLat,
+        }),
+      ],
+      kids:
+        includeKids && e.children.length
+          ? [
+              para(e.children.join("  ·  "), Math.round(13 * k), c.muted, {
+                align: isLat ? "left" : "right",
+                rtl: !isLat,
+              }),
+            ]
+          : [],
     }));
+
   let k = 1;
-  let rows = build(k);
+  let includeKids = true;
+  let rows = build(k, includeKids);
   const rowH = (r: ReturnType<typeof build>[number]) =>
-    Math.max(0.62, parasHeight(r.head, tw) + (r.kids.length ? parasHeight(r.kids, tw) + 0.04 : 0));
-  while (k > 0.7 && rows.reduce((a, r) => a + rowH(r) + 0.22, 0) > avail) rows = build((k -= 0.05));
+    Math.max(0.58, parasHeight(r.head, tw) + (r.kids.length ? parasHeight(r.kids, tw) + 0.04 : 0));
+
+  while (k > 0.65 && rows.reduce((a, r) => a + rowH(r) + 0.18, 0) > avail) {
+    k -= 0.05;
+    rows = build(k, includeKids);
+  }
+
+  // إذا استمر تجاوز الارتفاع، نحذف العناوين الفرعية ونبقي العناوين الرئيسية فقط لتجنب أي تداخل
+  if (rows.reduce((a, r) => a + rowH(r) + 0.15, 0) > avail && includeKids) {
+    includeKids = false;
+    k = 1;
+    rows = build(k, includeKids);
+    while (k > 0.7 && rows.reduce((a, r) => a + rowH(r) + 0.15, 0) > avail) {
+      k -= 0.05;
+      rows = build(k, includeKids);
+    }
+  }
+
   const hs = rows.map(rowH);
   const gap = Math.min(
-    0.45,
-    Math.max(0.18, (avail - hs.reduce((a, b) => a + b, 0)) / Math.max(1, rows.length)),
+    0.4,
+    Math.max(0.12, (avail - hs.reduce((a, b) => a + b, 0)) / Math.max(1, rows.length)),
   );
   let y = ch.bodyTop + 0.05;
-  const bx = BX + BW - 0.62;
-  if (rows.length > 1)
+
+  if (rows.length > 1) {
+    const totalLineH = Math.min(
+      avail - 0.6,
+      hs.slice(0, -1).reduce((a, b) => a + b + gap, 0),
+    );
     prims.push({
       t: "rect",
       x: bx + 0.29,
       y: y + 0.3,
       w: 0.04,
-      h: hs.slice(0, -1).reduce((a, b) => a + b + gap, 0),
+      h: Math.max(0.3, totalLineH),
       fill: c.line,
     });
+  }
+
   rows.forEach((r, i) => {
+    // التحقق الصارم من أن السطر لن يتجاوز أسفل متن الشريحة نهائياً
+    if (y + 0.55 > BODY_BOTTOM) return;
     prims.push({ t: "ellipse", x: bx, y, w: 0.62, h: 0.62, fill: i % 2 ? c.secondary : c.primary });
     prims.push(
       text(
@@ -712,7 +781,7 @@ function agendaSlide(
     const hh = parasHeight(r.head, tw);
     prims.push(
       text(
-        BX,
+        textX,
         y + (r.kids.length ? 0 : (0.62 - hh) / 2),
         tw,
         hh,
@@ -721,10 +790,11 @@ function agendaSlide(
         "agenda-title",
       ),
     );
-    if (r.kids.length)
+    if (r.kids.length && y + hh + 0.04 + parasHeight(r.kids, tw) <= BODY_BOTTOM) {
       prims.push(
-        text(BX, y + hh + 0.04, tw, parasHeight(r.kids, tw), r.kids, th.fonts.body, "agenda-kids"),
+        text(textX, y + hh + 0.04, tw, parasHeight(r.kids, tw), r.kids, th.fonts.body, "agenda-kids"),
       );
+    }
     y += hs[i] + gap;
   });
   return { bg: c.bg, prims, notes: s.notes };

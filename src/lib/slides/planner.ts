@@ -92,13 +92,26 @@ const isLatin = (t: string) => {
 };
 
 /** فصل «المبحث الأول: العنوان» أو «Chapitre I : Titre» أو «Chapter 1: Title» إلى بادئة وعنوان */
-export function splitHeading(raw: string): { kicker: string; title: string } {
-  const t = raw.replace(/^#+\s*/, "").trim();
-  const m = t.match(
-    /^((?:(?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)|(?:Chapitre|Section|Partie|Sous-section|Axe)|(?:Chapter|Section|Part|Subsection|Axis))\s+[^:：\-–—]{1,25}?)\s*[:：\-–—]\s*(.+)$/i,
-  );
-  if (m) return { kicker: m[1].trim(), title: m[2].trim() };
-  return { kicker: "", title: t.replace(/[:：]\s*$/, "") };
+export function splitHeading(raw: string, lang: ResearchLanguage = "ar"): { kicker: string; title: string } {
+  let t = raw.replace(/^#+\s*/, "").trim();
+  let kicker = "";
+  for (let pass = 0; pass < 2; pass++) {
+    const m = t.match(
+      /^((?:(?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)|(?:Chapitre|Section|Partie|Sous-section|Axe)|(?:Chapter|Section|Part|Subsection|Axis))\s+[^:：\-–—]{1,25}?)\s*[:：\-–—]\s*(.+)$/i,
+    );
+    if (m) {
+      const candidateKicker = m[1].trim();
+      if (!kicker) {
+        kicker = candidateKicker;
+      } else if (lang !== "ar" && !isLatin(kicker) && isLatin(candidateKicker)) {
+        kicker = candidateKicker;
+      }
+      t = m[2].trim();
+    } else {
+      break;
+    }
+  }
+  return { kicker, title: t.replace(/[:：]\s*$/, "") };
 }
 
 const tidy = (t: string) =>
@@ -225,29 +238,39 @@ export function buildOutline(a: ResearchAnalysis, lang: ResearchLanguage = "ar")
         ),
       );
     } else {
-      // المطلب: يفتح مبحثاً جديداً إن حمل عنوان مبحث، وإلا يتبع المبحث الجاري
+      // المطلب: يفتح مبحثاً جديداً إن حمل عنوان مبحث مختلف، وإلا يتبع المبحث الجاري
       if (sec.mabhathTitle.trim() || o.mabahith.length === 0) {
-        const h = splitHeading(sec.mabhathTitle || "");
-        const n = o.mabahith.length;
-        const defaultKicker =
-          lang === "fr"
-            ? `Axe ${ORDINALS_ROMAN[n] || n + 1}`
-            : lang === "en"
-              ? `Part ${n + 1}`
-              : `المحور ${ORDINALS_AR[n] || n + 1}`;
-        const defaultTitle =
-          lang === "fr"
-            ? "Axes de l'exposé"
-            : lang === "en"
-              ? "Presentation Topics"
-              : "محاور العرض";
-        o.mabahith.push({
-          kicker: h.kicker || defaultKicker,
-          title: h.title || safeDetectedTitle || defaultTitle,
-          matalib: [],
-        });
+        const h = splitHeading(sec.mabhathTitle || "", lang);
+        const lastMb = o.mabahith[o.mabahith.length - 1];
+        const isSameAsLast =
+          lastMb &&
+          sec.mabhathTitle.trim() &&
+          (h.title === lastMb.title ||
+            (h.kicker && h.kicker === lastMb.kicker) ||
+            sec.mabhathTitle.trim().toLowerCase() === `${lastMb.kicker}: ${lastMb.title}`.toLowerCase());
+
+        if (!isSameAsLast) {
+          const n = o.mabahith.length;
+          const defaultKicker =
+            lang === "fr"
+              ? `Axe ${ORDINALS_ROMAN[n] || n + 1}`
+              : lang === "en"
+                ? `Part ${n + 1}`
+                : `المحور ${ORDINALS_AR[n] || n + 1}`;
+          const defaultTitle =
+            lang === "fr"
+              ? "Axes de l'exposé"
+              : lang === "en"
+                ? "Presentation Topics"
+                : "محاور العرض";
+          o.mabahith.push({
+            kicker: h.kicker || defaultKicker,
+            title: h.title || safeDetectedTitle || defaultTitle,
+            matalib: [],
+          });
+        }
       }
-      const h = splitHeading(sec.matlabTitle || "");
+      const h = splitHeading(sec.matlabTitle || "", lang);
       o.mabahith[o.mabahith.length - 1].matalib.push({
         kicker: h.kicker,
         title: h.title,
@@ -471,9 +494,27 @@ export function planDeck(
   if (opts.includeAgenda) {
     const entries: AgendaEntry[] = [];
     if (o.intro.length || o.question) entries.push({ title: introEntryTitle, children: [] });
-    o.mabahith.forEach((mb) =>
-      entries.push({ title: mb.title, children: mb.matalib.map((mt) => mt.title).filter(Boolean) }),
-    );
+    o.mabahith.forEach((mb) => {
+      const seenKids = new Set<string>();
+      const kids: string[] = [];
+      for (const mt of mb.matalib) {
+        let rawT = (mt.title || "").trim();
+        if (lang !== "ar") {
+          rawT = rawT.replace(/^(?:ال)?(?:مطلب|فرع)\s+[^\s:]+\s*[:：\-–—\.]+\s*/i, "").trim();
+        }
+        if (!rawT) continue;
+        const normKey = rawT.toLowerCase().replace(/\s+/g, " ");
+        if (!seenKids.has(normKey)) {
+          seenKids.add(normKey);
+          kids.push(rawT);
+        }
+      }
+      let mbTitle = mb.title;
+      if (lang !== "ar") {
+        mbTitle = mbTitle.replace(/^(?:ال)?(?:مبحث|فصل|محور)\s+[^\s:]+\s*[:：\-–—\.]+\s*/i, "").trim();
+      }
+      entries.push({ title: mbTitle, children: kids.slice(0, 3) });
+    });
     if (o.conclusion.length) entries.push({ title: conclusionEntryTitle, children: [] });
     if (showRefs) entries.push({ title: referencesEntryTitle, children: [] });
     if (entries.length >= 2) {

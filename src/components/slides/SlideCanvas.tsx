@@ -193,6 +193,7 @@ export const SlideCanvas = memo(function SlideCanvas({
           transform: `scale(${scale})`,
           transformOrigin: "top left",
           background: `#${slide.bg}`,
+          overflow: "hidden",
         }}
       >
         {slide.prims.map((p, i) => (

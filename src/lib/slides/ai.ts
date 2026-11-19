@@ -6,6 +6,7 @@ import {
   isStructuralTitleOnly,
   looksLikePlanLeak,
   sanitizeCoverTitleFromPlanLeak,
+  stripStructuralPrefix,
   type AiLength,
   type AiPlan,
   type GenerateOptions,
@@ -71,15 +72,13 @@ export function enforceSlidePlan(plan: AiPlan, topic: string, lang: ResearchLang
   const fb = buildFallbackPlan(cleanFallbackTopic, SLIDE_MABHATH_COUNT, SLIDE_MATLAB_COUNT, "short", lang) as AiPlan;
   const mabahith = Array.from({ length: SLIDE_MABHATH_COUNT }, (_, i) => {
     const src = plan.mabahith?.[i] || fb.mabahith[i];
-    const prefixWord = lang === "fr" ? "chapitre" : lang === "en" ? "chapter" : "مبحث";
-    const subPrefixWord = lang === "fr" ? "section" : lang === "en" ? "section" : "مطلب";
+    const rawMbTitle = src?.title || fb.mabahith[i]?.title || "";
+    const title = stripStructuralPrefix(rawMbTitle);
 
-    const title = stripPrefix(src.title, prefixWord) || stripPrefix(fb.mabahith[i].title, prefixWord);
     const matalib = Array.from({ length: SLIDE_MATLAB_COUNT }, (_, j) => {
       const m = src.matalib?.[j] || fb.mabahith[i].matalib?.[j] || { title: "" };
-      const mt =
-        stripPrefix(m.title, subPrefixWord) ||
-        stripPrefix(fb.mabahith[i].matalib?.[j]?.title || "", subPrefixWord);
+      const rawMtTitle = m.title || fb.mabahith[i].matalib?.[j]?.title || "";
+      const mt = stripStructuralPrefix(rawMtTitle);
       const subTitle =
         lang === "fr"
           ? `Section ${j + 1} : ${mt}`

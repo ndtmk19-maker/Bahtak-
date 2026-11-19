@@ -610,7 +610,8 @@ function LogoPicker() {
 }
 
 function CoverFields() {
-  const { meta, setMeta, deck } = usePresentation();
+  const { meta, setMeta, deck, language } = usePresentation();
+  const currentLang = language || "ar";
   const titleHasLeak =
     Boolean(meta.title.trim()) &&
     (looksLikePlanLeak(meta.title) || isStructuralTitleOnly(meta.title));
@@ -618,13 +619,13 @@ function CoverFields() {
     ? sanitizeCoverTitleFromPlanLeak(meta.title).cleaned
     : "";
   return (
-    <Section title="شريحة الغلاف" icon={<GraduationCap />}>
+    <Section title={currentLang === "fr" ? "Diapositive de Garde" : currentLang === "en" ? "Cover Slide" : "شريحة الغلاف"} icon={<GraduationCap />}>
       <TextInput
-        label="عنوان العرض"
+        label={currentLang === "fr" ? "Titre de l'exposé" : currentLang === "en" ? "Presentation Title" : "عنوان العرض"}
         value={meta.title}
         onChange={(e) => setMeta({ title: e.target.value })}
-        placeholder={deck?.title || "يُستخرج تلقائياً من المسودة"}
-        hint="اتركه فارغاً لاستعمال العنوان المكتشف في المسودة."
+        placeholder={deck?.title || (currentLang === "fr" ? "Extrait automatiquement de la rédaction" : currentLang === "en" ? "Extracted automatically from draft" : "يُستخرج تلقائياً من المسودة")}
+        hint={currentLang === "fr" ? "Laisser vide pour utiliser le titre extrait automatiquement." : currentLang === "en" ? "Leave blank to use the detected title." : "اتركه فارغاً لاستعمال العنوان المكتشف في المسودة."}
       />
       {titleHasLeak && (
         <Note icon={<CircleAlert />} tone="warn">
@@ -643,10 +644,16 @@ function CoverFields() {
         </Note>
       )}
       <TextInput
-        label="نوع العمل"
+        label={currentLang === "fr" ? "Type de travail (Sous-titre)" : currentLang === "en" ? "Type of Work (Subtitle)" : "نوع العمل"}
         value={meta.subtitle}
         onChange={(e) => setMeta({ subtitle: e.target.value })}
-        placeholder="عرض تقديمي لمقياس..."
+        placeholder={
+          currentLang === "fr"
+            ? "Exposé académique, Présentation de module..."
+            : currentLang === "en"
+              ? "Academic Presentation, Module project..."
+              : "عرض تقديمي لمقياس..."
+        }
       />
       <LogoPicker />
       <div className="grid grid-cols-2 gap-3">

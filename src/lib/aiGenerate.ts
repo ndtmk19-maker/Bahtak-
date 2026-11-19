@@ -1670,12 +1670,18 @@ function splitInlineStructuralHeadings(text: string): string {
   );
 }
 
-function stripStructuralPrefix(title: string, keyword: 'مبحث' | 'مطلب'): string {
-  const cleaned = stripHeadingMarkdown(title);
-  return cleaned
-    .replace(new RegExp(`^(?:ال)?${keyword}\\s+${ARABIC_ORD_PATTERN}(?:\\s*[:：\\-–—\\.]+)?\\s*`, 'i'), '')
-    .replace(new RegExp(`^(?:ال)?${keyword}\\s*[:：\\-–—]+\\s*`, 'i'), '')
-    .trim();
+export function stripStructuralPrefix(title: string, _keyword?: 'مبحث' | 'مطلب'): string {
+  let cleaned = stripHeadingMarkdown(title || '').trim();
+  for (let pass = 0; pass < 2; pass++) {
+    cleaned = cleaned
+      // بادئات عربية
+      .replace(/^(?:ال)?(?:مبحث|مطلب|فصل|محور|فرع)\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\s+عشر|الثاني\s+عشر|\d+|[أ-ي])(?:\s*[:：\-–—\.]+)?\s*/i, '')
+      .replace(/^(?:ال)?(?:مبحث|مطلب|فصل|محور|فرع)\s*[:：\-–—]+\s*/i, '')
+      // بادئات فرنسية وإنجليزية
+      .replace(/^(?:Chapitre|Chapter|Section|Sous-section|Subsection|Partie|Part|Axe|Axis)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+|[a-zA-Z]+)(?:\s*[:：\-–—\.]+)?\s*/i, '')
+      .replace(/^(?:Chapitre|Chapter|Section|Sous-section|Subsection|Partie|Part|Axe|Axis)\s*[:：\-–—]+\s*/i, '');
+  }
+  return cleaned.trim();
 }
 
 function normalizeArabicComparable(text: string): string {
@@ -1764,6 +1770,7 @@ export function normalizeResearchPlan(
     hasCaseStudy?: boolean;
     customMabahith?: CustomPlanMabhath[];
     allowInferredTitle?: boolean;
+    language?: ResearchLanguage;
   },
 ): AiPlan {
   const rawExactTopic = (topic || rawPlan?.title || '').trim() || 'موضوع البحث';
@@ -1772,11 +1779,16 @@ export function normalizeResearchPlan(
   const exactTopic = topicSanitized.cleaned || 'دراسة أكاديمية وفق الخطة المحددة';
   const analysisTopic = (options?.coreTopic || exactTopic).trim() || exactTopic;
   const hasCaseStudy = !!options?.hasCaseStudy;
+  const planLang: ResearchLanguage = options?.language || (isLatinComparable(analysisTopic) ? 'fr' : 'ar');
+  const isFr = planLang === 'fr';
+  const isEn = planLang === 'en';
+  const ROMAN_WORDS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
   const mCount = customMabahith
     ? Math.max(1, Math.min(10, customMabahith.length))
     : Math.max(1, Math.min(6, parseInt(String(mabhathCountRaw), 10) || 2));
   const defaultTCount = Math.max(1, Math.min(6, parseInt(String(matlabCountRaw), 10) || 2));
-  const fb = buildFallbackPlan(analysisTopic, mCount, defaultTCount, 'medium') as AiPlan;
+  const fb = buildFallbackPlan(analysisTopic, mCount, defaultTCount, 'medium', planLang) as AiPlan;
 
   let finalTitle = exactTopic;
   if ((options?.allowInferredTitle || topicSanitized.hadLeak) && rawPlan?.title) {
@@ -1800,17 +1812,19 @@ export function normalizeResearchPlan(
   const usedMbTokens: string[][] = [];
   const usedMtTokens: string[][] = [];
   const normalizedMabahith: { title: string; matalib: { title: string }[] }[] = [];
-  const strayCaseStudyHeadingRe = /(?:^|[\s:\-–—«"(])دراسة\s+حال[ةه](?:$|[\s:\-–—»")])/i;
+  const strayCaseStudyHeadingRe = /(?:^|[\s:\-–—«"(])(?:دراسة\s+حال[ةه]|étude\s+de\s+cas|case\s+study)(?:$|[\s:\-–—»")])/i;
 
   for (let i = 0; i < mCount; i++) {
     const customMb = customMabahith ? customMabahith[i] : null;
     const rawMb = rawPlan?.mabahith?.[i];
-    const fbMbSub = stripStructuralPrefix(fb.mabahith[i]?.title || '', 'مبحث') || `المحور ${ORDINAL_WORDS[i] || i + 1}`;
+    const fbMbSub =
+      stripStructuralPrefix(fb.mabahith[i]?.title || '') ||
+      (isFr ? `Axe ${ROMAN_WORDS[i] || i + 1}` : isEn ? `Topic ${i + 1}` : `المحور ${ORDINAL_WORDS[i] || i + 1}`);
 
     let mbSub: string;
     if (customMb) {
-      const studentMbSub = stripStructuralPrefix(customMb.title || '', 'مبحث');
-      const aiMbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
+      const studentMbSub = stripStructuralPrefix(customMb.title || '');
+      const aiMbSub = stripStructuralPrefix(rawMb?.title || '');
       mbSub =
         studentMbSub && !studentMbSub.startsWith('[')
           ? studentMbSub
@@ -1818,7 +1832,7 @@ export function normalizeResearchPlan(
             ? aiMbSub
             : fbMbSub;
     } else {
-      mbSub = stripStructuralPrefix(rawMb?.title || '', 'مبحث');
+      mbSub = stripStructuralPrefix(rawMb?.title || '');
       if (
         !mbSub ||
         mbSub.startsWith('[') ||
@@ -1839,18 +1853,23 @@ export function normalizeResearchPlan(
     const customMatalib = customMb?.matalib && customMb.matalib.length > 0 ? customMb.matalib : null;
     const tCountForMb = customMatalib ? Math.min(10, customMatalib.length) : defaultTCount;
     const matalib: { title: string }[] = [];
+    const defaultMtFallback = isFr
+      ? `Section ${ROMAN_WORDS[i] || i + 1}.${i + 1}`
+      : isEn
+        ? `Section ${i + 1}`
+        : `المحور التطبيقي ${ORDINAL_WORDS[i] || i + 1}`;
 
     for (let j = 0; j < tCountForMb; j++) {
       let mtSub: string;
       if (customMatalib) {
-        mtSub = stripStructuralPrefix(customMatalib[j]?.title || '', 'مطلب');
+        mtSub = stripStructuralPrefix(customMatalib[j]?.title || '');
         if (!mtSub || mtSub.startsWith('[')) {
           const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, fallbackSeed));
-          mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
+          mtSub = picked || fallbackPool[j % fallbackPool.length] || defaultMtFallback;
         }
       } else {
         const rawMtTitle = rawMb?.matalib?.[j]?.title || '';
-        mtSub = stripStructuralPrefix(rawMtTitle, 'مطلب');
+        mtSub = stripStructuralPrefix(rawMtTitle);
         if (
           !mtSub ||
           mtSub.startsWith('[') ||
@@ -1858,17 +1877,27 @@ export function normalizeResearchPlan(
           isTooSimilarHeading(mtSub, usedMtTokens, analysisTopic)
         ) {
           const picked = fallbackPool.find((cand) => !isTooSimilarHeading(cand, usedMtTokens, analysisTopic));
-          mtSub = picked || fallbackPool[j % fallbackPool.length] || `المحور التطبيقي ${ORDINAL_WORDS[j] || j + 1}`;
+          mtSub = picked || fallbackPool[j % fallbackPool.length] || defaultMtFallback;
         }
       }
       usedMtTokens.push(toComparisonTokens(mtSub, fallbackSeed));
+      const mtFormattedTitle = isFr
+        ? `Section ${j + 1} : ${mtSub}`
+        : isEn
+          ? `Section ${j + 1}: ${mtSub}`
+          : `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`;
       matalib.push({
-        title: `المطلب ${ORDINAL_WORDS[j] || j + 1}: ${mtSub}`,
+        title: mtFormattedTitle,
       });
     }
 
+    const mbFormattedTitle = isFr
+      ? `Chapitre ${ROMAN_WORDS[i] || i + 1} : ${mbSub}`
+      : isEn
+        ? `Chapter ${i + 1}: ${mbSub}`
+        : `المبحث ${ORDINAL_WORDS[i] || i + 1}: ${mbSub}`;
     normalizedMabahith.push({
-      title: `المبحث ${ORDINAL_WORDS[i] || i + 1}: ${mbSub}`,
+      title: mbFormattedTitle,
       matalib,
     });
   }
@@ -1961,8 +1990,12 @@ export function findMissingMatalibIndices(
   const count = expectedMatalib?.length || 0;
   if (count === 0) return [];
   const lines = splitInlineStructuralHeadings(mabhathText || '').replace(/\r\n/g, '\n').split('\n');
-  const matlabRe = new RegExp(`^(?:المطلب|مطلب)\\s+(${ARABIC_ORD_PATTERN})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-  const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش)\s*[:\-]?$/i;
+  const matlabArRe = new RegExp(`^(?:(?:ال)?مطلب|فرع)\\s+(${ARABIC_ORD_PATTERN}|\\d+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const matlabLatRe = /^(?:Section|Sous-section|Subsection|Partie|Part)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+)(?:[\s:\-–—\.\\(/]|$)/i;
+  const footnotesRe = /^(?:الهوامش|المراجع|قائمة\s+الهوامش|Notes|Footnotes|Références|Bibliographie)\s*[:\-]?$/i;
+  const ROMAN_MAP: Record<string, number> = {
+    i: 0, ii: 1, iii: 2, iv: 3, v: 4, vi: 5, vii: 6, viii: 7, ix: 8, x: 9,
+  };
 
   const sectionBodies = new Map<number, number>();
   let curOrdIdx: number | null = null;
@@ -1979,13 +2012,36 @@ export function findMissingMatalibIndices(
     const stripped = stripHeadingMarkdown(line);
     if (!stripped) continue;
 
-    const m = stripped.match(matlabRe);
-    if (m) {
+    const mAr = stripped.match(matlabArRe);
+    const mLat = stripped.match(matlabLatRe);
+    if (mAr) {
       commitCurrent();
-      const ordKey = m[1].replace(/\s+/g, ' ').trim();
-      curOrdIdx = ORDINAL_INDEX_MAP[ordKey] ?? null;
+      const ordKey = mAr[1].replace(/\s+/g, ' ').trim();
+      curOrdIdx = ORDINAL_INDEX_MAP[ordKey] ?? (parseInt(ordKey, 10) - 1);
       curBodyChars = 0;
       continue;
+    } else if (mLat) {
+      commitCurrent();
+      const numKey = mLat[1].trim().toLowerCase();
+      curOrdIdx = ROMAN_MAP[numKey] !== undefined ? ROMAN_MAP[numKey] : (parseInt(numKey, 10) - 1);
+      curBodyChars = 0;
+      continue;
+    } else {
+      // مطابقة مرنة مع عناوين المطالب المتوقعة إن لم تُصغ ببادئة قياسية
+      let matchedIdx: number | null = null;
+      for (let k = 0; k < count; k++) {
+        const expClean = stripStructuralPrefix(expectedMatalib[k]?.title || '').trim().toLowerCase();
+        if (expClean && expClean.length > 5 && stripped.toLowerCase().includes(expClean)) {
+          matchedIdx = k;
+          break;
+        }
+      }
+      if (matchedIdx !== null) {
+        commitCurrent();
+        curOrdIdx = matchedIdx;
+        curBodyChars = 0;
+        continue;
+      }
     }
 
     if (curOrdIdx !== null) {
@@ -2005,8 +2061,8 @@ export function findMissingMatalibIndices(
 
 function stripContinuationDuplicateHeader(text: string, missingMatalib?: { title: string }[]): string {
   const lines = splitInlineStructuralHeadings(cleanSection(text).replace(/\r\n/g, '\n')).split('\n');
-  const mbRe = new RegExp(`^(?:المبحث|مبحث)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
-  const mtRe = new RegExp(`^(?:المطلب|مطلب)\\s+${ARABIC_ORD_PATTERN}(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const mbRe = new RegExp(`^(?:(?:(?:ال)?مبحث|فصل|محور)\\s+(?:${ARABIC_ORD_PATTERN}|\\d+)|(?:Chapitre|Chapter)\\s+[0-9IVXLCDMivxlcdm]+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+  const mtRe = new RegExp(`^(?:(?:(?:ال)?مطلب|فرع)\\s+(?:${ARABIC_ORD_PATTERN}|\\d+)|(?:Section|Sous-section|Subsection|Partie|Part)\\s*(?:n°|no\\.?)?\\s*[0-9IVXLCDMivxlcdm]+)(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
   const out: string[] = [];
   let startedBodyOrMatlab = false;
   let mappedCount = 0;
@@ -2231,6 +2287,7 @@ export async function generateResearch(o: GenerateOptions): Promise<string> {
     hasCaseStudy,
     customMabahith,
     allowInferredTitle: needInferredTitle,
+    language: currentLang,
   });
   if (o.normalizePlan) plan = o.normalizePlan(plan);
   const safePlanTitle = sanitizeCoverTitleFromPlanLeak(plan.title || '', customMabahith).cleaned;
