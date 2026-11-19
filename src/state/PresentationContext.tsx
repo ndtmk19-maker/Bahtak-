@@ -102,13 +102,13 @@ interface PresentationApi extends Persisted {
 const KEY = "bahtak_presentation_v2";
 const LEGACY_KEY = "bahtak_presentation_v1";
 
-export const DEFAULT_SUBTITLES: Record<ResearchLanguage, string> = {
+const DEFAULT_SUBTITLES: Record<ResearchLanguage, string> = {
   ar: "عرض تقديمي",
   fr: "Exposé académique",
   en: "Academic Presentation",
 };
 
-export const KNOWN_DEFAULT_SUBTITLES = new Set([
+const KNOWN_DEFAULT_SUBTITLES = new Set([
   "",
   "عرض تقديمي",
   "عرض تقديمي لمقياس",
