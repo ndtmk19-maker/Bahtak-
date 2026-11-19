@@ -101,14 +101,24 @@ const BULLET_INDENT = 0.32;
 
 // ---------- أدوات ----------
 
-const para = (text: string, size: number, color: string, o: Partial<TPara> = {}): TPara => ({
-  runs: [{ text, bold: o.bold }],
-  size,
-  color,
-  align: "right",
-  rtl: true,
-  ...o,
-});
+const isLatinText = (t: string) => {
+  const latin = (t.match(/[A-Za-z]/g) || []).length;
+  const arabic = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  return latin > arabic;
+};
+
+const para = (text: string, size: number, color: string, o: Partial<TPara> = {}): TPara => {
+  const isLat = isLatinText(text);
+  const ltr = o.rtl === false || (o.rtl === undefined && isLat);
+  return {
+    runs: [{ text, bold: o.bold }],
+    size,
+    color,
+    align: o.align || (ltr ? "left" : "right"),
+    rtl: o.rtl ?? !ltr,
+    ...o,
+  };
+};
 
 const paraText = (p: TPara) => p.runs.map((r) => r.text).join("");
 
@@ -558,8 +568,24 @@ function coverSlide(s: Extract<Slide, { kind: "cover" }>, th: SlideTheme): LaidS
       gap: 0.4,
     });
   const people: TPara[] = [];
-  if (m.presenters.length) people.push(para(`إعداد: ${m.presenters.join("، ")}`, 15, fg));
-  if (m.supervisor.trim()) people.push(para(`إشراف: ${m.supervisor}`, 15, fg));
+  const isLatCover = isLatinText(m.title || m.subtitle || "");
+  const isFrCover = m.language === "fr" || (isLatCover && m.language !== "en");
+  if (m.presenters.length) {
+    const label = isLatCover
+      ? isFrCover
+        ? "Présenté par :"
+        : "Presented by:"
+      : "إعداد:";
+    people.push(para(`${label} ${m.presenters.join(isLatCover ? ", " : "، ")}`, 15, fg));
+  }
+  if (m.supervisor.trim()) {
+    const label = isLatCover
+      ? isFrCover
+        ? "Sous la direction de :"
+        : "Supervised by:"
+      : "إشراف:";
+    people.push(para(`${label} ${m.supervisor}`, 15, fg));
+  }
   if (people.length)
     blocks.push({
       paras: people.map((p) => ({ ...p, spaceAfter: 4 })),

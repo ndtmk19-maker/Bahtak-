@@ -23,8 +23,9 @@ import type {
   Slide,
   SlideDeck,
 } from "./types";
+import type { ResearchLanguage } from "../../types";
 
-const ORDINALS = [
+const ORDINALS_AR = [
   "الأول",
   "الثاني",
   "الثالث",
@@ -36,6 +37,7 @@ const ORDINALS = [
   "التاسع",
   "العاشر",
 ];
+const ORDINALS_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
 export const DEFAULT_DECK_OPTIONS: DeckOptions = {
   density: "balanced",
@@ -89,10 +91,12 @@ const isLatin = (t: string) => {
   return latin > arabic;
 };
 
-/** فصل «المبحث الأول: العنوان» إلى بادئة وعنوان */
+/** فصل «المبحث الأول: العنوان» أو «Chapitre I : Titre» أو «Chapter 1: Title» إلى بادئة وعنوان */
 export function splitHeading(raw: string): { kicker: string; title: string } {
   const t = raw.replace(/^#+\s*/, "").trim();
-  const m = t.match(/^((?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)\s+[^:：\-–—]{1,20}?)\s*[:：\-–—]\s*(.+)$/);
+  const m = t.match(
+    /^((?:(?:ال)?(?:مبحث|مطلب|فصل|فرع|محور)|(?:Chapitre|Section|Partie|Sous-section|Axe)|(?:Chapter|Section|Part|Subsection|Axis))\s+[^:：\-–—]{1,25}?)\s*[:：\-–—]\s*(.+)$/i,
+  );
   if (m) return { kicker: m[1].trim(), title: m[2].trim() };
   return { kicker: "", title: t.replace(/[:：]\s*$/, "") };
 }
@@ -185,7 +189,7 @@ function toGroups(sec: AnalyzedSection): Group[] {
 
 // ---------- بناء الهيكل المنطقي من التحليل ----------
 
-export function buildOutline(a: ResearchAnalysis): Outline {
+export function buildOutline(a: ResearchAnalysis, lang: ResearchLanguage = "ar"): Outline {
   const o: Outline = {
     intro: [],
     question: "",
@@ -225,9 +229,21 @@ export function buildOutline(a: ResearchAnalysis): Outline {
       if (sec.mabhathTitle.trim() || o.mabahith.length === 0) {
         const h = splitHeading(sec.mabhathTitle || "");
         const n = o.mabahith.length;
+        const defaultKicker =
+          lang === "fr"
+            ? `Axe ${ORDINALS_ROMAN[n] || n + 1}`
+            : lang === "en"
+              ? `Part ${n + 1}`
+              : `المحور ${ORDINALS_AR[n] || n + 1}`;
+        const defaultTitle =
+          lang === "fr"
+            ? "Axes de l'exposé"
+            : lang === "en"
+              ? "Presentation Topics"
+              : "محاور العرض";
         o.mabahith.push({
-          kicker: h.kicker || `المحور ${ORDINALS[n] || n + 1}`,
-          title: h.title || safeDetectedTitle || "محاور العرض",
+          kicker: h.kicker || defaultKicker,
+          title: h.title || safeDetectedTitle || defaultTitle,
           matalib: [],
         });
       }
@@ -415,9 +431,10 @@ export function planDeck(
   meta: CoverMeta,
   opts: DeckOptions = DEFAULT_DECK_OPTIONS,
 ): SlideDeck {
-  const o = buildOutline(a);
+  const lang: ResearchLanguage = meta.language || (isLatin(meta.title || a.detectedTitle || "") ? "fr" : "ar");
+  const o = buildOutline(a, lang);
   const title = resolveDeckTitle(meta.title, a.detectedTitle, o);
-  const slides: Slide[] = [{ kind: "cover", meta: { ...meta, title } }];
+  const slides: Slide[] = [{ kind: "cover", meta: { ...meta, title, language: lang } }];
 
   const refs: Point[] = o.references.length
     ? o.references
@@ -428,15 +445,37 @@ export function planDeck(
       }));
   const showRefs = opts.includeReferences && refs.some((r) => r.kind === "bullet");
 
+  // نصوص وعناوين العرض حسب اللغة المختارة
+  const agendaTitle =
+    lang === "fr" ? "Sommaire de l'Exposé" : lang === "en" ? "Table of Contents" : "خطة العرض";
+  const introEntryTitle =
+    lang === "fr"
+      ? "Introduction et Problématique"
+      : lang === "en"
+        ? "Introduction & Problem Statement"
+        : "المقدمة والإشكالية";
+  const conclusionEntryTitle =
+    lang === "fr"
+      ? "Conclusion et Perspectives"
+      : lang === "en"
+        ? "Conclusion & Recommendations"
+        : "الخاتمة والنتائج";
+  const referencesEntryTitle =
+    lang === "fr"
+      ? "Sources et Bibliographie"
+      : lang === "en"
+        ? "References & Bibliography"
+        : "المصادر والمراجع";
+
   // 1. خطة العرض (من شجرة المباحث والمطالب)
   if (opts.includeAgenda) {
     const entries: AgendaEntry[] = [];
-    if (o.intro.length || o.question) entries.push({ title: "المقدمة والإشكالية", children: [] });
+    if (o.intro.length || o.question) entries.push({ title: introEntryTitle, children: [] });
     o.mabahith.forEach((mb) =>
       entries.push({ title: mb.title, children: mb.matalib.map((mt) => mt.title).filter(Boolean) }),
     );
-    if (o.conclusion.length) entries.push({ title: "الخاتمة والنتائج", children: [] });
-    if (showRefs) entries.push({ title: "المصادر والمراجع", children: [] });
+    if (o.conclusion.length) entries.push({ title: conclusionEntryTitle, children: [] });
+    if (showRefs) entries.push({ title: referencesEntryTitle, children: [] });
     if (entries.length >= 2) {
       const maxPer = entries.some((e) => e.children.length) ? 6 : 7;
       const parts = splitBalanced(entries, maxPer);
@@ -444,7 +483,7 @@ export function planDeck(
       parts.forEach((p, i) => {
         slides.push({
           kind: "agenda",
-          title: "خطة العرض",
+          title: agendaTitle,
           entries: p,
           startIndex: idx,
           part: i + 1,
@@ -456,8 +495,18 @@ export function planDeck(
   }
 
   // 2. المقدمة ثم الإشكالية
-  o.intro.forEach((g) => slides.push(...contentSlides(g, "المقدمة", "مدخل إلى الموضوع", 0, opts)));
-  if (o.question) slides.push({ kind: "question", kicker: "إشكالية البحث", text: o.question });
+  const introKicker = lang === "fr" ? "Introduction" : lang === "en" ? "Introduction" : "المقدمة";
+  const introFallback =
+    lang === "fr"
+      ? "Introduction générale"
+      : lang === "en"
+        ? "Introduction & Overview"
+        : "مدخل إلى الموضوع";
+  const questionKicker =
+    lang === "fr" ? "Problématique" : lang === "en" ? "Research Question" : "إشكالية البحث";
+
+  o.intro.forEach((g) => slides.push(...contentSlides(g, introKicker, introFallback, 0, opts)));
+  if (o.question) slides.push({ kind: "question", kicker: questionKicker, text: o.question });
 
   // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه
   o.mabahith.forEach((mb, i) => {
@@ -488,9 +537,16 @@ export function planDeck(
   });
 
   // 4. الخاتمة
-  o.conclusion.forEach((g) => slides.push(...contentSlides(g, "الخاتمة", "الخاتمة", 0, opts)));
+  const conclusionKicker = lang === "fr" ? "Conclusion" : lang === "en" ? "Conclusion" : "الخاتمة";
+  o.conclusion.forEach((g) => slides.push(...contentSlides(g, conclusionKicker, conclusionKicker, 0, opts)));
 
   // 5. المراجع
+  const referencesTitle =
+    lang === "fr"
+      ? "Références Bibliographiques"
+      : lang === "en"
+        ? "References & Bibliography"
+        : "قائمة المصادر والمراجع";
   if (showRefs) {
     const m: BodyMetrics = { fontPt: 14, subPt: 15, gapPt: 6 };
     const chunks = chunkPoints(refs, m, BODY_BOX.w, BODY_BOX.h + 0.3);
@@ -498,7 +554,7 @@ export function planDeck(
     chunks.forEach((pts, i) => {
       slides.push({
         kind: "references",
-        title: "قائمة المصادر والمراجع",
+        title: referencesTitle,
         points: pts,
         startIndex: start,
         part: i + 1,
@@ -509,8 +565,14 @@ export function planDeck(
   }
 
   // 6. الختام
+  const closingTitle =
+    lang === "fr"
+      ? "Merci pour votre attention"
+      : lang === "en"
+        ? "Thank You for Your Attention"
+        : "شكراً لحسن الإصغاء";
   if (opts.includeClosing)
-    slides.push({ kind: "closing", title: "شكراً لحسن الإصغاء", subtitle: title });
+    slides.push({ kind: "closing", title: closingTitle, subtitle: title });
 
-  return { title, slides, structure: o.mabahith.map((mb) => mb.matalib.length) };
+  return { title, slides, structure: o.mabahith.map((mb) => mb.matalib.length), language: lang };
 }

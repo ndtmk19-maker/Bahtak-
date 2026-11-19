@@ -1,6 +1,8 @@
 import { Languages, Check } from 'lucide-react';
 import { useConverter } from '../../state/ConverterContext';
 import { useDocument } from '../../state/DocumentContext';
+import { usePresentation } from '../../state/PresentationContext';
+import { useUI } from '../../state/UIContext';
 import type { ResearchLanguage } from '../../types';
 
 interface LanguageSelectorProps {
@@ -42,8 +44,13 @@ const LANGUAGES: Array<{
 export function LanguageSelector({ variant = 'card', className = '', showHint = true }: LanguageSelectorProps) {
   const { form, setForm } = useConverter();
   const { doc, update } = useDocument();
+  const presentation = usePresentation();
+  const { product } = useUI();
+  const isSlides = product === 'slides';
 
-  const currentLang: ResearchLanguage = doc.language || form.language || 'ar';
+  const currentLang: ResearchLanguage = isSlides
+    ? presentation.language || 'ar'
+    : doc.language || form.language || 'ar';
 
   const handleSelect = (lang: ResearchLanguage) => {
     setForm({ language: lang });
@@ -51,13 +58,14 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
       language: lang,
       fontFamily: lang === 'ar' ? "'Amiri', serif" : "'Times New Roman', serif",
     });
+    presentation.setLanguage(lang);
   };
 
   if (variant === 'pill' || variant === 'compact') {
     return (
       <div
         role="group"
-        aria-label="اختيار لغة البحث"
+        aria-label="اختيار لغة العمل"
         className={`inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/80 p-1 shadow-xs backdrop-blur-md ${className}`}
       >
         <span className="flex items-center gap-1 px-2 text-[0.72rem] font-bold text-neutral-600 dark:text-neutral-400">
@@ -97,10 +105,10 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
           </span>
           <div>
             <span className="block text-[0.84rem] font-bold text-neutral-900 dark:text-neutral-100">
-              لغة إنجاز وتنسيق البحث الأكاديمي
+              {isSlides ? 'لغة إنجاز وتنسيق العرض التقديمي (PowerPoint)' : 'لغة إنجاز وتنسيق البحث الأكاديمي'}
             </span>
             <span className="block text-[0.7rem] text-neutral-500 dark:text-neutral-400">
-              Langue de recherche / Research Language
+              {isSlides ? "Langue de l'exposé / Presentation Language" : "Langue de recherche / Research Language"}
             </span>
           </div>
         </div>
@@ -109,7 +117,7 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
         </span>
       </div>
 
-      <div role="radiogroup" aria-label="لغة البحث الأكاديمي" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="لغة العمل" className="grid grid-cols-3 gap-2">
         {LANGUAGES.map((item) => {
           const isSelected = currentLang === item.id;
           return (
@@ -150,11 +158,17 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
 
       {showHint && (
         <p className="text-[0.72rem] leading-relaxed text-neutral-500 dark:text-neutral-400">
-          {currentLang === 'ar'
-            ? 'تُكتب صفحات البحث والغلاف والهوامش من اليمين لليسان (RTL) بخط Amiri المعتمد.'
-            : currentLang === 'fr'
-              ? 'Toutes les pages, la page de garde et la bibliographie seront rédigées en français (LTR) avec la police Times New Roman.'
-              : 'All pages, cover, table of contents, and references will be generated in English (LTR) with Times New Roman.'}
+          {isSlides
+            ? currentLang === 'ar'
+              ? 'تُنظّم شرائح العرض والأجندة والخطوط من اليمين لليسار (RTL) بهيكل أكاديمي متناسق.'
+              : currentLang === 'fr'
+                ? 'Toutes les diapositives (Sommaire, Titres, Puces, Conclusion) seront générées en français (LTR).'
+                : 'All slides (Table of Contents, Headings, Bullets, Conclusion) will be generated in English (LTR).'
+            : currentLang === 'ar'
+              ? 'تُكتب صفحات البحث والغلاف والهوامش من اليمين لليسان (RTL) بخط Amiri المعتمد.'
+              : currentLang === 'fr'
+                ? 'Toutes les pages, la page de garde et la bibliographie seront rédigées en français (LTR) avec la police Times New Roman.'
+                : 'All pages, cover, table of contents, and references will be generated in English (LTR) with Times New Roman.'}
         </p>
       )}
     </div>

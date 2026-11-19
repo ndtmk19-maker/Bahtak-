@@ -22,6 +22,7 @@ import {
   sanitizeCoverTitleFromPlanLeak,
   type SectionProgress,
 } from "../lib/aiGenerate";
+import type { ResearchLanguage } from "../types";
 import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
@@ -63,6 +64,7 @@ interface Persisted {
   aiTopic: string;
   aiSize: SlideAiSize;
   caseStudyCompany: string;
+  language: ResearchLanguage;
 }
 
 export interface SlidesRun {
@@ -83,6 +85,7 @@ interface PresentationApi extends Persisted {
   setAiTopic: (t: string) => void;
   setAiSize: (s: SlideAiSize) => void;
   setCaseStudyCompany: (c: string) => void;
+  setLanguage: (lang: ResearchLanguage) => void;
   deck: SlideDeck | null;
   laid: LaidSlide[];
   theme: SlideTheme;
@@ -122,6 +125,7 @@ function createDefaultPersisted(): Persisted {
     aiTopic: "",
     aiSize: "standard",
     caseStudyCompany: "",
+    language: "ar",
   };
 }
 
@@ -180,6 +184,7 @@ function load(): Persisted | null {
       aiTopic,
       aiSize: p.aiSize || "standard",
       caseStudyCompany,
+      language: p.language || "ar",
     };
     if (cleanMetaTitle !== (rawMeta.title || "")) {
       try {
@@ -238,6 +243,10 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     hasUserEditedRef.current = true;
     setState((s) => ({ ...s, options: { ...s.options, ...p } }));
   }, []);
+  const setLanguage = useCallback((lang: ResearchLanguage) => {
+    hasUserEditedRef.current = true;
+    setState((s) => ({ ...s, language: lang }));
+  }, []);
 
   // التحليل البنيوي المشترك ← خطة الشرائح (يُعاد حسابه مع كل تعديل على المسودة)
   const draft = useDeferredValue(state.draftText);
@@ -254,8 +263,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       supervisor: state.meta.supervisor,
       year: state.meta.year,
       logo: state.meta.logoUrl,
+      language: state.language || "ar",
     }),
-    [state.meta],
+    [state.meta, state.language],
   );
   const { deck, error } = useMemo(() => {
     if (!draft.trim()) return { deck: null, error: "" };
@@ -345,6 +355,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         topic,
         caseStudyCompany: caseCompany,
         size: state.aiSize,
+        language: state.language || "ar",
         customUrl,
         customModel,
         onResolvedPlan: (resolvedPlan) => {
@@ -488,6 +499,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setAiTopic: (aiTopic) => patch({ aiTopic }),
       setAiSize: (aiSize) => patch({ aiSize }),
       setCaseStudyCompany: (caseStudyCompany) => patch({ caseStudyCompany }),
+      setLanguage,
       deck,
       laid,
       theme,
@@ -505,6 +517,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       patch,
       setMeta,
       setOptions,
+      setLanguage,
       deck,
       laid,
       theme,

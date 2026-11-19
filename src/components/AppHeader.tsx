@@ -270,12 +270,8 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {!isSlides && (
-          <>
-            <LanguageSelector variant="compact" className="hidden sm:inline-flex" />
-            <SaveIndicator status={saveStatus} />
-          </>
-        )}
+        <LanguageSelector variant="compact" className="hidden sm:inline-flex" />
+        {!isSlides && <SaveIndicator status={saveStatus} />}
 
         <span className="mx-1 hidden h-6 w-px bg-black/10 dark:bg-white/10 lg:block" />
 

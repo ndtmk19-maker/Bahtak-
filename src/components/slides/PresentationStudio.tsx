@@ -35,7 +35,7 @@ import { SlideCanvas } from "./SlideCanvas";
 import { usePresentation } from "../../state/PresentationContext";
 import { useResetApp } from "../../state/useResetApp";
 import { useUI } from "../../state/UIContext";
-import { DEMO_RAW_TEXT, QUICK_AI_TOPICS } from "../../data/defaults";
+import { DEMO_RAW_TEXT, QUICK_AI_TOPICS, QUICK_AI_TOPICS_BY_LANG } from "../../data/defaults";
 import { SLIDE_THEMES, type Slide, type SlideTheme } from "../../lib/slides";
 import { SLIDE_AI_SIZES, type SlideAiSize } from "../../lib/slides/ai";
 import {
@@ -45,6 +45,7 @@ import {
   sanitizeCoverTitleFromPlanLeak,
 } from "../../lib/aiGenerate";
 import { TopicAnalysisCard } from "../ui/TopicAnalysisCard";
+import { LanguageSelector } from "../ui/LanguageSelector";
 
 const KIND_LABEL: Record<Slide["kind"], string> = {
   cover: "الغلاف",
@@ -117,6 +118,8 @@ export function PresentationStudio({ isDesktop }: { isDesktop: boolean }) {
       >
         <div className="mx-auto flex max-w-xl flex-col gap-4">
           <EditorIntro />
+          {/* اختيار لغة العرض التقديمي في الواجهة */}
+          <LanguageSelector />
           <MethodPicker />
           <ContentInput />
           <CoverFields />
@@ -251,7 +254,11 @@ function ContentInput() {
         value={p.draftText}
         onChange={(e) => p.setDraftText(e.target.value)}
         placeholder={
-          "عنوان العرض في السطر الأول\n\nالمقدمة:\n...\n\nالمبحث الأول: ...\nالمطلب الأول: ...\n- فكرة رئيسية: شرح موجز\n\nالخاتمة:\n...\n\nقائمة المصادر والمراجع:\n[1] ..."
+          p.language === "fr"
+            ? "Titre de l’exposé en première ligne\n\nIntroduction :\n...\n\nChapitre I : ...\nSection 1 : ...\n- Idée clé : explication concise\n\nConclusion :\n...\n\nBibliographie :\n[1] ..."
+            : p.language === "en"
+              ? "Presentation Title on the first line\n\nIntroduction:\n...\n\nChapter 1: ...\nSection 1: ...\n- Key idea: brief explanation\n\nConclusion:\n...\n\nReferences:\n[1] ..."
+              : "عنوان العرض في السطر الأول\n\nالمقدمة:\n...\n\nالمبحث الأول: ...\nالمطلب الأول: ...\n- فكرة رئيسية: شرح موجز\n\nالخاتمة:\n...\n\nقائمة المصادر والمراجع:\n[1] ..."
         }
         className="field min-h-[260px] resize-y font-serif text-[0.95rem] leading-[1.85] scroll-thin"
       />
@@ -290,9 +297,25 @@ function ContentInput() {
 
 function AiFields() {
   const p = usePresentation();
+  const currentLang = p.language || "ar";
+  const quickTopics = QUICK_AI_TOPICS_BY_LANG[currentLang] || QUICK_AI_TOPICS_BY_LANG.ar;
   const topicAnalysis = analyzeStudentTopic(p.aiTopic, p.caseStudyCompany);
   const caseSpec = topicAnalysis.caseStudy;
   const hasCaseStudy = caseSpec.hasCaseStudy;
+
+  const topicPlaceholder =
+    currentLang === "fr"
+      ? "Écrivez le sujet de l'exposé directement (ex: « L'Impact du Marketing Digital »)\nou collez le plan complet (Introduction, Chapitre I, Section 1...)"
+      : currentLang === "en"
+        ? "Enter presentation topic (e.g. \"Artificial Intelligence in Healthcare\")\nor paste the full outline (Introduction, Chapter 1, Section 1...)"
+        : "اكتب عنوان العرض مباشرة مثل: «أثر التحول الرقمي على أداء المؤسسات الجامعية»\nأو ألصق هنا خطة العرض كاملة (المبحث الأول / المحور الأول، المطلب الأول... أو 1، 2...) ليُبنى العرض وفقها حرفياً.";
+
+  const casePlaceholder =
+    currentLang === "fr"
+      ? "Ex: Sonatrach, Mobilis, Condor... (laisser vide si non requis)"
+      : currentLang === "en"
+        ? "E.g. Sonatrach, Apple, Tesla... (leave blank if not needed)"
+        : "مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)";
 
   const depthHint = topicAnalysis.hasCustomPlan
     ? p.aiSize === "brief"
@@ -317,16 +340,14 @@ function AiFields() {
         }
         value={p.aiTopic}
         onChange={(e) => p.setAiTopic(e.target.value)}
-        placeholder={
-          "اكتب عنوان العرض مباشرة مثل: «أثر التحول الرقمي على أداء المؤسسات الجامعية»\nأو ألصق هنا خطة العرض كاملة (المبحث الأول / المحور الأول، المطلب الأول... أو 1، 2...) ليُبنى العرض وفقها حرفياً."
-        }
+        placeholder={topicPlaceholder}
         className="min-h-[104px]"
       />
       <div className="-mt-1 flex flex-wrap gap-1.5">
         <span className="ml-1 self-center text-[0.72rem] font-semibold text-zinc-500 dark:text-zinc-400">
-          أمثلة:
+          {currentLang === "fr" ? "Exemples :" : currentLang === "en" ? "Examples:" : "أمثلة:"}
         </span>
-        {QUICK_AI_TOPICS.map((q) => (
+        {quickTopics.map((q) => (
           <Chip
             key={q.label}
             onClick={() => p.setAiTopic(q.topic)}
@@ -357,7 +378,7 @@ function AiFields() {
         }
         value={p.caseStudyCompany}
         onChange={(e) => p.setCaseStudyCompany(e.target.value)}
-        placeholder="مثال: سوناطراك، موبيليس، كوندور... (اتركه فارغاً لعدم إضافتها)"
+        placeholder={casePlaceholder}
         hint={
           topicAnalysis.caseStudyInPlanMabhath
             ? "أدرجتَ دراسة الحالة ضمن أحد مباحث خطتك المخصصة؛ ستُعرض شرائحه في موضعه دون تكرار، أو اكتب اسماً محدداً هنا لإفراد شرائح تطبيقية مستقلة."

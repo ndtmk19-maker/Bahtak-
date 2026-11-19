@@ -1,4 +1,5 @@
 // نموذج العرض التقديمي الدلالي (مستقل عن صيغة الإخراج وعن التصميم)
+import type { ResearchLanguage } from "../../types";
 
 export interface Run {
   text: string;
@@ -27,6 +28,7 @@ export interface CoverMeta {
   year: string;
   /** شعار الجامعة (رابط أو data URL)، فارغ إن لم يُحدد */
   logo: string;
+  language?: ResearchLanguage;
 }
 
 export interface AgendaEntry {
@@ -95,4 +97,5 @@ export interface SlideDeck {
   /** عدد المطالب في كل مبحث كما اكتُشف في المحتوى */
   structure: number[];
   slides: Slide[];
+  language?: ResearchLanguage;
 }
