@@ -147,7 +147,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
       const existingBad = looksLikePlanLeak(existingTitle) || isStructuralTitleOnly(existingTitle);
       const isFr = d.language === 'fr';
       const isEn = d.language === 'en';
-      const defaultTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي منسق';
+      const defaultTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي حول';
       const nextTitle = safeDetectedTitle || (existingBad ? defaultTitle : existingTitle);
       const locCover = getLocalizedCoverState(d.coverState, d.language);
       const nextPlanTitle = getLocalizedPlanTitle(d.planState.pageTitle, d.language);

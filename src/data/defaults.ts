@@ -8,7 +8,7 @@ export const DEFAULT_LOCALIZED_COVER = {
   ar: {
     country: 'الجمهورية الجزائرية الديمقراطية الشعبية',
     ministry: 'وزارة التعليم العالي والبحث العلمي',
-    workType: 'بحث أكاديمي منسق',
+    workType: 'بحث أكاديمي حول',
     supervisor: 'د. / أستاذ(ة) المقياس المحترم(ة)',
     group: 'الفوج: 01',
     academicYear: 'السنة الجامعية: 2026 / 2027',

@@ -747,7 +747,7 @@ function buildCoverSectionXml(
   );
 
   const bodyParagraphs: string[] = [
-    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="240" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(workType || 'بحث أكاديمي منسق', { font: 'Cairo', sizePt: 13, bold: true, color: workTypeColor })}</w:p>`,
+    `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="240" w:line="280" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(workType || 'بحث أكاديمي حول', { font: 'Cairo', sizePt: 13, bold: true, color: workTypeColor })}</w:p>`,
     `<w:p><w:pPr><w:bidi/><w:spacing w:before="0" w:after="${cs.subtitle?.trim() ? 160 : 280}" w:line="324" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>${buildTextRun(titleText, { font: 'Cairo', sizePt: titleText.length > 85 ? 20 : 24, bold: true, color: titleColor })}</w:p>`,
   ];
   if (cs.subtitle?.trim()) {

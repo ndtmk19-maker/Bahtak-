@@ -174,7 +174,7 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
       const isLatin = isFr || isEn;
 
       const pickSafe = (v?: string) => (v && !looksLikePlanLeak(v) && !isStructuralTitleOnly(v) ? v : '');
-      const defaultFallbackTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي منسق';
+      const defaultFallbackTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي حول';
       const cleanCoverTitle =
         pickSafe(sanitizedCover.cleaned) ||
         pickSafe(analysis.caseStudy.coverTitle) ||
