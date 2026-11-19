@@ -231,8 +231,13 @@ export function parseMarkdownTable(lines: string[], caption = '', source = ''): 
   });
 
   const firstHeader = htmlToPlain(headers[0]);
+  const allTblText = [caption, ...headers, ...body.flat()].join(' ');
+  const latinCount = (allTblText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allTblText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = latinCount > arabicCount;
+
   if (rows.length >= 3 && !INDEX_HEADER_RE.test(firstHeader) && colCount < MAX_TABLE_COLUMNS) {
-    headers = ['م', ...headers];
+    headers = [isLat ? 'N°' : 'م', ...headers];
     rows = rows.map((r, i) => [String(i + 1), ...r]);
     aligns = ['center', ...aligns];
   }
@@ -299,16 +304,23 @@ export function renderTableHtml(table: TableData, num: number, opts: TableRender
           .join('')}</tr>`,
     )
     .join('');
-  const caption = formatInlineText(tableLabel(num, table.caption, opts.continued));
+  const allTblText = [table.caption, ...table.headers, ...table.rows.flat()].join(' ');
+  const latinCount = (allTblText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allTblText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = latinCount > arabicCount;
+  const dir = isLat ? 'ltr' : 'rtl';
+  const sourceLabel = isLat ? 'Source :' : 'المصدر:';
+
+  const caption = formatInlineText(tableLabel(num, table.caption, opts.continued, isLat ? 'fr' : 'ar'));
   const showSource = opts.showSource ?? false;
   const source =
     showSource && table.source
-      ? `<div class="doc-source"><strong>المصدر:</strong> ${formatInlineText(table.source)}</div>`
+      ? `<div class="doc-source"><strong>${sourceLabel}</strong> ${formatInlineText(table.source)}</div>`
       : '';
   return (
-    `<figure class="doc-table-block" data-table-number="${num}"${opts.continued ? ' data-continued="1"' : ''}>` +
+    `<figure class="doc-table-block" dir="${dir}" data-table-number="${num}"${opts.continued ? ' data-continued="1"' : ''}>` +
     `<figcaption class="doc-caption">${caption}</figcaption>` +
-    `<table class="doc-table" dir="rtl"><colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+    `<table class="doc-table" dir="${dir}"><colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
     `${source}</figure>`
   );
 }

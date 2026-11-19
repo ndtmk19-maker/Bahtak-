@@ -50,7 +50,7 @@ const Ctx = createContext<ConverterApi | null>(null);
 const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
 
 export function ConverterProvider({ children }: { children: ReactNode }) {
-  const { applyParsed, doc, update, updateCover } = useDocument();
+  const { applyParsed, doc, update, updateCover, updatePlan } = useDocument();
   const ui = useUI();
   const [mode, setMode] = useState<ConverterMode>('ai');
   const [rawText, setRawTextState] = useState(loadRawText);
@@ -190,12 +190,24 @@ export function ConverterProvider({ children }: { children: ReactNode }) {
           country: 'République Algérienne Démocratique et Populaire',
           ministry: "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique",
           workType: 'Travail de recherche académique',
+          supervisor: 'Dr. / Enseignant(e) du module',
+          group: 'Groupe : 01',
+          academicYear: 'Année universitaire : 2024/2025',
+        });
+        updatePlan({
+          pageTitle: 'Sommaire',
         });
       } else if (isEn) {
         updateCover({
           country: "People's Democratic Republic of Algeria",
           ministry: 'Ministry of Higher Education and Scientific Research',
           workType: 'Academic Research Paper',
+          supervisor: 'Dr. / Course Instructor',
+          group: 'Group: 01',
+          academicYear: 'Academic Year: 2024/2025',
+        });
+        updatePlan({
+          pageTitle: 'Table of Contents',
         });
       }
 

@@ -788,4 +788,83 @@
     text-align: left;
 }
 
+/* جداول اللغات اللاتينية (LTR) */
+.a4-page[dir="ltr"] .doc-table-block,
+.a4-page.lang-ltr .doc-table-block,
+.doc-table-block[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-caption,
+.a4-page.lang-ltr .doc-caption,
+.doc-table-block[dir="ltr"] .doc-caption {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table,
+.a4-page.lang-ltr .doc-table,
+.doc-table[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table th,
+.a4-page.lang-ltr .doc-table th,
+.doc-table[dir="ltr"] th {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table td.is-start,
+.a4-page.lang-ltr .doc-table td.is-start,
+.doc-table[dir="ltr"] td.is-start {
+    text-align: left;
+}
+
+.a4-page[dir="ltr"] .doc-table td.is-end,
+.a4-page.lang-ltr .doc-table td.is-end,
+.doc-table[dir="ltr"] td.is-end {
+    text-align: right;
+}
+
+.a4-page[dir="ltr"] .doc-table th.doc-table-index,
+.a4-page.lang-ltr .doc-table th.doc-table-index,
+.a4-page[dir="ltr"] .doc-table td.doc-table-index,
+.a4-page.lang-ltr .doc-table td.doc-table-index,
+.doc-table[dir="ltr"] .doc-table-index {
+    text-align: center;
+}
+
+.a4-page[dir="ltr"] .doc-source,
+.a4-page.lang-ltr .doc-source,
+.doc-table-block[dir="ltr"] .doc-source {
+    text-align: left;
+}
+
+/* تنسيق خطة البحث اللاتينية */
+.a4-page[dir="ltr"] .plan-main-title,
+.a4-page.lang-ltr .plan-main-title {
+    font-family: inherit;
+    text-align: center;
+}
+
+.a4-page[dir="ltr"] .plan-row.main-row,
+.a4-page.lang-ltr .plan-row.main-row {
+    font-family: inherit;
+    font-weight: 700;
+}
+
+.a4-page[dir="ltr"] .plan-row.sub-row,
+.a4-page.lang-ltr .plan-row.sub-row {
+    padding-left: 7mm;
+    padding-right: 0;
+    font-family: inherit;
+}
+
+.a4-page[dir="ltr"] .plan-row-page,
+.a4-page.lang-ltr .plan-row-page {
+    font-family: inherit;
+    text-align: right;
+}
+
 

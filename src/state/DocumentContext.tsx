@@ -145,12 +145,22 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     setDoc((d) => {
       const existingTitle = d.coverState.title || '';
       const existingBad = looksLikePlanLeak(existingTitle) || isStructuralTitleOnly(existingTitle);
-      const nextTitle = safeDetectedTitle || (existingBad ? 'بحث أكاديمي منسق' : existingTitle);
+      const isFr = d.language === 'fr';
+      const isEn = d.language === 'en';
+      const isLatin = isFr || isEn;
+      const defaultTitle = isFr ? 'Travail de recherche académique' : isEn ? 'Academic Research Paper' : 'بحث أكاديمي منسق';
+      const nextTitle = safeDetectedTitle || (existingBad ? defaultTitle : existingTitle);
+      const defaultPlanTitle = isFr ? 'Sommaire' : isEn ? 'Table of Contents' : 'خـطّـة البـحـث';
+      const nextPlanTitle =
+        (!d.planState.pageTitle || d.planState.pageTitle === 'خـطّـة البـحـث' || d.planState.pageTitle === 'خطة البحث') && isLatin
+          ? defaultPlanTitle
+          : d.planState.pageTitle;
+
       return {
         ...d,
         pages: r.pages,
         coverState: { ...d.coverState, subtitle: '', title: nextTitle },
-        planState: { ...d.planState, itemsText: r.planText, researchTitle: '' },
+        planState: { ...d.planState, itemsText: r.planText, researchTitle: '', pageTitle: nextPlanTitle },
       };
     });
     bump();

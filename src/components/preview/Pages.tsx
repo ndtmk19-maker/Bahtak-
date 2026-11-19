@@ -72,8 +72,46 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
   const students = cs.studentsText.split('\n').filter((s) => s.trim() !== '');
   const black = theme === 'black';
   const isLatin = doc.language === 'fr' || doc.language === 'en';
-  const studentsHeading = doc.language === 'fr' ? 'Préparé par :' : doc.language === 'en' ? 'Prepared by:' : 'إعداد الطلبة:';
-  const supervisorHeading = doc.language === 'fr' ? 'Sous la direction de :' : doc.language === 'en' ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
+  const isFr = doc.language === 'fr';
+  const isEn = doc.language === 'en';
+  const studentsHeading = isFr ? 'Préparé par :' : isEn ? 'Prepared by:' : 'إعداد الطلبة:';
+  const supervisorHeading = isFr ? 'Sous la direction de :' : isEn ? 'Supervised by:' : 'تحت إشراف الأستاذ(ة):';
+
+  const country = isFr && cs.country === 'الجمهورية الجزائرية الديمقراطية الشعبية'
+    ? 'République Algérienne Démocratique et Populaire'
+    : isEn && cs.country === 'الجمهورية الجزائرية الديمقراطية الشعبية'
+    ? "People's Democratic Republic of Algeria"
+    : cs.country;
+
+  const ministry = isFr && cs.ministry === 'وزارة التعليم العالي والبحث العلمي'
+    ? "Ministère de l'Enseignement Supérieur et de la Recherche Scientifique"
+    : isEn && cs.ministry === 'وزارة التعليم العالي والبحث العلمي'
+    ? 'Ministry of Higher Education and Scientific Research'
+    : cs.ministry;
+
+  const workType = isFr && cs.workType === 'بحث أكاديمي منسق'
+    ? 'Travail de recherche académique'
+    : isEn && cs.workType === 'بحث أكاديمي منسق'
+    ? 'Academic Research Paper'
+    : cs.workType;
+
+  const supervisor = isFr && (!cs.supervisor || cs.supervisor === 'د. / أستاذ(ة) المقياس المحترم(ة)' || cs.supervisor.includes('أستاذ(ة) المقياس'))
+    ? 'Dr. / Enseignant(e) du module'
+    : isEn && (!cs.supervisor || cs.supervisor === 'د. / أستاذ(ة) المقياس المحترم(ة)' || cs.supervisor.includes('أستاذ(ة) المقياس'))
+    ? 'Dr. / Course Instructor'
+    : cs.supervisor;
+
+  const group = isFr && cs.group
+    ? cs.group.replace(/^الفوج\s*[:：]?\s*/, 'Groupe : ')
+    : isEn && cs.group
+    ? cs.group.replace(/^الفوج\s*[:：]?\s*/, 'Group: ')
+    : cs.group;
+
+  const academicYear = isFr && cs.academicYear
+    ? cs.academicYear.replace(/^السنة\s+(?:الجامعية|الدراسية)\s*[:：]?\s*/, 'Année universitaire : ')
+    : isEn && cs.academicYear
+    ? cs.academicYear.replace(/^السنة\s+(?:الجامعية|الدراسية)\s*[:：]?\s*/, 'Academic Year: ')
+    : cs.academicYear;
 
   return (
     <div className={`a4-page cover-theme-${theme} ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-cover">
@@ -84,8 +122,8 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
               <div className={`cover-header-wrap cover-logo-size-${cs.logoSize || 'large'}`}>
                 <div className="cover-logo-box cover-logo-right">{showRight ? <Logo src={logo} /> : <div className="cover-logo-placeholder" />}</div>
                 <div className="cover-header-center">
-                  <div className="cover-country">{cs.country}</div>
-                  <div className="cover-ministry">{cs.ministry}</div>
+                  <div className="cover-country">{country}</div>
+                  <div className="cover-ministry">{ministry}</div>
                   {cs.universityName && <div className="cover-university-line">{cs.universityName}</div>}
                   {cs.facultyName && <div className="cover-faculty-line">{cs.facultyName}</div>}
                   <div className="cover-top-line" />
@@ -95,7 +133,7 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
             </div>
 
             <div className="cover-body">
-              <div className="cover-type-label">{cs.workType}</div>
+              <div className="cover-type-label">{workType}</div>
               <div className="cover-main-title">{cs.title}</div>
               {cs.subtitle && <div className="cover-subtitle">{cs.subtitle}</div>}
               <div className="cover-diamond-divider">
@@ -118,12 +156,12 @@ export function CoverPage({ doc }: { doc: DocumentState }) {
                 <div className="cover-info-box">
                   <div className="cover-info-heading">{supervisorHeading}</div>
                   <div className="cover-info-names">
-                    <span>{cs.supervisor}</span>
-                    <span style={{ marginTop: '3mm', fontWeight: 700 }}>{cs.group}</span>
+                    <span>{supervisor}</span>
+                    <span style={{ marginTop: '3mm', fontWeight: 700 }}>{group}</span>
                   </div>
                 </div>
               </div>
-              <div className="cover-academic-year">{cs.academicYear}</div>
+              <div className="cover-academic-year">{academicYear}</div>
             </div>
           </div>
         </div>
@@ -136,13 +174,18 @@ export function PlanPage({ doc }: { doc: DocumentState }) {
   const ps = doc.planState;
   const b = borderStyles(doc.borderStyle);
   const isLatin = doc.language === 'fr' || doc.language === 'en';
+  const defaultArPlanTitle = !ps.pageTitle || ps.pageTitle === 'خـطّـة البـحـث' || ps.pageTitle === 'خطة البحث';
+  const displayedTitle = isLatin && defaultArPlanTitle
+    ? (doc.language === 'fr' ? 'Sommaire' : 'Table of Contents')
+    : ps.pageTitle;
+
   return (
     <div className={`a4-page ${isLatin ? 'lang-ltr' : ''}`} dir={isLatin ? 'ltr' : 'rtl'} id="preview-plan">
       <div className="page-border" style={b.outer}>
         <div className="page-inner-border" style={b.inner}>
           <div className="page-content">
             <div className="plan-header">
-              <div className="plan-main-title">{ps.pageTitle}</div>
+              <div className="plan-main-title">{displayedTitle}</div>
             </div>
             <div className="plan-items-container">
               {parsePlanRows(ps.itemsText).map((row, i) => (

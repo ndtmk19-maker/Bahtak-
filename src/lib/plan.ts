@@ -18,18 +18,36 @@ export function parsePlanRows(itemsText: string): PlanRow[] {
       const parts = line.split(/[|#\t]/);
       const title = parts[0].trim();
       const page = parts.length > 1 ? parts.slice(1).join(' ').trim() : '';
+      const cleanT = title
+        .replace(/^[-*•\s]+/, '')
+        .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06EDـ]+(?=[A-Za-z])/g, '')
+        .replace(/(?<=[A-Za-z])[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06EDـ]+/g, '')
+        .trim();
       const isMain =
-        title.startsWith('المبحث') ||
-        title.startsWith('مبحث') ||
-        title.startsWith('دراسة حالة') ||
-        title.startsWith('المقدمة') ||
-        title.startsWith('مقدمة') ||
-        title.includes('الخاتمة') ||
-        title.includes('الخــاتـمـــة') ||
-        title.includes('المصادر') ||
-        title.includes('المراجع') ||
-        title.includes('الفهرس');
-      return { title: title.replace(/^[-*•]\s*/, ''), page, isMain };
+        cleanT.startsWith('المبحث') ||
+        cleanT.startsWith('مبحث') ||
+        cleanT.startsWith('Chapitre') ||
+        cleanT.startsWith('Chapter') ||
+        cleanT.startsWith('Partie') ||
+        cleanT.startsWith('Part') ||
+        cleanT.startsWith('دراسة حالة') ||
+        cleanT.startsWith('Étude de cas') ||
+        cleanT.startsWith('Etude de cas') ||
+        cleanT.startsWith('Case Study') ||
+        cleanT.startsWith('المقدمة') ||
+        cleanT.startsWith('مقدمة') ||
+        cleanT.startsWith('Introduction') ||
+        cleanT.includes('الخاتمة') ||
+        cleanT.includes('الخــاتـمـــة') ||
+        cleanT.includes('Conclusion') ||
+        cleanT.includes('المصادر') ||
+        cleanT.includes('المراجع') ||
+        cleanT.includes('Bibliographie') ||
+        cleanT.includes('References') ||
+        cleanT.includes('Bibliography') ||
+        cleanT.includes('الفهرس') ||
+        cleanT.includes('Sommaire');
+      return { title: cleanT, page, isMain };
     });
 }
 
