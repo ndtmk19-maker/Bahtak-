@@ -84,6 +84,17 @@ export interface GenerateOptions {
   normalizePlan?: (plan: AiPlan) => AiPlan;
   /** يُستدعى فور اعتماد خطة البحث النهائية وعنوانها الموحّد للغلاف. */
   onResolvedPlan?: (plan: AiPlan) => void;
+  /** تجاوزات مخصصة لمقاييس الطول (مثلاً لشرائح العرض التقديمي لتفادي النصوص الطويلة). */
+  configOverrides?: {
+    introWords?: number;
+    mabahithWords?: number;
+    matlabParagraphs?: string;
+    minMatlabWords?: number;
+    conclusionWords?: number;
+    introMaxTokens?: number;
+    mabhathMaxTokens?: number;
+    conclusionMaxTokens?: number;
+  };
 }
 
 const countWords = (txt: string) => (txt ? txt.trim().split(/\s+/).filter(Boolean).length : 0);
@@ -2201,7 +2212,8 @@ export function sanitizeCaseStudyOutput(rawText: string, company?: string): stri
 }
 
 export async function generateResearch(o: GenerateOptions): Promise<string> {
-  const cfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
+  const baseCfg = LENGTH_CONFIGS[o.length] || LENGTH_CONFIGS.medium;
+  const cfg = { ...baseCfg, ...(o.configOverrides || {}) };
   const started = Date.now();
   const elapsed = () => Math.round((Date.now() - started) / 100) / 10;
   const call = (prompt: string, onChunk: ((c: string, acc: string) => void) | null, opts: Record<string, unknown>) =>

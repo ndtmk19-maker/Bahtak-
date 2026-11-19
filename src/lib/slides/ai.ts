@@ -26,17 +26,17 @@ export const SLIDE_AI_SIZES: Record<
 > = {
   brief: {
     label: "عرض موجز",
-    hint: "3 مباحث × 3 مطالب بصياغة مركزة — نحو 22 إلى 28 شريحة",
+    hint: "3 مباحث × 3 مطالب بصياغة مركزة — نحو 20 إلى 24 شريحة",
     length: "short",
   },
   standard: {
     label: "عرض قياسي",
-    hint: "3 مباحث × 3 مطالب بتفصيل متوازن — نحو 26 إلى 34 شريحة",
+    hint: "3 مباحث × 3 مطالب بتفصيل متوازن — نحو 26 إلى 30 شريحة",
     length: "medium",
   },
   extended: {
     label: "عرض موسع",
-    hint: "3 مباحث × 3 مطالب بتفصيل معمق — نحو 30 إلى 40 شريحة",
+    hint: "3 مباحث × 3 مطالب بتفصيل معمق — نحو 32 إلى 36 شريحة",
     length: "giant",
   },
 };
@@ -101,32 +101,68 @@ export function enforceSlidePlan(plan: AiPlan, topic: string, lang: ResearchLang
 
 export const SLIDE_PROMPT_ADDENDUM_BY_LANG: Record<ResearchLanguage, string> = {
   ar: [
-    "تنبيه مهم بخصوص الصياغة: سيُحوَّل هذا النص آلياً إلى شرائح عرض تقديمي (PowerPoint)، لذلك التزم بما يلي:",
-    "- حافظ حرفياً على صيغة العناوين المطلوبة أعلاه (المقدمة، المبحث، المطلب، الخاتمة، قائمة المصادر والمراجع، الهوامش).",
-    "- اكتب فقرات قصيرة ومركزة (جملتان إلى ثلاث جمل في الفقرة الواحدة) بلغة أكاديمية واضحة.",
-    "- قدّم أغلب الأفكار في قوائم نقطية كل نقطة في سطر مستقل يبدأ بشرطة (-) بصيغة: «فكرة رئيسية: شرح موجز في جملة واحدة».",
-    "- اجعل كل قائمة بين 3 و5 نقاط، ومهّد لكل قائمة بجملة قصيرة تنتهي بنقطتين (:).",
-    "- في الخاتمة استعمل عنوانين فرعيين مستقلين: «أبرز النتائج:» ثم «التوصيات:» وتحت كل منهما نقاط موجزة.",
-    "- تجنب الحشو والتكرار والجمل الطويلة جداً، ولا تحذف المعلومات الجوهرية أو الهوامش التوثيقية.",
+    "تنبيه حاسم لضبط عدد شرائح العرض التقديمي (العرض القياسي المستهدف حوالي 28 إلى 30 شريحة كحد أقصى):",
+    "- التزم تماماً بالإيجاز الشديد: هذا نص لشرائح PowerPoint وليس بحثاً مقالياً مطولاً.",
+    "- لكل مطلب اكتب جملة تمهيدية واحدة قصيرة (تنتهي بنقطتين :)، متبوعة بـ 3 إلى 4 نقاط مركزة فقط كل نقطة تبدأ بشرطة (-) بصيغة: «فكرة رئيسية: شرح موجز في جملة واحدة».",
+    "- الحد الأقصى للنص في المطلب الواحد هو 90 إلى 120 كلمة فقط (لتجنب تشتت الشريحة إلى عدة شرائح).",
+    "- حافظ حرفياً على صيغة العناوين: المقدمة، المبحث، المطلب، الخاتمة، قائمة المصادر والمراجع.",
+    "- في الخاتمة استعمل عنوانين فرعيين مستقلين: «أبرز النتائج:» (3 نقاط) ثم «التوصيات:» (3 نقاط).",
+    "- تجنب الحشو وتكرار المعاني أو الجمل المعقدة الطويلة نهائياً.",
   ].join("\n"),
   fr: [
-    "Remarque importante de rédaction : Ce texte sera automatiquement transformé en diapositives PowerPoint professionnelles :",
-    "- Conservez rigoureusement les intitulés standards : Introduction, Chapitre I, Section 1, Conclusion, Bibliographie.",
-    "- Rédigez des paragraphes courts et percutants (2 à 3 phrases maximum par paragraphe).",
-    "- Présentez la majorité des idées sous forme de puces (-), format : « Idée clé : explication concise en une phrase ».",
-    "- 3 à 5 puces par liste, précédées d'une brève phrase d'amorce se terminant par deux-points (:).",
-    "- Dans la conclusion, séparez clairement : « Principaux résultats : » et « Recommandations : ».",
-    "- Évitez le remplissage inutile et les phrases trop denses.",
+    "Consigne stricte pour respecter le format PowerPoint (cible : environ 28 à 30 diapositives au total) :",
+    "- Soyez très concis : ce texte est destiné à des diapositives PowerPoint professionnelles et synthétiques (ce n'est pas un mémoire écrit).",
+    "- Pour chaque section : une seule phrase courte d'amorce se terminant par (:), suivie de 3 à 4 puces clés (-) au format : « Idée clé : explication concise en une seule phrase ».",
+    "- Limite stricte : environ 90 à 120 mots maximum par section (pour éviter que la section ne s'étale sur plusieurs diapositives).",
+    "- Conservez rigoureusement les intitulés : Introduction, Chapitre I, Section 1, Conclusion, Bibliographie.",
+    "- Dans la conclusion, séparez clairement : « Principaux résultats : » (3 puces) et « Recommandations : » (3 puces).",
+    "- Évitez le remplissage inutile, les digressions et les phrases trop denses.",
   ].join("\n"),
   en: [
-    "Important formatting notice: This text will be automatically converted into professional PowerPoint slides:",
-    "- Strictly maintain standard academic headers: Introduction, Chapter 1, Section 1, Conclusion, References.",
-    "- Write concise, impactful paragraphs (2 to 3 sentences per paragraph maximum).",
-    "- Present key ideas as bullet points (-), formatted as: 'Key concept: brief single-sentence explanation'.",
-    "- 3 to 5 bullets per list, preceded by a brief lead-in sentence ending with a colon (:).",
-    "- In the conclusion, clearly separate: 'Key Findings:' and 'Recommendations:'.",
-    "- Avoid filler words, redundancy, and overly long sentences.",
+    "Strict presentation length requirement (Target: ~28 to 30 slides total):",
+    "- Be extremely concise: this text is for PowerPoint presentation slides (not an essay).",
+    "- For each section: exactly one brief introductory lead-in sentence ending with (:), followed by 3 to 4 key bullet points (-) formatted as: 'Key concept: brief single-sentence explanation'.",
+    "- Strict limit: approximately 90 to 120 words maximum per section (preventing sections from expanding into multiple slides).",
+    "- Strictly maintain headers: Introduction, Chapter 1, Section 1, Conclusion, References.",
+    "- In conclusion: clearly separate 'Key Findings:' (3 bullets) and 'Recommendations:' (3 bullets).",
+    "- Strictly avoid filler words, redundancy, and complex long paragraphs.",
   ].join("\n"),
+};
+
+const SLIDE_CONFIG_OVERRIDES: Record<
+  SlideAiSize,
+  NonNullable<GenerateOptions["configOverrides"]>
+> = {
+  brief: {
+    introWords: 130,
+    mabahithWords: 720,
+    minMatlabWords: 75,
+    matlabParagraphs: "فقرة تمهيدية موجزة جداً تليها 3 إلى 4 نقاط مركزة بصيغة رؤوس أقلام للشرائح",
+    conclusionWords: 120,
+    introMaxTokens: 750,
+    mabhathMaxTokens: 1600,
+    conclusionMaxTokens: 750,
+  },
+  standard: {
+    introWords: 160,
+    mabahithWords: 1050,
+    minMatlabWords: 95,
+    matlabParagraphs: "فقرة تمهيدية من سطرين تليها 3 إلى 4 نقاط أساسية واضحة بصيغة رؤوس أقلام للشرائح",
+    conclusionWords: 150,
+    introMaxTokens: 950,
+    mabhathMaxTokens: 2000,
+    conclusionMaxTokens: 950,
+  },
+  extended: {
+    introWords: 200,
+    mabahithWords: 1400,
+    minMatlabWords: 125,
+    matlabParagraphs: "فقرة تمهيدية تليها 4 إلى 5 نقاط تفصيلية للشرائح",
+    conclusionWords: 180,
+    introMaxTokens: 1100,
+    mabhathMaxTokens: 2500,
+    conclusionMaxTokens: 1100,
+  },
 };
 
 export const SLIDE_PROMPT_ADDENDUM = SLIDE_PROMPT_ADDENDUM_BY_LANG.ar;
@@ -163,6 +199,7 @@ export function generatePresentationDraft({ size, language = "ar", ...rest }: Sl
       ? String(analysis.customMabahith.length)
       : String(SLIDE_MABHATH_COUNT),
     matlabCount: String(SLIDE_MATLAB_COUNT),
+    configOverrides: SLIDE_CONFIG_OVERRIDES[size],
     promptAddendum: SLIDE_PROMPT_ADDENDUM_BY_LANG[language] || SLIDE_PROMPT_ADDENDUM_BY_LANG.ar,
     normalizePlan: hasCustomPlan ? undefined : (plan) => enforceSlidePlan(plan, cleanFallbackTopic, language),
   });

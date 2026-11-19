@@ -478,16 +478,17 @@ function pointParas(
   let num = numberFrom ?? 0;
   return points.map((p) => {
     const size = Math.round((p.kind === "sub" ? subPt : fontPt) * s);
-    const align = p.ltr ? "left" : "right";
+    const isLat = p.ltr !== undefined ? p.ltr : isLatinText(p.text || p.label || "");
+    const align = isLat ? "left" : "right";
     if (p.kind === "sub")
       return para(p.text, size, c.primary, {
         bold: true,
         spaceAfter: gapPt * 0.6,
         align,
-        rtl: !p.ltr,
+        rtl: !isLat,
       });
     if (p.kind === "lead")
-      return para(p.text, size, c.text, { spaceAfter: gapPt * 0.6, align, rtl: !p.ltr });
+      return para(p.text, size, c.text, { spaceAfter: gapPt * 0.6, align, rtl: !isLat });
     const runs: TRun[] = [];
     if (numberFrom !== undefined) runs.push({ text: `${++num}. `, bold: true, color: c.primary });
     if (p.label) runs.push({ text: `${p.label}: `, bold: true, color: c.primary });
@@ -497,7 +498,7 @@ function pointParas(
       size,
       color: c.text,
       align,
-      rtl: !p.ltr,
+      rtl: !isLat,
       bullet: numberFrom === undefined,
       spaceAfter: gapPt,
     };
@@ -1088,11 +1089,18 @@ function contentSlide(
     const tw = BW - 2.2;
     const st = fit(
       (k) => {
+        const isLat = p.ltr !== undefined ? p.ltr : isLatinText(p.text);
         const runs: TRun[] = p.label
           ? [{ text: `${p.label}: `, bold: true, color: c.primary }, { text: p.text }]
           : [{ text: p.text }];
         return [
-          { runs, size: Math.round(base * k), color: c.text, align: "right" as const, rtl: !p.ltr },
+          {
+            runs,
+            size: Math.round(base * k),
+            color: c.text,
+            align: (isLat ? "left" : "right") as const,
+            rtl: !isLat,
+          },
         ];
       },
       tw,

@@ -145,16 +145,17 @@ function splitSentences(text: string, maxChars = 230): string[] {
 }
 
 function labelled(text: string): Point {
+  const isLat = isLatin(text);
   const m = text.match(/^([^:：،.]{2,55}?)\s*[:：]\s*(.{3,})$/);
   if (m && m[1].split(/\s+/).length <= 8)
-    return { kind: "bullet", label: m[1].trim(), text: tidy(m[2]) };
-  return { kind: "bullet", text: tidy(text) };
+    return { kind: "bullet", label: m[1].trim(), text: tidy(m[2]), ...(isLat ? { ltr: true } : {}) };
+  return { kind: "bullet", text: tidy(text), ...(isLat ? { ltr: true } : {}) };
 }
 
 function itemToPoints(it: AnalyzedItem): Point[] {
   if (it.type === "subtitle" || it.type === "matlab_header") {
     const t = stripTags(it.rawText || it.cleanText).replace(/[:：]\s*$/, "");
-    return t ? [{ kind: "sub", text: t }] : [];
+    return t ? [{ kind: "sub", text: t, ...(isLatin(t) ? { ltr: true } : {}) }] : [];
   }
   if (it.type === "bullet") {
     // إعادة استعمال منسق القوائم الأكاديمي لعزل علامات التعداد (أولاً، 1-، أ-، [1])
@@ -163,17 +164,21 @@ function itemToPoints(it: AnalyzedItem): Point[] {
     const text = tidy(body);
     if (!text) return [];
     if (text.length > 260) return paragraphToPoints(text);
-    return [{ ...labelled(text), ...(isLatin(text) ? { ltr: true } : {}) }];
+    return [labelled(text)];
   }
   return paragraphToPoints(stripTags(it.rawText));
 }
 
 function paragraphToPoints(text: string): Point[] {
   if (!text) return [];
-  if (/[:：]$/.test(text) && text.length <= 170) return [{ kind: "lead", text }];
-  return splitSentences(text).map((s) =>
-    /[:：]$/.test(s) ? { kind: "lead", text: s } : { kind: "bullet", text: tidy(s), prose: true },
-  );
+  const isLat = isLatin(text);
+  if (/[:：]$/.test(text) && text.length <= 170) return [{ kind: "lead", text, ...(isLat ? { ltr: true } : {}) }];
+  return splitSentences(text).map((s) => {
+    const sLat = isLatin(s);
+    return /[:：]$/.test(s)
+      ? { kind: "lead", text: s, ...(sLat ? { ltr: true } : {}) }
+      : { kind: "bullet", text: tidy(s), prose: true, ...(sLat ? { ltr: true } : {}) };
+  });
 }
 
 /** تجميع نقاط القسم في مجموعات يبدأ كل منها بعنوان فرعي */
@@ -546,10 +551,20 @@ export function planDeck(
   const questionKicker =
     lang === "fr" ? "Problématique" : lang === "en" ? "Research Question" : "إشكالية البحث";
 
-  o.intro.forEach((g) => slides.push(...contentSlides(g, introKicker, introFallback, 0, opts)));
+  const rawIntroSlides: Slide[] = [];
+  o.intro.forEach((g) => rawIntroSlides.push(...contentSlides(g, introKicker, introFallback, 0, opts)));
+  const maxIntroSlides = opts.density === "airy" ? 1 : 2;
+  const introSlides = rawIntroSlides.slice(0, maxIntroSlides).map((s, idx) => ({
+    ...s,
+    part: idx + 1,
+    parts: Math.min(rawIntroSlides.length, maxIntroSlides),
+  }));
+  slides.push(...introSlides);
   if (o.question) slides.push({ kind: "question", kicker: questionKicker, text: o.question });
 
-  // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه
+  // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه (بحد أقصى شريحتين لكل مطلب في الوضع القياسي لمنع التضخم)
+  const maxSlidesPerMatlab = opts.density === "airy" ? 1 : opts.density === "detailed" ? 3 : 2;
+
   o.mabahith.forEach((mb, i) => {
     if (opts.includeSectionDividers) {
       slides.push({
@@ -562,24 +577,67 @@ export function planDeck(
     }
     mb.matalib.forEach((mt) => {
       const kicker = [mb.kicker, mt.kicker].filter(Boolean).join(" · ");
+      const mtTitle = mt.title || mb.title;
+
+      let mtSlides: Slide[] = [];
       mt.groups.forEach((g) => {
-        const grp = g.title ? g : { ...g, title: mt.title || mb.title };
-        slides.push(
+        const grp = g.title ? g : { ...g, title: mtTitle };
+        mtSlides.push(
           ...contentSlides(
             grp,
             g.title ? [kicker, mt.title].filter(Boolean).join(" · ") : kicker,
-            mt.title || mb.title,
+            mtTitle,
             i + 1,
             opts,
           ),
         );
       });
+
+      if (mtSlides.length > maxSlidesPerMatlab) {
+        const allPoints = mt.groups.flatMap((g) => {
+          if (g.title && g.title !== mtTitle) {
+            return [{ kind: "sub" as const, text: g.title, ...(isLatin(g.title) ? { ltr: true } : {}) }, ...g.points];
+          }
+          return g.points;
+        });
+        const m = DENSITY_METRICS[opts.density];
+        const chunks = chunkPoints(allPoints, m);
+        const cappedChunks = chunks.slice(0, maxSlidesPerMatlab);
+        mtSlides = cappedChunks.map((pts, idx) => ({
+          kind: "content" as const,
+          kicker,
+          title: mtTitle,
+          ...shapeChunk(pts),
+          part: idx + 1,
+          parts: cappedChunks.length,
+          sectionNumber: i + 1,
+          notes: opts.includeNotes && mt.groups.flatMap((g) => g.notes).length
+            ? mt.groups.flatMap((g) => g.notes).join("\n\n")
+            : undefined,
+        }));
+      } else {
+        mtSlides = mtSlides.map((s, idx) => ({
+          ...s,
+          part: idx + 1,
+          parts: mtSlides.length,
+        }));
+      }
+
+      slides.push(...mtSlides);
     });
   });
 
-  // 4. الخاتمة
+  // 4. الخاتمة (بحد أقصى شريحتين)
   const conclusionKicker = lang === "fr" ? "Conclusion" : lang === "en" ? "Conclusion" : "الخاتمة";
-  o.conclusion.forEach((g) => slides.push(...contentSlides(g, conclusionKicker, conclusionKicker, 0, opts)));
+  const rawConclusionSlides: Slide[] = [];
+  o.conclusion.forEach((g) => rawConclusionSlides.push(...contentSlides(g, conclusionKicker, conclusionKicker, 0, opts)));
+  const maxConclusionSlides = opts.density === "airy" ? 1 : 2;
+  const conclusionSlides = rawConclusionSlides.slice(0, maxConclusionSlides).map((s, idx) => ({
+    ...s,
+    part: idx + 1,
+    parts: Math.min(rawConclusionSlides.length, maxConclusionSlides),
+  }));
+  slides.push(...conclusionSlides);
 
   // 5. المراجع
   const referencesTitle =
