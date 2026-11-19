@@ -166,6 +166,16 @@ function itemToPoints(it: AnalyzedItem): Point[] {
     if (text.length > 260) return paragraphToPoints(text);
     return [labelled(text)];
   }
+  if (it.type === "table") {
+    let raw = it.rawText || it.cleanText || "";
+    const isLat = isLatin(raw);
+    if (isLat) {
+      raw = raw
+        .replace(/^(?:ال)?الجدول\s+رقم\s*\(?(\d+)\)?\s*[:：\-–—]?\s*/i, (_m, d) => `Tableau n° (${d}) : `)
+        .replace(/؛/g, ";");
+    }
+    return paragraphToPoints(stripTags(raw));
+  }
   return paragraphToPoints(stripTags(it.rawText));
 }
 

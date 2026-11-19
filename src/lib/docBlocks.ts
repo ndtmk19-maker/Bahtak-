@@ -77,8 +77,12 @@ export function padNumber(n: number): string {
 
 export function tableLabel(num: number, caption: string, continued = false, lang?: 'ar' | 'fr' | 'en'): string {
   const title = caption.trim();
-  const isFr = lang === 'fr';
-  const isEn = lang === 'en';
+  const latinCount = (title.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (title.match(/[\u0600-\u06FF]/g) || []).length;
+  const autoLang = latinCount > arabicCount ? 'fr' : 'ar';
+  const effectiveLang = lang || autoLang;
+  const isFr = effectiveLang === 'fr';
+  const isEn = effectiveLang === 'en';
   if (isFr) {
     return `${continued ? 'Suite du ' : ''}Tableau n° (${padNumber(num)})${title ? ` : ${title}` : ''}`;
   }
@@ -90,8 +94,12 @@ export function tableLabel(num: number, caption: string, continued = false, lang
 
 export function figureLabel(num: number, title: string, lang?: 'ar' | 'fr' | 'en'): string {
   const t = title.trim();
-  const isFr = lang === 'fr';
-  const isEn = lang === 'en';
+  const latinCount = (t.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  const autoLang = latinCount > arabicCount ? 'fr' : 'ar';
+  const effectiveLang = lang || autoLang;
+  const isFr = effectiveLang === 'fr';
+  const isEn = effectiveLang === 'en';
   if (isFr) {
     return `Figure n° (${padNumber(num)})${t ? ` : ${t}` : ''}`;
   }
@@ -587,16 +595,28 @@ export function renderFigureHtml(chart: ChartData, num: number): string {
 }
 
 /** نص مختصر يمثل الجدول/الشكل لأنظمة تعتمد على النص الخام (مثل العروض التقديمية) */
-export function tableSummary(table: TableData, num: number): string {
+export function tableSummary(table: TableData, num: number, lang?: 'ar' | 'fr' | 'en'): string {
+  const allText = [table.caption, ...table.headers, ...table.rows.flat()].join(' ');
+  const latinCount = (allText.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (allText.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = lang === 'fr' || lang === 'en' || latinCount > arabicCount;
+  const effectiveLang = lang || (isLat ? 'fr' : 'ar');
+  const separator = isLat ? '; ' : '؛ ';
   const rows = table.rows
     .slice(0, 6)
     .map((r) => r.map((c) => htmlToPlain(c)).filter(Boolean).join(' — '))
-    .join('؛ ');
-  return `${tableLabel(num, table.caption)}: ${rows}`;
+    .join(separator);
+  return `${tableLabel(num, table.caption, false, effectiveLang)}: ${rows}`;
 }
 
-export function chartSummary(chart: ChartData, num: number): string {
-  return `${figureLabel(num, chart.title)}: ${chart.data.map((d) => `${d.label} ${fmtValue(d.value, chart.unit)}`).join('، ')}`;
+export function chartSummary(chart: ChartData, num: number, lang?: 'ar' | 'fr' | 'en'): string {
+  const t = chart.title || '';
+  const latinCount = (t.match(/[A-Za-z]/g) || []).length;
+  const arabicCount = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  const isLat = lang === 'fr' || lang === 'en' || latinCount > arabicCount;
+  const effectiveLang = lang || (isLat ? 'fr' : 'ar');
+  const separator = isLat ? ', ' : '، ';
+  return `${figureLabel(num, chart.title, effectiveLang)}: ${chart.data.map((d) => `${d.label} ${fmtValue(d.value, chart.unit)}`).join(separator)}`;
 }
 
 /** استخراج كتل الجداول والأشكال من HTML الصفحة بالترتيب مع ما بينها من محتوى عادي */
