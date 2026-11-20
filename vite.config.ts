@@ -1,4 +1,4 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
@@ -15,6 +15,7 @@ try {
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
 
@@ -27,7 +28,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      slideImagesPlugin(),
+      slideImagesPlugin(env),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -56,7 +57,7 @@ export default defineConfig(({ mode }) => {
   }
 })
 
-function slideImagesPlugin(): Plugin {
+function slideImagesPlugin(env?: Record<string, string>): Plugin {
   return {
     name: 'slide-images-api',
     configureServer(server) {
@@ -70,8 +71,8 @@ function slideImagesPlugin(): Plugin {
           const orientation = parsed.searchParams.get('orientation') || 'landscape';
           const perPage = parsed.searchParams.get('per_page') || '10';
 
-          const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
-          const pixabayKey = process.env.PIXABAY_API_KEY;
+          const unsplashKey = env?.UNSPLASH_ACCESS_KEY || process.env.UNSPLASH_ACCESS_KEY;
+          const pixabayKey = env?.PIXABAY_API_KEY || process.env.PIXABAY_API_KEY;
 
           let results: any[] = [];
           if (unsplashKey && q) {
