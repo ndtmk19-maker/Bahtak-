@@ -76,6 +76,7 @@ interface Persisted {
   caseStudyCompany: string;
   language: ResearchLanguage;
   includeImages?: boolean;
+  savedImages?: DeckImages;
 }
 
 export interface SlidesRun {
@@ -104,6 +105,7 @@ interface PresentationApi extends Persisted {
   loadingImages: boolean;
   imagesDuration?: number;
   images: DeckImages | undefined;
+  refreshImages: () => Promise<void>;
   deck: SlideDeck | null;
   laid: LaidSlide[];
   theme: SlideTheme;
@@ -165,6 +167,7 @@ function createDefaultPersisted(lang: ResearchLanguage = "ar"): Persisted {
     caseStudyCompany: "",
     language: lang,
     includeImages: true,
+    savedImages: undefined,
   };
 }
 
@@ -229,6 +232,7 @@ function load(): Persisted | null {
       caseStudyCompany,
       language: p.language || "ar",
       includeImages: p.includeImages ?? true,
+      savedImages: p.savedImages,
     };
     if (cleanMetaTitle !== (rawMeta.title || "")) {
       try {
@@ -345,10 +349,33 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
 
-  const [images, setImages] = useState<DeckImages | undefined>(undefined);
+  const [images, setImagesState] = useState<DeckImages | undefined>(() => state.savedImages);
   const [loadingImages, setLoadingImages] = useState(false);
   const [imagesDuration, setImagesDuration] = useState<number | undefined>(undefined);
   const includeImages = state.includeImages ?? true;
+
+  const setImages = useCallback(
+    (imgs: DeckImages | undefined) => {
+      setImagesState(imgs);
+      patch({ savedImages: imgs });
+    },
+    [patch],
+  );
+
+  const refreshImages = useCallback(async () => {
+    if (!deck || !includeImages) return;
+    setLoadingImages(true);
+    const startT = Date.now();
+    try {
+      const resolved = await resolveDeckImages(deck, themeRef.current);
+      setImages(resolved);
+      setLoadingImages(false);
+      setImagesDuration(Math.round((Date.now() - startT) / 100) / 10);
+    } catch (err) {
+      console.warn("refreshImages failed:", err);
+      setLoadingImages(false);
+    }
+  }, [deck, includeImages, setImages]);
 
   const setIncludeImages = useCallback(
     (val: boolean) => {
@@ -376,6 +403,11 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         setImages(undefined);
         setImagesDuration(undefined);
       }
+      setLoadingImages(false);
+      return;
+    }
+    // إذا كانت هناك صور متوفرة ومحفوظة مسبقاً لهذا العرض، احتفظ بها
+    if (images && Object.keys(images).length > 0) {
       setLoadingImages(false);
       return;
     }
@@ -427,6 +459,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    setImages(undefined);
     setState(createDefaultPersisted());
     setRun({
       running: false,
@@ -472,6 +505,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     runningRef.current = true;
     hasUserEditedRef.current = true;
     setState((s) => ({ ...s, meta: { ...s.meta, title: provisionalLiveTitle } }));
+    setImages(undefined);
     setRun({ running: true, stage: "plan", sections: [], words: 0, model: "", startedAt: Date.now(), duration: undefined });
     try {
       let resolvedPlanTitle = "";
@@ -696,6 +730,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       loadingImages,
       imagesDuration,
       images,
+      refreshImages,
       deck,
       laid,
       theme,
@@ -719,6 +754,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       loadingImages,
       imagesDuration,
       images,
+      refreshImages,
       deck,
       laid,
       theme,

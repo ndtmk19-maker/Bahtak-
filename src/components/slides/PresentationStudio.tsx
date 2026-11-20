@@ -455,7 +455,7 @@ function AiFields() {
 }
 
 function AiProgress() {
-  const { run, deck, setMode, loadingImages, images, imagesDuration, includeImages } = usePresentation();
+  const { run, deck, setMode, loadingImages, images, imagesDuration, includeImages, refreshImages } = usePresentation();
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -541,26 +541,38 @@ function AiProgress() {
                 <ImageIcon className="size-4 text-zinc-400" />
               )}
               <span className="font-bold">
-                جلب واختيار صور الشرائح (Pixabay)
+                صور الشرائح (Pixabay)
               </span>
             </div>
-            <span
-              className={`relative tabular-nums font-bold ${
-                loadingImages
-                  ? "text-amber-700 dark:text-amber-300"
+            <div className="relative flex items-center gap-2">
+              <span
+                className={`tabular-nums font-bold ${
+                  loadingImages
+                    ? "text-amber-700 dark:text-amber-300"
+                    : imagesCount > 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-zinc-500 dark:text-zinc-400"
+                }`}
+              >
+                {loadingImages
+                  ? "جارٍ الجلب والتصفية..."
                   : imagesCount > 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-zinc-500 dark:text-zinc-400"
-              }`}
-            >
-              {loadingImages
-                ? "جارٍ الجلب والتصفية..."
-                : imagesCount > 0
-                  ? `${imagesCount} صورة جاهزة${imagesDuration ? ` (${imagesDuration} ث)` : ""}`
-                  : !run.running
-                    ? "تصاميم هندسية بديلة"
-                    : "في الانتظار..."}
-            </span>
+                    ? `${imagesCount} صورة مدمجة${imagesDuration ? ` (${imagesDuration} ث)` : ""}`
+                    : run.stage === "done"
+                      ? "جاهز للجلب"
+                      : "في الانتظار..."}
+              </span>
+              {!loadingImages && deck && (
+                <button
+                  type="button"
+                  onClick={refreshImages}
+                  title="جلب أو تحديث صور Pixabay"
+                  className="rounded-md border border-black/10 dark:border-white/10 bg-white/90 dark:bg-zinc-800 px-2 py-0.5 text-[0.7rem] font-bold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer shadow-xs transition"
+                >
+                  {imagesCount > 0 ? "تحديث الصور" : "جلب الصور الآن"}
+                </button>
+              )}
+            </div>
           </li>
         )}
       </ul>
@@ -979,6 +991,8 @@ function Stage({
     error,
     loadingImages,
     images,
+    refreshImages,
+    includeImages,
   } = usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
@@ -1039,10 +1053,29 @@ function Stage({
               <span>جلب الصور (Pixabay)...</span>
             </span>
           ) : images && Object.keys(images).length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[0.72rem] font-medium text-emerald-700 dark:text-emerald-400">
-              <CircleCheck className="size-3" />
-              <span>{Object.keys(images).length} صورة مدمجة</span>
-            </span>
+            <div className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[0.72rem] font-medium text-emerald-700 dark:text-emerald-400">
+                <CircleCheck className="size-3" />
+                <span>{Object.keys(images).length} صورة مدمجة</span>
+              </span>
+              <button
+                type="button"
+                onClick={refreshImages}
+                title="تحديث الصور من Pixabay"
+                className="rounded-full p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer"
+              >
+                <RotateCcw className="size-3" />
+              </button>
+            </div>
+          ) : count > 0 && includeImages ? (
+            <button
+              type="button"
+              onClick={refreshImages}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 px-2.5 py-0.5 text-[0.72rem] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-black/5 cursor-pointer shadow-xs transition"
+            >
+              <ImageIcon className="size-3" />
+              <span>جلب صور Pixabay</span>
+            </button>
           ) : null}
         </div>
         <Button
