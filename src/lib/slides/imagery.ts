@@ -366,12 +366,12 @@ async function searchAll(q: string, orientation: string, cfg: SlideImageConfig):
       /* ننتقل إلى المزودين المباشرين */
     }
   }
-  for (const p of cfg.providers || ["pexels", "unsplash", "pixabay"]) {
+  for (const p of cfg.providers || ["pixabay", "pexels", "unsplash"]) {
     try {
       let r: Candidate[] = [];
-      if (p === "pexels") r = await searchPexels(q, orientation, cfg);
+      if (p === "pixabay") r = await searchPixabay(q, orientation, cfg);
+      else if (p === "pexels") r = await searchPexels(q, orientation, cfg);
       else if (p === "unsplash") r = await searchUnsplash(q, orientation, cfg);
-      else if (p === "pixabay") r = await searchPixabay(q, orientation, cfg);
       if (r.length) return r;
     } catch {
       /* نجرب المزود التالي */

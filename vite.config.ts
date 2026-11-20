@@ -92,8 +92,32 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
 
           let results: any[] = [];
 
-          // 1. Pexels API (صور مجانية عالية الجودة، تدعم 20,000 طلب/شهر، مثالية للمواضيع الأكاديمية والمكتبية)
-          if (pexelsKey && q) {
+          // 1. Pixabay API (المزود الرئيسي: 5,000 طلب في الساعة مجاناً، سريع وموثوق مع استبعاد صور الأشخاص والوجوه)
+          if (pixabayKey && q) {
+            try {
+              const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
+              const pRes = await fetch(
+                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q.slice(0, 95))}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=10&min_width=1200`
+              );
+              if (pRes.ok) {
+                const pData: any = await pRes.json();
+                results = (pData.hits || [])
+                  .filter((h: any) => !hasPeople(h.tags || ''))
+                  .map((h: any) => ({
+                    id: `pixabay:${h.id}`,
+                    provider: 'pixabay',
+                    src: h.largeImageURL,
+                    alt: h.tags || q,
+                    credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
+                  }));
+              }
+            } catch (e) {
+              console.warn('[slide-images] pixabay error:', e);
+            }
+          }
+
+          // 2. Pexels API (المزود الاحتياطي الثاني: صور تجارية واحترافية)
+          if (results.length === 0 && pexelsKey && q) {
             try {
               const pexUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${perPage}&orientation=${orientation}`;
               const pexRes = await fetch(pexUrl, {
@@ -118,7 +142,7 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
             }
           }
 
-          // 2. Unsplash API (محرك صور عالي الجودة مع استبعاد صور الأشخاص والوجوه)
+          // 3. Unsplash API (المزود الاحتياطي الثالث)
           if (results.length === 0 && unsplashKey && q) {
             try {
               const uRes = await fetch(
@@ -154,30 +178,6 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
               }
             } catch (e) {
               console.warn('[slide-images] unsplash error:', e);
-            }
-          }
-
-          // 3. Pixabay API (بديل مجاني واسع بـ 5,000 طلب/ساعة)
-          if (results.length === 0 && pixabayKey && q) {
-            try {
-              const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
-              const pRes = await fetch(
-                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q.slice(0, 95))}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=10&min_width=1200`
-              );
-              if (pRes.ok) {
-                const pData: any = await pRes.json();
-                results = (pData.hits || [])
-                  .filter((h: any) => !hasPeople(h.tags || ''))
-                  .map((h: any) => ({
-                    id: `pixabay:${h.id}`,
-                    provider: 'pixabay',
-                    src: h.largeImageURL,
-                    alt: h.tags || q,
-                    credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
-                  }));
-              }
-            } catch (e) {
-              console.warn('[slide-images] pixabay error:', e);
             }
           }
 
