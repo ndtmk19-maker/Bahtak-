@@ -336,17 +336,17 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
   const draft = useDeferredValue(state.draftText);
   const coverMeta = useMemo<CoverMeta>(
     () => ({
-      title: state.meta.title,
-      subtitle: state.meta.subtitle,
-      institution: state.meta.institution,
-      faculty: state.meta.faculty,
-      presenters: state.meta.presentersText
+      title: state.meta?.title || "",
+      subtitle: state.meta?.subtitle || "",
+      institution: state.meta?.institution || "",
+      faculty: state.meta?.faculty || "",
+      presenters: (state.meta?.presentersText || "")
         .split("\n")
         .map((l) => l.trim())
         .filter(Boolean),
-      supervisor: state.meta.supervisor,
-      year: state.meta.year,
-      logo: state.meta.logoUrl,
+      supervisor: state.meta?.supervisor || "",
+      year: state.meta?.year || "",
+      logo: state.meta?.logoUrl || "",
       language: state.language || "ar",
     }),
     [state.meta, state.language],
@@ -394,10 +394,10 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     try {
       const resolved = await resolveDeckImages(deck, themeRef.current);
       setImages(resolved);
-      setLoadingImages(false);
       setImagesDuration(Math.round((Date.now() - startT) / 100) / 10);
     } catch (err) {
       console.warn("refreshImages failed:", err);
+    } finally {
       setLoadingImages(false);
     }
   }, [deck, includeImages, setImages]);
@@ -619,27 +619,18 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       const curSub = (state.meta.subtitle || "").trim();
       const shouldUpdateSub = KNOWN_DEFAULT_SUBTITLES.has(curSub) || !curSub;
       const cleanSubtitle = shouldUpdateSub ? DEFAULT_SUBTITLES[curLang] : state.meta.subtitle;
-      setState((s) => {
-        return {
-          ...s,
-          language: curLang,
-          draftText: text,
-          meta: {
-            ...s.meta,
-            title: cleanCoverTitle,
-            subtitle: cleanSubtitle,
-          },
-        };
-      });
-      setRun((r) => ({
-        ...r,
-        running: false,
-        stage: "done",
-        duration: r.startedAt ? Math.round((Date.now() - r.startedAt) / 100) / 10 : undefined,
+      setState((s) => ({
+        ...s,
+        language: curLang,
+        draftText: text,
+        meta: {
+          ...s.meta,
+          title: cleanCoverTitle,
+          subtitle: cleanSubtitle,
+        },
       }));
-      setCompletedVersion((v) => v + 1);
 
-      // جلب صور Pixabay وحلها مباشرة فور اكتمال التوليد دون انتظار مؤقت أو إعادة تصيير
+      // الخطوة 3: جلب وتنسيق صور Pixabay الأكاديمية مباشرة قبل إغلاق مرحلة التوليد
       if (state.includeImages ?? true) {
         setLoadingImages(true);
         const imgStartT = Date.now();
@@ -647,30 +638,44 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
           const finalMeta: CoverMeta = {
             title: cleanCoverTitle,
             subtitle: cleanSubtitle,
-            institution: state.meta.institution,
-            faculty: state.meta.faculty,
-            presenters: state.meta.presentersText
+            institution: state.meta?.institution || "",
+            faculty: state.meta?.faculty || "",
+            presenters: (state.meta?.presentersText || "")
               .split("\n")
               .map((l) => l.trim())
               .filter(Boolean),
-            supervisor: state.meta.supervisor,
-            year: state.meta.year,
-            logo: state.meta.logoUrl,
+            supervisor: state.meta?.supervisor || "",
+            year: state.meta?.year || "",
+            logo: state.meta?.logoUrl || "",
             language: curLang,
           };
           const generatedDeck = buildDeckFromText(text, finalMeta, state.options);
-          const resolved = await resolveDeckImages(generatedDeck, themeRef.current);
+          const resolvedTheme = state.autoTheme
+            ? suggestTheme(cleanCoverTitle, text)
+            : getTheme(state.themeId);
+          const resolved = await resolveDeckImages(generatedDeck, resolvedTheme);
           if (runIdRef.current === myRunId) {
             setImages(resolved);
-            setLoadingImages(false);
             setImagesDuration(Math.round((Date.now() - imgStartT) / 100) / 10);
           }
         } catch (e) {
           console.warn("Direct image resolution failed:", e);
+        } finally {
           if (runIdRef.current === myRunId) {
             setLoadingImages(false);
           }
         }
+      }
+
+      // بعد اكتمال صياغة الشرائح وحل الصور معاً، تنتهي مرحلة التوليد
+      if (runIdRef.current === myRunId) {
+        setRun((r) => ({
+          ...r,
+          running: false,
+          stage: "done",
+          duration: r.startedAt ? Math.round((Date.now() - r.startedAt) / 100) / 10 : undefined,
+        }));
+        setCompletedVersion((v) => v + 1);
       }
 
       ui.toast("اكتمل توليد محتوى العرض", {
