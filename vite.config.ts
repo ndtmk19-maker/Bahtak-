@@ -151,9 +151,15 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
           }
 
           const q = normalizeToEnglishQuery(rawQ);
-          const unsplashKey = env?.UNSPLASH_ACCESS_KEY || process.env.UNSPLASH_ACCESS_KEY;
+          const unsplashKey =
+            env?.UNSPLASH_ACCESS_KEY ||
+            process.env.UNSPLASH_ACCESS_KEY ||
+            '1gbaRibG7w_sqM0zsyi9iVV9OAGbiGMiSPxngXTIeJ8';
           const pexelsKey = env?.PEXELS_API_KEY || process.env.PEXELS_API_KEY;
-          const pixabayKey = env?.PIXABAY_API_KEY || process.env.PIXABAY_API_KEY;
+          const pixabayKey =
+            env?.PIXABAY_API_KEY ||
+            process.env.PIXABAY_API_KEY ||
+            '58741945-fe2304e85e9fc8dc70006a9db';
 
           let results: any[] = [];
 

@@ -83,8 +83,19 @@ function PrimView({ p }: { p: Prim }) {
           loading="eager"
           decoding="async"
           onError={(e) => {
+            const el = e.currentTarget as HTMLImageElement;
+            const currentSrc = el.src;
+            if (currentSrc.includes("/api/image-proxy?url=")) {
+              try {
+                const raw = decodeURIComponent(currentSrc.split("/api/image-proxy?url=")[1]);
+                if (raw && raw.startsWith("http")) {
+                  el.src = raw;
+                  return;
+                }
+              } catch {}
+            }
             console.warn("[SlideCanvas] Image load error:", p.src);
-            (e.currentTarget as HTMLElement).style.opacity = "0";
+            el.style.opacity = "0";
           }}
           style={{
             ...box(p.x, p.y, p.w, p.h),
