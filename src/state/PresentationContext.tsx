@@ -84,6 +84,8 @@ export interface SlidesRun {
   sections: SectionProgress[];
   words: number;
   model: string;
+  startedAt?: number;
+  duration?: number;
 }
 
 interface PresentationApi extends Persisted {
@@ -100,6 +102,7 @@ interface PresentationApi extends Persisted {
   includeImages: boolean;
   setIncludeImages: (v: boolean) => void;
   loadingImages: boolean;
+  imagesDuration?: number;
   images: DeckImages | undefined;
   deck: SlideDeck | null;
   laid: LaidSlide[];
@@ -344,6 +347,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
 
   const [images, setImages] = useState<DeckImages | undefined>(undefined);
   const [loadingImages, setLoadingImages] = useState(false);
+  const [imagesDuration, setImagesDuration] = useState<number | undefined>(undefined);
   const includeImages = state.includeImages ?? true;
 
   const setIncludeImages = useCallback(
@@ -368,18 +372,23 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!deck || !includeImages || isAiGenerating) {
-      if (!includeImages) setImages(undefined);
+      if (!includeImages) {
+        setImages(undefined);
+        setImagesDuration(undefined);
+      }
       setLoadingImages(false);
       return;
     }
     let cancelled = false;
     setLoadingImages(true);
+    const startT = Date.now();
     const timer = setTimeout(() => {
       resolveDeckImages(deck, themeRef.current)
         .then((resolved) => {
           if (!cancelled) {
             setImages(resolved);
             setLoadingImages(false);
+            setImagesDuration(Math.round((Date.now() - startT) / 100) / 10);
           }
         })
         .catch((err) => {
@@ -387,6 +396,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
           if (!cancelled) {
             setImages(undefined);
             setLoadingImages(false);
+            setImagesDuration(Math.round((Date.now() - startT) / 100) / 10);
           }
         });
     }, 450);
@@ -462,7 +472,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     runningRef.current = true;
     hasUserEditedRef.current = true;
     setState((s) => ({ ...s, meta: { ...s.meta, title: provisionalLiveTitle } }));
-    setRun({ running: true, stage: "plan", sections: [], words: 0, model: "" });
+    setRun({ running: true, stage: "plan", sections: [], words: 0, model: "", startedAt: Date.now(), duration: undefined });
     try {
       let resolvedPlanTitle = "";
       const detected = !manualLangRef.current ? detectTopicLanguage(topic) : null;
@@ -561,7 +571,12 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
           },
         };
       });
-      setRun((r) => ({ ...r, running: false, stage: "done" }));
+      setRun((r) => ({
+        ...r,
+        running: false,
+        stage: "done",
+        duration: r.startedAt ? Math.round((Date.now() - r.startedAt) / 100) / 10 : undefined,
+      }));
       setCompletedVersion((v) => v + 1);
       ui.toast("اكتمل توليد محتوى العرض", {
         description: analysis.hasCustomPlan
@@ -679,6 +694,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       includeImages,
       setIncludeImages,
       loadingImages,
+      imagesDuration,
       images,
       deck,
       laid,
@@ -701,6 +717,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       includeImages,
       setIncludeImages,
       loadingImages,
+      imagesDuration,
       images,
       deck,
       laid,
