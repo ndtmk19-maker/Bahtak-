@@ -25,8 +25,9 @@ export default defineConfig(({ mode }) => {
       minify: !emitSourcemaps,
     },
     plugins: [
-react(),
+      react(),
       tailwindcss(),
+      slideImagesPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -45,7 +46,7 @@ react(),
       watch: {
         ignored: [
           '**/.figma/**',
-],
+        ],
       },
     },
     preview: {
@@ -54,6 +55,122 @@ react(),
     },
   }
 })
+
+function slideImagesPlugin(): Plugin {
+  return {
+    name: 'slide-images-api',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const parsed = new URL(req.url, 'http://localhost');
+        if (parsed.pathname === '/api/slide-images') {
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          const q = parsed.searchParams.get('q') || '';
+          const orientation = parsed.searchParams.get('orientation') || 'landscape';
+          const perPage = parsed.searchParams.get('per_page') || '10';
+
+          const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
+          const pixabayKey = process.env.PIXABAY_API_KEY;
+
+          let results: any[] = [];
+          if (unsplashKey && q) {
+            try {
+              const uRes = await fetch(
+                `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=${perPage}&orientation=${orientation}&content_filter=high`,
+                {
+                  headers: {
+                    Authorization: `Client-ID ${unsplashKey}`,
+                    'Accept-Version': 'v1',
+                  },
+                }
+              );
+              if (uRes.ok) {
+                const uData: any = await uRes.json();
+                results = (uData.results || []).map((p: any) => {
+                  if (p.links?.download_location) {
+                    fetch(p.links.download_location, {
+                      headers: { Authorization: `Client-ID ${unsplashKey}` },
+                    }).catch(() => {});
+                  }
+                  return {
+                    id: `unsplash:${p.id}`,
+                    provider: 'unsplash',
+                    src: `${p.urls.raw}${p.urls.raw.includes('?') ? '&' : '?'}w=1920&q=80&fm=jpg&fit=max`,
+                    alt: p.alt_description || q,
+                    credit: `Photo: ${p.user?.name || 'Unsplash'} / Unsplash`,
+                  };
+                });
+              }
+            } catch (e) {
+              console.warn('[slide-images] unsplash error:', e);
+            }
+          }
+
+          if (results.length === 0 && pixabayKey && q) {
+            try {
+              const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
+              const pRes = await fetch(
+                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q.slice(0, 95))}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=10&min_width=1200`
+              );
+              if (pRes.ok) {
+                const pData: any = await pRes.json();
+                results = (pData.hits || []).map((h: any) => ({
+                  id: `pixabay:${h.id}`,
+                  provider: 'pixabay',
+                  src: h.largeImageURL,
+                  alt: h.tags || q,
+                  credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
+                }));
+              }
+            } catch (e) {
+              console.warn('[slide-images] pixabay error:', e);
+            }
+          }
+
+          res.end(JSON.stringify({ results }));
+          return;
+        }
+
+        if (parsed.pathname === '/api/image-proxy') {
+          const rawUrl = parsed.searchParams.get('url');
+          if (!rawUrl) {
+            res.statusCode = 400;
+            res.end('Missing url');
+            return;
+          }
+          try {
+            const target = new URL(rawUrl);
+            const allowed = ['images.unsplash.com', 'cdn.pixabay.com', 'pixabay.com'];
+            if (!allowed.some((h) => target.hostname === h || target.hostname.endsWith(`.${h}`))) {
+              res.statusCode = 403;
+              res.end('Forbidden host');
+              return;
+            }
+            const imgRes = await fetch(rawUrl);
+            if (!imgRes.ok) {
+              res.statusCode = imgRes.status;
+              res.end('Failed to fetch image');
+              return;
+            }
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            const arrayBuffer = await imgRes.arrayBuffer();
+            res.end(Buffer.from(arrayBuffer));
+            return;
+          } catch {
+            res.statusCode = 500;
+            res.end('Proxy error');
+            return;
+          }
+        }
+
+        next();
+      });
+    },
+  };
+}
 
 type FigmaSiteConfiguration = {
   title?: string

@@ -28,16 +28,25 @@ import {
   DEFAULT_DECK_OPTIONS,
   DEFAULT_THEME_ID,
   buildDeckFromText,
+  configureSlideImages,
   getTheme,
   layoutDeck,
+  resolveDeckImages,
   suggestTheme,
   type CoverMeta,
+  type DeckImages,
   type DeckOptions,
   type LaidSlide,
   type SlideDeck,
   type SlideTheme,
 } from "../lib/slides";
 import { generatePresentationDraft, type SlideAiSize } from "../lib/slides/ai";
+
+// تفعيل نقطة البحث ووكيل الصور
+configureSlideImages({
+  searchEndpoint: "/api/slide-images",
+  proxyImageUrl: (u) => `/api/image-proxy?url=${encodeURIComponent(u)}`,
+});
 
 export type PresentationMode = "draft" | "ai";
 
@@ -66,6 +75,7 @@ interface Persisted {
   aiSize: SlideAiSize;
   caseStudyCompany: string;
   language: ResearchLanguage;
+  includeImages?: boolean;
 }
 
 export interface SlidesRun {
@@ -87,6 +97,10 @@ interface PresentationApi extends Persisted {
   setAiSize: (s: SlideAiSize) => void;
   setCaseStudyCompany: (c: string) => void;
   setLanguage: (lang: ResearchLanguage) => void;
+  includeImages: boolean;
+  setIncludeImages: (v: boolean) => void;
+  loadingImages: boolean;
+  images: DeckImages | undefined;
   deck: SlideDeck | null;
   laid: LaidSlide[];
   theme: SlideTheme;
@@ -147,6 +161,7 @@ function createDefaultPersisted(lang: ResearchLanguage = "ar"): Persisted {
     aiSize: "standard",
     caseStudyCompany: "",
     language: lang,
+    includeImages: true,
   };
 }
 
@@ -210,6 +225,7 @@ function load(): Persisted | null {
       aiSize: p.aiSize || "standard",
       caseStudyCompany,
       language: p.language || "ar",
+      includeImages: p.includeImages ?? true,
     };
     if (cleanMetaTitle !== (rawMeta.title || "")) {
       try {
@@ -325,15 +341,65 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       state.autoTheme ? suggestTheme(deck?.title || cleanTopicHint, draft) : getTheme(state.themeId),
     [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
+
+  const [images, setImages] = useState<DeckImages | undefined>(undefined);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const includeImages = state.includeImages ?? true;
+
+  const setIncludeImages = useCallback(
+    (val: boolean) => {
+      patch({ includeImages: val });
+    },
+    [patch],
+  );
+
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+
+  // توقيع محتوى العرض: يُعاد البحث عن الصور فقط إذا تغيّر محتوى العرض أو خيار الصور، ولا يُعاد عند تغيير القالب
+  const deckSig = useMemo(() => {
+    if (!deck || !includeImages) return "";
+    return `${deck.title}#${deck.slides.length}#${deck.language}#${deck.slides
+      .map((s) => (s.kind === "content" ? `${s.title}:${s.points.length}` : s.kind))
+      .join(";")}`;
+  }, [deck, includeImages]);
+
+  useEffect(() => {
+    if (!deck || !includeImages) {
+      setImages(undefined);
+      setLoadingImages(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingImages(true);
+    resolveDeckImages(deck, themeRef.current)
+      .then((resolved) => {
+        if (!cancelled) {
+          setImages(resolved);
+          setLoadingImages(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("resolveDeckImages failed gracefully:", err);
+        if (!cancelled) {
+          setImages(undefined);
+          setLoadingImages(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deckSig]);
+
   const laid = useMemo(() => {
     if (!deck) return [];
     try {
-      return layoutDeck(deck, theme, state.options);
+      return layoutDeck(deck, theme, state.options, includeImages ? images : undefined);
     } catch (e) {
       console.error("layoutDeck failed:", e);
       return [];
     }
-  }, [deck, theme, state.options]);
+  }, [deck, theme, state.options, includeImages, images]);
 
   const reset = useCallback(() => {
     runIdRef.current += 1;
@@ -604,6 +670,10 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setAiSize: (aiSize) => patch({ aiSize }),
       setCaseStudyCompany: (caseStudyCompany) => patch({ caseStudyCompany }),
       setLanguage,
+      includeImages,
+      setIncludeImages,
+      loadingImages,
+      images,
       deck,
       laid,
       theme,
@@ -622,6 +692,10 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       setMeta,
       setOptions,
       setLanguage,
+      includeImages,
+      setIncludeImages,
+      loadingImages,
+      images,
       deck,
       laid,
       theme,

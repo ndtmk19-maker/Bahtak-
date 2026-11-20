@@ -779,7 +779,7 @@ function ThemePicker() {
 }
 
 function StructureOptions() {
-  const { options, setOptions } = usePresentation();
+  const { options, setOptions, includeImages, setIncludeImages } = usePresentation();
   const rows: {
     key:
       | "includeAgenda"
@@ -829,6 +829,21 @@ function StructureOptions() {
         </span>
       </div>
       <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+        <div className="flex items-center justify-between gap-3 py-2.5">
+          <div>
+            <div className="text-[0.82rem] font-semibold text-zinc-900 dark:text-zinc-100">
+              الصور الفوتوغرافية
+            </div>
+            <div className="text-[0.72rem] text-zinc-500 dark:text-zinc-400">
+              إدراج صور عالية الجودة تلقائياً للغلاف والفواصل (أو إيقافها لعرض هندسي تنفيذي).
+            </div>
+          </div>
+          <Switch
+            checked={includeImages}
+            onChange={setIncludeImages}
+            label="الصور الفوتوغرافية"
+          />
+        </div>
         {rows.map((r) => (
           <div key={r.key} className="flex items-center justify-between gap-3 py-2.5">
             <div>
@@ -877,8 +892,19 @@ function Stage({
   className: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion, error } =
-    usePresentation();
+  const {
+    deck,
+    laid,
+    theme,
+    exportPptx,
+    exporting,
+    mode,
+    setMode,
+    resetVersion,
+    completedVersion,
+    error,
+    loadingImages,
+  } = usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
   useEffect(() => {
@@ -932,6 +958,12 @@ function Stage({
             />
             {theme.name}
           </span>
+          {loadingImages && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[0.72rem] font-medium text-amber-700 dark:text-amber-400">
+              <Loader2 className="size-3 animate-spin" />
+              <span>جلب الصور...</span>
+            </span>
+          )}
         </div>
         <Button
           variant="primary"

@@ -55,6 +55,8 @@ export type Slide =
       kicker: string;
       title: string;
       children: string[];
+      /** «case-study»: فاصل دراسة الحالة (يأتي بعد المبحث الأخير وقبل الخاتمة) */
+      variant?: "chapter" | "case-study";
       notes?: string;
     }
   | { kind: "question"; kicker: string; text: string; notes?: string }
@@ -68,6 +70,8 @@ export type Slide =
       parts: number;
       /** رقم المبحث الذي تنتمي إليه الشريحة (0 للمقدمة والخاتمة) */
       sectionNumber: number;
+      /** كلمات بحث إنجليزية اختيارية للصورة (إن وُفّرت تُقدَّم على الاستخراج الآلي) */
+      imageQuery?: string;
       notes?: string;
     }
   | {
@@ -99,3 +103,17 @@ export interface SlideDeck {
   slides: Slide[];
   language?: ResearchLanguage;
 }
+
+/** صورة محلولة لشريحة (من Unsplash أو Pixabay أو أي مصدر آخر) */
+export interface SlideImage {
+  /** رابط الصورة أو data URL */
+  src: string;
+  /** نص الإسناد الذي يُطبع على الصورة (مطلوب لصور Unsplash) */
+  credit?: string;
+  provider?: "unsplash" | "pixabay" | "custom";
+  alt?: string;
+  id?: string;
+}
+
+/** صور العرض مفهرسة برقم الشريحة داخل deck.slides (يبدأ من 0) */
+export type DeckImages = Record<number, SlideImage>;

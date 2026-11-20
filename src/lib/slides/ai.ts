@@ -108,6 +108,8 @@ export const SLIDE_PROMPT_ADDENDUM_BY_LANG: Record<ResearchLanguage, string> = {
     "- حافظ حرفياً على صيغة العناوين: المقدمة، المبحث، المطلب، الخاتمة، قائمة المصادر والمراجع.",
     "- في الخاتمة استعمل عنوانين فرعيين مستقلين: «أبرز النتائج:» (3 نقاط) ثم «التوصيات:» (3 نقاط).",
     "- تجنب الحشو وتكرار المعاني أو الجمل المعقدة الطويلة نهائياً.",
+    "- إذا تضمن المطلب أرقاماً أو نسباً فاذكرها صراحة بالأرقام داخل النقطة (مثل: «نسبة النمو: 4.2% سنة 2023»).",
+    "- إذا كان المطلب يصف مراحل أو خطوات فاجعل عنوان كل نقطة «المرحلة الأولى:»، «المرحلة الثانية:»... بالترتيب.",
   ].join("\n"),
   fr: [
     "Consigne stricte pour respecter le format PowerPoint (cible : environ 28 à 30 diapositives au total) :",
@@ -117,6 +119,8 @@ export const SLIDE_PROMPT_ADDENDUM_BY_LANG: Record<ResearchLanguage, string> = {
     "- Conservez rigoureusement les intitulés : Introduction, Chapitre I, Section 1, Conclusion, Bibliographie.",
     "- Dans la conclusion, séparez clairement : « Principaux résultats : » (3 puces) et « Recommandations : » (3 puces).",
     "- Évitez le remplissage inutile, les digressions et les phrases trop denses.",
+    "- Si une section contient des chiffres ou des pourcentages, écrivez-les explicitement en chiffres dans la puce (ex. : « Taux de croissance : 4,2 % en 2023 »).",
+    "- Si une section décrit des étapes, intitulez chaque puce « Étape 1 : », « Étape 2 : »... dans l'ordre.",
   ].join("\n"),
   en: [
     "Strict presentation length requirement (Target: ~28 to 30 slides total):",
@@ -126,6 +130,8 @@ export const SLIDE_PROMPT_ADDENDUM_BY_LANG: Record<ResearchLanguage, string> = {
     "- Strictly maintain headers: Introduction, Chapter 1, Section 1, Conclusion, References.",
     "- In conclusion: clearly separate 'Key Findings:' (3 bullets) and 'Recommendations:' (3 bullets).",
     "- Strictly avoid filler words, redundancy, and complex long paragraphs.",
+    "- When a section contains figures or percentages, state them explicitly as digits inside the bullet (e.g. 'Growth rate: 4.2% in 2023').",
+    "- When a section describes stages, label each bullet 'Step 1:', 'Step 2:'... in order.",
   ].join("\n"),
 };
 

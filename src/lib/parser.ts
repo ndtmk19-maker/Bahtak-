@@ -82,7 +82,7 @@ function stripDisplayMarkdown(line: string): string {
         .trim();
 
     const numberedStructMatch = s.match(
-        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا|Chapitre|Chapter|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|أولاً|أولا|ثانياً|ثانيا|Chapitre|Chapter|Axe|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
     );
     return numberedStructMatch ? numberedStructMatch[1].trim() : s;
 }
@@ -100,14 +100,14 @@ function stripStructuralMarkdown(line: string): string {
 
     // إزالة الترقيم التمهيدي مثل "3. المطلب الثالث:" أو "1. Chapitre I:" فقط إذا سبق عنواناً هيكلياً صريحاً
     const numberedStructMatch = s.match(
-        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|Premièrement|Deuxièmement|Troisièmement|First|Second|Third)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|Chapitre|Chapter|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
+        /^(?:\(?\s*(?:[\d٠-٩]+|[أ-ي]|[a-zA-Z]|[IVXLCDMivxlcdm]+)\s*[\.\-\)\]:]+|\[\s*[\d٠-٩]+\s*\]\s*|(?:أولاً|أولا|ثانياً|ثانيا|ثالثاً|ثالثا|رابعاً|رابعا|خامساً|خامسا|سادساً|سادسا|Premièrement|Deuxièmement|Troisièmement|First|Second|Third)\s*[:\-–—.]?)\s*((?:(?:ال)?(?:مبحث|مطلب|مقدمة|خاتمة|هوامش|قائمة\s+المصادر)|دراسة\s+حالة|Chapitre|Chapter|Axe|Section|Sous-section|Subsection|Introduction|Conclusion|Bibliographie|References|Bibliography|Étude\s+de\s+cas|Etude\s+de\s+cas|Case\s+Study).*)$/i,
     );
     if (numberedStructMatch) {
         s = numberedStructMatch[1].trim();
     }
 
     s = s.replace(/^(المبحث|مبحث|المطلب|مطلب)\s*(?:رقم\s*)?([\d٠-٩]+)/i, '$1 $2');
-    s = s.replace(/^(Chapitre|Chapter|Section)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+)/i, '$1 $2');
+    s = s.replace(/^(Chapitre|Chapter|Axe|Section)\s*(?:n°|no\.?|numéro|number)?\s*([0-9IVXLCDMivxlcdm]+)/i, '$1 $2');
     return s;
 }
 
@@ -536,7 +536,7 @@ export function analyzeResearchText(rawInput: string): ResearchAnalysis {
                 };
             }
 
-            const mabhathHeadingRe = new RegExp(`^(?:(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}|(?:Chapitre|Chapter)\\s+${ANY_STRUCT_ORD})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
+            const mabhathHeadingRe = new RegExp(`^(?:(?:المبحث|مبحث)\\s+${ARABIC_STRUCT_ORD}|(?:Chapitre|Chapter|Axe)\\s+${ANY_STRUCT_ORD})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
             const matlabHeadingRe = new RegExp(`^(?:(?:المطلب|مطلب)\\s+${ARABIC_STRUCT_ORD}|(?:Section|Sous-section|Subsection)\\s+${ANY_STRUCT_ORD})(?:[\\s:\\-–—\\.\\(/]|$)`, 'i');
             const caseFirstHeadingRe = /^(?:أولاً|أولا|Premièrement|First)\s*[:\-–—\.]+/i;
             const caseSecondHeadingRe = /^(?:ثانياً|ثانيا|Deuxièmement|Second)\s*[:\-–—\.]+/i;
