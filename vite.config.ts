@@ -58,6 +58,8 @@ export default defineConfig(({ mode }) => {
 })
 
 function slideImagesPlugin(env?: Record<string, string>): Plugin {
+  const searchCache = new Map<string, any[]>();
+
   return {
     name: 'slide-images-api',
     configureServer(server) {
@@ -70,6 +72,12 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
           const q = parsed.searchParams.get('q') || '';
           const orientation = parsed.searchParams.get('orientation') || 'landscape';
           const perPage = parsed.searchParams.get('per_page') || '10';
+
+          const cacheKey = `${q}|${orientation}|${perPage}`;
+          if (searchCache.has(cacheKey)) {
+            res.end(JSON.stringify({ results: searchCache.get(cacheKey) }));
+            return;
+          }
 
           const unsplashKey = env?.UNSPLASH_ACCESS_KEY || process.env.UNSPLASH_ACCESS_KEY;
           const pixabayKey = env?.PIXABAY_API_KEY || process.env.PIXABAY_API_KEY;
@@ -129,6 +137,33 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
             }
           }
 
+          // خط دفاع ثالث موثوق: ويكيبيديا / ويكيميديا كومنز (بدون مفاتيح وبدون حدود)
+          if (results.length === 0 && q) {
+            try {
+              const wUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=${perPage}&prop=pageimages&pithumbsize=1920&format=json`;
+              const wRes = await fetch(wUrl);
+              if (wRes.ok) {
+                const wData: any = await wRes.json();
+                const pages = Object.values(wData.query?.pages || {});
+                results = pages
+                  .filter((p: any) => p.thumbnail?.source)
+                  .map((p: any) => ({
+                    id: `wiki:${p.pageid}`,
+                    provider: 'wikimedia',
+                    src: p.thumbnail.source,
+                    alt: p.title || q,
+                    credit: `Photo: Wikimedia Commons / ${p.title || 'Public Domain'}`,
+                  }));
+              }
+            } catch (e) {
+              console.warn('[slide-images] wikimedia fallback error:', e);
+            }
+          }
+
+          if (results.length > 0) {
+            searchCache.set(cacheKey, results);
+          }
+
           res.end(JSON.stringify({ results }));
           return;
         }
@@ -142,7 +177,14 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
           }
           try {
             const target = new URL(rawUrl);
-            const allowed = ['images.unsplash.com', 'cdn.pixabay.com', 'pixabay.com'];
+            const allowed = [
+              'images.unsplash.com',
+              'cdn.pixabay.com',
+              'pixabay.com',
+              'upload.wikimedia.org',
+              'thumb.wikimedia.org',
+              'wikimedia.org',
+            ];
             if (!allowed.some((h) => target.hostname === h || target.hostname.endsWith(`.${h}`))) {
               res.statusCode = 403;
               res.end('Forbidden host');

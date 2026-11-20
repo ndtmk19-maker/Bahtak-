@@ -356,6 +356,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
   const themeRef = useRef(theme);
   themeRef.current = theme;
 
+  const isAiGenerating = run.running || run.stage === "writing" || run.stage === "plan";
+
   // توقيع محتوى العرض: يُعاد البحث عن الصور فقط إذا تغيّر محتوى العرض أو خيار الصور، ولا يُعاد عند تغيير القالب
   const deckSig = useMemo(() => {
     if (!deck || !includeImages) return "";
@@ -365,31 +367,35 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
   }, [deck, includeImages]);
 
   useEffect(() => {
-    if (!deck || !includeImages) {
-      setImages(undefined);
+    if (!deck || !includeImages || isAiGenerating) {
+      if (!includeImages) setImages(undefined);
       setLoadingImages(false);
       return;
     }
     let cancelled = false;
     setLoadingImages(true);
-    resolveDeckImages(deck, themeRef.current)
-      .then((resolved) => {
-        if (!cancelled) {
-          setImages(resolved);
-          setLoadingImages(false);
-        }
-      })
-      .catch((err) => {
-        console.warn("resolveDeckImages failed gracefully:", err);
-        if (!cancelled) {
-          setImages(undefined);
-          setLoadingImages(false);
-        }
-      });
+    const timer = setTimeout(() => {
+      resolveDeckImages(deck, themeRef.current)
+        .then((resolved) => {
+          if (!cancelled) {
+            setImages(resolved);
+            setLoadingImages(false);
+          }
+        })
+        .catch((err) => {
+          console.warn("resolveDeckImages failed gracefully:", err);
+          if (!cancelled) {
+            setImages(undefined);
+            setLoadingImages(false);
+          }
+        });
+    }, 450);
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [deckSig]);
+  }, [deckSig, isAiGenerating]);
 
   const laid = useMemo(() => {
     if (!deck) return [];
