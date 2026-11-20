@@ -5,7 +5,7 @@ import type { ResearchLanguage } from "../../types";
 import type { SlideTheme } from "./themes";
 import type { DeckImages, Point, Slide, SlideDeck, SlideImage } from "./types";
 
-export type ImageProviderId = "unsplash" | "pixabay";
+export type ImageProviderId = "unsplash" | "pixabay" | "pexels";
 export type ImageRole = "cover" | "section" | "case-study" | "question" | "content" | "closing";
 
 export interface SlideImageConfig {
@@ -13,6 +13,8 @@ export interface SlideImageConfig {
   unsplashAccessKey?: string;
   /** مفتاح Pixabay API */
   pixabayKey?: string;
+  /** مفتاح Pexels API */
+  pexelsKey?: string;
   /**
    * نقطة بحث خلفية خاصة بالموقع (موصى بها لإخفاء المفاتيح):
    * GET `${searchEndpoint}?q=...&orientation=landscape|portrait&per_page=10`
@@ -67,86 +69,86 @@ const TERMS: [RegExp, string][] = [
   [/تجارة إلكترونية|commerce électronique|e-?commerce/i, "online shopping"],
   [/إنترنت|internet/i, "internet technology"],
   [/هاتف|smartphone|mobile/i, "smartphone"],
-  [/تضخم|inflation/i, "inflation prices"],
-  [/بطالة|chômage|unemployment/i, "job seekers"],
-  [/نمو اقتصادي|croissance économique|economic growth/i, "economic growth"],
-  [/تنمية مستدامة|développement durable|sustainable development/i, "sustainable development"],
-  [/تنمية|développement|development/i, "development city"],
-  [/اقتصاد|économi|econom/i, "economy"],
-  [/بنك|بنوك|مصرف|banque|bank/i, "bank"],
-  [/بورصة|أسهم|bourse|stock market|actions/i, "stock market"],
-  [/تأمين|assurance|insurance/i, "insurance"],
-  [/ضريب|جباية|fiscal|impôt|tax/i, "tax documents"],
-  [/ميزانية|budget/i, "budget planning"],
-  [/محاسب|comptab|accounting/i, "accounting"],
-  [/تدقيق|مراجعة الحسابات|audit/i, "financial audit"],
-  [/تمويل|financement|financing/i, "finance"],
-  [/استثمار|investissement|investment/i, "investment"],
-  [/عقار|immobilier|real estate/i, "real estate"],
-  [/سكن|logement|housing/i, "residential buildings"],
-  [/بناء|تشييد|construction/i, "construction site"],
-  [/تجارة خارجية|صادرات|واردات|export|import|commerce extérieur|foreign trade/i, "cargo port containers"],
-  [/تجارة|commerce|trade/i, "trade market"],
-  [/محروقات|نفط|بترول|pétrole|hydrocarbures|oil|petroleum/i, "oil industry"],
-  [/طاقة متجددة|énergies? renouvelables?|renewable energy/i, "renewable energy"],
-  [/طاقة|énergie|energy/i, "energy"],
-  [/بيئة|بيئي|environnement|environment/i, "nature environment"],
-  [/مناخ|climat|climate/i, "climate change"],
-  [/مياه|ماء|eau|water/i, "water"],
-  [/فلاح|زراع|agricult/i, "agriculture field"],
-  [/سياحة|tourisme|tourism/i, "tourism travel"],
-  [/نقل|transport/i, "transportation"],
-  [/لوجست|سلسلة الإمداد|logistique|supply chain|logistics/i, "logistics warehouse"],
-  [/صناعة|صناعي|industri/i, "industry factory"],
-  [/مؤسسات صغيرة|مؤسسة صغيرة|pme|sme|small business/i, "small business"],
-  [/مقاولاتية|ريادة الأعمال|entrepreneuriat|entrepreneurship|startup/i, "startup entrepreneurship"],
-  [/مؤسسة|شركة|entreprise|company|firm/i, "corporate office"],
-  [/موارد بشرية|ressources humaines|human resources/i, "human resources team"],
-  [/تسويق|marketing/i, "marketing"],
-  [/إشهار|إعلان|publicité|advertising/i, "advertising billboard"],
-  [/جودة|qualité|quality/i, "quality control"],
-  [/استراتيج|stratégi|strateg/i, "business strategy"],
-  [/قيادة|leadership/i, "leadership"],
-  [/حوكمة|gouvernance|governance/i, "corporate governance"],
-  [/ابتكار|innovation/i, "innovation"],
-  [/تسيير|إدارة|ادارة|gestion|management/i, "business management"],
-  [/أداء|performance/i, "performance"],
-  [/اتصال|communication/i, "communication"],
-  [/إعلام|صحافة|médias|journalisme|media|journalism/i, "media journalism"],
-  [/شبكات التواصل|مواقع التواصل|réseaux sociaux|social media/i, "social media"],
-  [/قانون|قانوني|تشريع|droit|juridique|législation|law|legal/i, "law justice"],
-  [/دستور|constitution/i, "constitution law"],
-  [/قضاء|محكمة|tribunal|justice|court/i, "courthouse"],
-  [/جريمة|جنائي|crime|pénal|criminal/i, "criminal justice"],
-  [/عقد|عقود|contrat|contract/i, "contract signing"],
-  [/انتخاب|élection|election/i, "election vote"],
-  [/علاقات دولية|relations internationales|international relations|diplomat/i, "diplomacy"],
-  [/سياسة|سياسي|politique|politic/i, "government building"],
-  [/صحة|صحي|santé|health/i, "healthcare"],
-  [/مستشفى|hôpital|hospital/i, "hospital"],
-  [/دواء|أدوية|صيدلة|médicament|pharmac/i, "pharmacy medicine"],
-  [/سكري|diabète|diabetes/i, "diabetes care"],
-  [/سرطان|cancer/i, "cancer research"],
-  [/وباء|فيروس|كورونا|épidémie|virus|pandemic|covid/i, "virus laboratory"],
-  [/تغذية|nutrition/i, "healthy food"],
-  [/تمريض|infirm|nursing/i, "nurse"],
-  [/تعليم|تربية|enseignement|éducation|education/i, "education classroom"],
-  [/جامعة|طلبة|طالب|université|étudiant|university|student/i, "university students"],
-  [/مدرسة|école|school/i, "school"],
-  [/أسرة|عائلة|famille|family/i, "family"],
-  [/شباب|jeunes|youth/i, "young people"],
-  [/طفل|أطفال|enfant|children|child/i, "children"],
-  [/مرأة|نساء|femme|women/i, "women"],
-  [/علم النفس|نفسي|psycholog/i, "psychology"],
-  [/علم الاجتماع|مجتمع|اجتماعي|sociolog|société|society|social/i, "community people"],
-  [/تاريخ|histoire|history/i, "history"],
-  [/فلسفة|philosophie|philosophy/i, "philosophy books"],
-  [/أدب|لغة|littérature|langue|literature|language/i, "books literature"],
-  [/ثقافة|culture/i, "culture"],
-  [/رياضة|sport/i, "sport"],
-  [/مدينة|عمران|حضري|ville|urbain|city|urban/i, "city"],
-  [/فقر|pauvreté|poverty/i, "poverty"],
-  [/عولمة|mondialisation|globalization/i, "globalization world"],
+  [/تضخم|inflation/i, "financial charts economy currency"],
+  [/بطالة|chômage|unemployment/i, "economic crisis market office"],
+  [/نمو اقتصادي|croissance économique|economic growth/i, "economic growth chart city"],
+  [/تنمية مستدامة|développement durable|sustainable development/i, "sustainable development green technology"],
+  [/تنمية|développement|development/i, "development modern city architecture"],
+  [/اقتصاد|économi|econom/i, "economy finance chart"],
+  [/بنك|بنوك|مصرف|banque|bank/i, "bank architecture building"],
+  [/بورصة|أسهم|bourse|stock market|actions/i, "stock market financial display"],
+  [/تأمين|assurance|insurance/i, "insurance documents office"],
+  [/ضريب|جباية|fiscal|impôt|tax/i, "tax documents office"],
+  [/ميزانية|budget/i, "budget planning spreadsheet"],
+  [/محاسب|comptab|accounting/i, "accounting calculator spreadsheet"],
+  [/تدقيق|مراجعة الحسابات|audit/i, "financial audit report documents"],
+  [/تمويل|financement|financing/i, "finance investment capital"],
+  [/استثمار|investissement|investment/i, "investment capital real estate"],
+  [/عقار|immobilier|real estate/i, "modern real estate architecture"],
+  [/سكن|logement|housing/i, "residential buildings architecture"],
+  [/بناء|تشييد|construction/i, "construction site architecture"],
+  [/تجارة خارجية|صادرات|واردات|export|import|commerce extérieur|foreign trade/i, "cargo port containers shipping"],
+  [/تجارة|commerce|trade/i, "trade commercial container market"],
+  [/محروقات|نفط|بترول|pétrole|hydrocarbures|oil|petroleum/i, "oil industry refinery platform"],
+  [/طاقة متجددة|énergies? renouvelables?|renewable energy/i, "renewable energy solar wind"],
+  [/طاقة|énergie|energy/i, "energy technology power plant"],
+  [/بيئة|بيئي|environnement|environment/i, "nature landscape environment"],
+  [/مناخ|climat|climate/i, "climate landscape ecology"],
+  [/مياه|ماء|eau|water/i, "clean water landscape"],
+  [/فلاح|زراع|agricult/i, "agriculture field green crop"],
+  [/سياحة|tourisme|tourism/i, "tourism landmarks architectural"],
+  [/نقل|transport/i, "transportation logistics railway"],
+  [/لوجست|سلسلة الإمداد|logistique|supply chain|logistics/i, "logistics warehouse freight"],
+  [/صناعة|صناعي|industri/i, "industry modern factory robotics"],
+  [/مؤسسات صغيرة|مؤسسة صغيرة|pme|sme|small business/i, "modern small business workspace"],
+  [/مقاولاتية|ريادة الأعمال|entrepreneuriat|entrepreneurship|startup/i, "modern tech startup office"],
+  [/مؤسسة|شركة|entreprise|company|firm/i, "corporate headquarters skyscraper"],
+  [/موارد بشرية|ressources humaines|human resources/i, "modern office workspace conference"],
+  [/تسويق|marketing/i, "digital marketing dashboard analytics"],
+  [/إشهار|إعلان|publicité|advertising/i, "advertising digital billboard"],
+  [/جودة|qualité|quality/i, "quality control laboratory technical"],
+  [/استراتيج|stratégi|strateg/i, "corporate business strategy boardroom"],
+  [/قيادة|leadership/i, "corporate executive boardroom"],
+  [/حوكمة|gouvernance|governance/i, "corporate governance architecture"],
+  [/ابتكار|innovation/i, "innovation technology laboratory"],
+  [/تسيير|إدارة|ادارة|gestion|management/i, "business management office"],
+  [/أداء|performance/i, "financial performance chart analytics"],
+  [/اتصال|communication/i, "digital communication technology"],
+  [/إعلام|صحافة|médias|journalisme|media|journalism/i, "broadcast studio media equipment"],
+  [/شبكات التواصل|مواقع التواصل|réseaux sociaux|social media/i, "social media technology digital"],
+  [/قانون|قانوني|تشريع|droit|juridique|législation|law|legal/i, "courthouse law scale justice books"],
+  [/دستور|constitution/i, "constitution law legal archive"],
+  [/قضاء|محكمة|tribunal|justice|court/i, "courthouse pillars justice"],
+  [/جريمة|جنائي|crime|pénal|criminal/i, "legal justice crime evidence court"],
+  [/عقد|عقود|contrat|contract/i, "contract document pen legal"],
+  [/انتخاب|élection|election/i, "election ballot box government"],
+  [/علاقات دولية|relations internationales|international relations|diplomat/i, "diplomacy flags government summit"],
+  [/سياسة|سياسي|politique|politic/i, "government parliament building architecture"],
+  [/صحة|صحي|santé|health/i, "modern medical hospital facility"],
+  [/مستشفى|hôpital|hospital/i, "modern hospital building clinic"],
+  [/دواء|أدوية|صيدلة|médicament|pharmac/i, "pharmacy pharmaceutical laboratory"],
+  [/سكري|diabète|diabetes/i, "medical healthcare laboratory"],
+  [/سرطان|cancer/i, "oncology medical research laboratory"],
+  [/وباء|فيروس|كورونا|épidémie|virus|pandemic|covid/i, "medical research laboratory microscope"],
+  [/تغذية|nutrition/i, "healthy agricultural food harvest"],
+  [/تمريض|infirm|nursing/i, "medical clinical equipment clinic"],
+  [/تعليم|تربية|enseignement|éducation|education/i, "modern university campus classroom"],
+  [/جامعة|طلبة|طالب|université|étudiant|university|student/i, "university library books architecture"],
+  [/مدرسة|école|school/i, "school campus building classroom"],
+  [/أسرة|عائلة|famille|family/i, "residential home architecture"],
+  [/شباب|jeunes|youth/i, "modern university library study"],
+  [/طفل|أطفال|enfant|children|child/i, "school education learning books"],
+  [/مرأة|نساء|femme|women/i, "corporate leadership office boardroom"],
+  [/علم النفس|نفسي|psycholog/i, "brain neuroscience abstract concept"],
+  [/علم الاجتماع|مجتمع|اجتماعي|sociolog|société|society|social/i, "modern city urban architecture"],
+  [/تاريخ|histoire|history/i, "historical museum archives monument"],
+  [/فلسفة|philosophie|philosophy/i, "philosophy library classic books"],
+  [/أدب|لغة|littérature|langue|literature|language/i, "ancient books library literature"],
+  [/ثقافة|culture/i, "cultural museum heritage architecture"],
+  [/رياضة|sport/i, "modern sports stadium arena"],
+  [/مدينة|عمران|حضري|ville|urbain|city|urban/i, "modern city skyline architecture"],
+  [/فقر|pauvreté|poverty/i, "economic development crisis abstract"],
+  [/عولمة|mondialisation|globalization/i, "globalization world map technology"],
 ];
 
 function englishTerms(text: string): string[] {
@@ -176,7 +178,7 @@ function slideSeed(s: Slide): string {
     case "content":
       return `${s.title} ${pointsText(s.points)}`;
     case "closing":
-      return s.subtitle;
+      return "";
     default:
       return "";
   }
@@ -185,6 +187,10 @@ function slideSeed(s: Slide): string {
 /** كلمات بحث للشريحة: كلمات مخصصة ← مصطلحات العنوان ← مصطلحات النص ← موضوع العرض ← احتياطي القالب */
 export function buildImageQuery(s: Slide, deck: SlideDeck, th: SlideTheme, rotation = 0): string {
   if (s.kind === "content" && s.imageQuery?.trim()) return s.imageQuery.trim();
+  if (s.kind === "closing") {
+    const topic = englishTerms(deck.title);
+    return topic.length ? `${topic[0]} architecture minimalist` : "modern architecture minimalism";
+  }
   const title =
     s.kind === "content" || s.kind === "section"
       ? s.title
@@ -319,6 +325,28 @@ async function searchPixabay(q: string, orientation: string, cfg: SlideImageConf
   }));
 }
 
+interface PexelsHit {
+  id: number;
+  photographer: string;
+  alt?: string;
+  src: { large2x?: string; large?: string; original: string };
+}
+
+async function searchPexels(q: string, orientation: string, cfg: SlideImageConfig): Promise<SlideImage[]> {
+  if (!cfg.pexelsKey) return [];
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=10&orientation=${orientation}`;
+  const data = (await fetchJson(url, cfg.timeoutMs ?? 9000, { Authorization: cfg.pexelsKey })) as {
+    photos?: PexelsHit[];
+  };
+  return (data.photos || []).map((p) => ({
+    id: `pexels:${p.id}`,
+    provider: "pexels" as const,
+    src: p.src.large2x || p.src.large || p.src.original,
+    alt: p.alt || q,
+    credit: `Photo: ${p.photographer} / Pexels`,
+  }));
+}
+
 async function searchEndpoint(q: string, orientation: string, cfg: SlideImageConfig): Promise<SlideImage[]> {
   if (!cfg.searchEndpoint) return [];
   const sep = cfg.searchEndpoint.includes("?") ? "&" : "?";
@@ -338,9 +366,12 @@ async function searchAll(q: string, orientation: string, cfg: SlideImageConfig):
       /* ننتقل إلى المزودين المباشرين */
     }
   }
-  for (const p of cfg.providers || ["unsplash", "pixabay"]) {
+  for (const p of cfg.providers || ["pexels", "unsplash", "pixabay"]) {
     try {
-      const r = p === "unsplash" ? await searchUnsplash(q, orientation, cfg) : await searchPixabay(q, orientation, cfg);
+      let r: Candidate[] = [];
+      if (p === "pexels") r = await searchPexels(q, orientation, cfg);
+      else if (p === "unsplash") r = await searchUnsplash(q, orientation, cfg);
+      else if (p === "pixabay") r = await searchPixabay(q, orientation, cfg);
       if (r.length) return r;
     } catch {
       /* نجرب المزود التالي */

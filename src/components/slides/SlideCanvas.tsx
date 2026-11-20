@@ -79,6 +79,9 @@ function PrimView({ p }: { p: Prim }) {
         <img
           src={p.src}
           alt={p.alt || ""}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
           style={{
             ...box(p.x, p.y, p.w, p.h),
             objectFit: p.fit === "cover" ? "cover" : "contain",

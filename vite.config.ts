@@ -60,6 +60,13 @@ export default defineConfig(({ mode }) => {
 function slideImagesPlugin(env?: Record<string, string>): Plugin {
   const searchCache = new Map<string, any[]>();
 
+  const PEOPLE_FILTER_REGEX =
+    /\b(person|people|man|men|woman|women|human|humans|face|faces|portrait|portraits|selfie|selfies|smile|smiling|model|models|girl|girls|boy|boys|guy|guys|lady|ladies|child|children|worker|workers|crowd|crowds|gentleman|female|male|couple|couples|family|families|baby|babies|toddler|toddlers|teenager|teenagers|hand|hands|nurse|doctor|patient|student|students|teacher|teachers)\b/i;
+
+  function hasPeople(text: string): boolean {
+    return PEOPLE_FILTER_REGEX.test(text);
+  }
+
   return {
     name: 'slide-images-api',
     configureServer(server) {
@@ -80,10 +87,39 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
           }
 
           const unsplashKey = env?.UNSPLASH_ACCESS_KEY || process.env.UNSPLASH_ACCESS_KEY;
+          const pexelsKey = env?.PEXELS_API_KEY || process.env.PEXELS_API_KEY;
           const pixabayKey = env?.PIXABAY_API_KEY || process.env.PIXABAY_API_KEY;
 
           let results: any[] = [];
-          if (unsplashKey && q) {
+
+          // 1. Pexels API (صور مجانية عالية الجودة، تدعم 20,000 طلب/شهر، مثالية للمواضيع الأكاديمية والمكتبية)
+          if (pexelsKey && q) {
+            try {
+              const pexUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${perPage}&orientation=${orientation}`;
+              const pexRes = await fetch(pexUrl, {
+                headers: {
+                  Authorization: pexelsKey,
+                },
+              });
+              if (pexRes.ok) {
+                const pexData: any = await pexRes.json();
+                results = (pexData.photos || [])
+                  .filter((p: any) => !hasPeople(p.alt || ''))
+                  .map((p: any) => ({
+                    id: `pexels:${p.id}`,
+                    provider: 'pexels',
+                    src: p.src.large2x || p.src.large || p.src.original,
+                    alt: p.alt || q,
+                    credit: `Photo: ${p.photographer} / Pexels`,
+                  }));
+              }
+            } catch (e) {
+              console.warn('[slide-images] pexels error:', e);
+            }
+          }
+
+          // 2. Unsplash API (محرك صور عالي الجودة مع استبعاد صور الأشخاص والوجوه)
+          if (results.length === 0 && unsplashKey && q) {
             try {
               const uRes = await fetch(
                 `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=${perPage}&orientation=${orientation}&content_filter=high`,
@@ -96,26 +132,32 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
               );
               if (uRes.ok) {
                 const uData: any = await uRes.json();
-                results = (uData.results || []).map((p: any) => {
-                  if (p.links?.download_location) {
-                    fetch(p.links.download_location, {
-                      headers: { Authorization: `Client-ID ${unsplashKey}` },
-                    }).catch(() => {});
-                  }
-                  return {
-                    id: `unsplash:${p.id}`,
-                    provider: 'unsplash',
-                    src: `${p.urls.raw}${p.urls.raw.includes('?') ? '&' : '?'}w=1920&q=80&fm=jpg&fit=max`,
-                    alt: p.alt_description || q,
-                    credit: `Photo: ${p.user?.name || 'Unsplash'} / Unsplash`,
-                  };
-                });
+                results = (uData.results || [])
+                  .filter((p: any) => {
+                    const desc = `${p.alt_description || ''} ${p.description || ''} ${(p.tags || []).map((t: any) => t.title || '').join(' ')}`;
+                    return !hasPeople(desc);
+                  })
+                  .map((p: any) => {
+                    if (p.links?.download_location) {
+                      fetch(p.links.download_location, {
+                        headers: { Authorization: `Client-ID ${unsplashKey}` },
+                      }).catch(() => {});
+                    }
+                    return {
+                      id: `unsplash:${p.id}`,
+                      provider: 'unsplash',
+                      src: `${p.urls.raw}${p.urls.raw.includes('?') ? '&' : '?'}w=1920&q=80&fm=jpg&fit=max`,
+                      alt: p.alt_description || q,
+                      credit: `Photo: ${p.user?.name || 'Unsplash'} / Unsplash`,
+                    };
+                  });
               }
             } catch (e) {
               console.warn('[slide-images] unsplash error:', e);
             }
           }
 
+          // 3. Pixabay API (بديل مجاني واسع بـ 5,000 طلب/ساعة)
           if (results.length === 0 && pixabayKey && q) {
             try {
               const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
@@ -124,42 +166,22 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
               );
               if (pRes.ok) {
                 const pData: any = await pRes.json();
-                results = (pData.hits || []).map((h: any) => ({
-                  id: `pixabay:${h.id}`,
-                  provider: 'pixabay',
-                  src: h.largeImageURL,
-                  alt: h.tags || q,
-                  credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
-                }));
+                results = (pData.hits || [])
+                  .filter((h: any) => !hasPeople(h.tags || ''))
+                  .map((h: any) => ({
+                    id: `pixabay:${h.id}`,
+                    provider: 'pixabay',
+                    src: h.largeImageURL,
+                    alt: h.tags || q,
+                    credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
+                  }));
               }
             } catch (e) {
               console.warn('[slide-images] pixabay error:', e);
             }
           }
 
-          // خط دفاع ثالث موثوق: ويكيبيديا / ويكيميديا كومنز (بدون مفاتيح وبدون حدود)
-          if (results.length === 0 && q) {
-            try {
-              const wUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=${perPage}&prop=pageimages&pithumbsize=1920&format=json`;
-              const wRes = await fetch(wUrl);
-              if (wRes.ok) {
-                const wData: any = await wRes.json();
-                const pages = Object.values(wData.query?.pages || {});
-                results = pages
-                  .filter((p: any) => p.thumbnail?.source)
-                  .map((p: any) => ({
-                    id: `wiki:${p.pageid}`,
-                    provider: 'wikimedia',
-                    src: p.thumbnail.source,
-                    alt: p.title || q,
-                    credit: `Photo: Wikimedia Commons / ${p.title || 'Public Domain'}`,
-                  }));
-              }
-            } catch (e) {
-              console.warn('[slide-images] wikimedia fallback error:', e);
-            }
-          }
-
+          // إذا لم تتوفر مفاتيح أو تجاوز الحد، تُترك النتائج فارغة ليعود التخطيط للتصاميم الهندسية النظيفة دون أخطاء
           if (results.length > 0) {
             searchCache.set(cacheKey, results);
           }
@@ -181,16 +203,20 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
               'images.unsplash.com',
               'cdn.pixabay.com',
               'pixabay.com',
-              'upload.wikimedia.org',
-              'thumb.wikimedia.org',
-              'wikimedia.org',
+              'images.pexels.com',
             ];
             if (!allowed.some((h) => target.hostname === h || target.hostname.endsWith(`.${h}`))) {
               res.statusCode = 403;
               res.end('Forbidden host');
               return;
             }
-            const imgRes = await fetch(rawUrl);
+            const imgRes = await fetch(rawUrl, {
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+              },
+            });
             if (!imgRes.ok) {
               res.statusCode = imgRes.status;
               res.end('Failed to fetch image');

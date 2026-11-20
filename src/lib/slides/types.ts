@@ -110,7 +110,7 @@ export interface SlideImage {
   src: string;
   /** نص الإسناد الذي يُطبع على الصورة (مطلوب لصور Unsplash) */
   credit?: string;
-  provider?: "unsplash" | "pixabay" | "custom";
+  provider?: "unsplash" | "pixabay" | "pexels" | "custom";
   alt?: string;
   id?: string;
 }
