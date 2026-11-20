@@ -8,6 +8,7 @@ import {
   FileText,
   Home,
   LayoutGrid,
+  Languages,
   Loader2,
   MoreVertical,
   Presentation,
@@ -270,7 +271,9 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <LanguageSelector variant="compact" className="hidden sm:inline-flex" />
+        <div className="hidden lg:inline-flex shrink-0">
+          <LanguageSelector variant="compact" />
+        </div>
         {!isSlides && <SaveIndicator status={saveStatus} />}
 
         <span className="mx-1 hidden h-6 w-px bg-black/10 dark:bg-white/10 lg:block" />
@@ -430,6 +433,16 @@ function MoreMenu({
               </>
             )}
           </button>
+
+          {/* اختيار لغة البحث للشاشات الصغيرة والمتوسطة */}
+          <div className="px-2.5 py-2 border-y border-black/10 dark:border-white/10 lg:hidden my-1">
+            <div className="text-[0.72rem] font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center gap-1">
+              <Languages className="size-3.5 text-zinc-600 dark:text-zinc-400" />
+              <span>لغة البحث والتنسيق:</span>
+            </div>
+            <LanguageSelector variant="compact" className="w-full justify-center" />
+          </div>
+
           {!isSlides && (
             <>
               <button

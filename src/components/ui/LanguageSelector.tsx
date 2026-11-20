@@ -67,11 +67,13 @@ export function LanguageSelector({ variant = 'card', className = '', showHint = 
   };
 
   if (variant === 'pill' || variant === 'compact') {
+    const hasDisplay = /\b(hidden|flex|inline-flex|block|inline-block|grid)\b/.test(className);
+    const displayClass = hasDisplay ? '' : 'inline-flex';
     return (
       <div
         role="group"
         aria-label="اختيار لغة العمل"
-        className={`inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/80 p-1 shadow-xs backdrop-blur-md ${className}`}
+        className={`${displayClass} items-center gap-1 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/80 p-1 shadow-xs backdrop-blur-md ${className}`.trim()}
       >
         <span className="flex items-center gap-1 px-2 text-[0.72rem] font-bold text-neutral-600 dark:text-neutral-400">
           <Languages className="size-3.5 text-brand-600 dark:text-brand-400" />
