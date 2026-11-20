@@ -69,86 +69,86 @@ const TERMS: [RegExp, string][] = [
   [/تجارة إلكترونية|commerce électronique|e-?commerce/i, "online shopping"],
   [/إنترنت|internet/i, "internet technology"],
   [/هاتف|smartphone|mobile/i, "smartphone"],
-  [/تضخم|inflation/i, "financial charts economy currency"],
-  [/بطالة|chômage|unemployment/i, "economic crisis market office"],
-  [/نمو اقتصادي|croissance économique|economic growth/i, "economic growth chart city"],
-  [/تنمية مستدامة|développement durable|sustainable development/i, "sustainable development green technology"],
-  [/تنمية|développement|development/i, "development modern city architecture"],
-  [/اقتصاد|économi|econom/i, "economy finance chart"],
-  [/بنك|بنوك|مصرف|banque|bank/i, "bank architecture building"],
-  [/بورصة|أسهم|bourse|stock market|actions/i, "stock market financial display"],
-  [/تأمين|assurance|insurance/i, "insurance documents office"],
-  [/ضريب|جباية|fiscal|impôt|tax/i, "tax documents office"],
-  [/ميزانية|budget/i, "budget planning spreadsheet"],
-  [/محاسب|comptab|accounting/i, "accounting calculator spreadsheet"],
-  [/تدقيق|مراجعة الحسابات|audit/i, "financial audit report documents"],
-  [/تمويل|financement|financing/i, "finance investment capital"],
-  [/استثمار|investissement|investment/i, "investment capital real estate"],
-  [/عقار|immobilier|real estate/i, "modern real estate architecture"],
-  [/سكن|logement|housing/i, "residential buildings architecture"],
-  [/بناء|تشييد|construction/i, "construction site architecture"],
-  [/تجارة خارجية|صادرات|واردات|export|import|commerce extérieur|foreign trade/i, "cargo port containers shipping"],
-  [/تجارة|commerce|trade/i, "trade commercial container market"],
-  [/محروقات|نفط|بترول|pétrole|hydrocarbures|oil|petroleum/i, "oil industry refinery platform"],
-  [/طاقة متجددة|énergies? renouvelables?|renewable energy/i, "renewable energy solar wind"],
-  [/طاقة|énergie|energy/i, "energy technology power plant"],
-  [/بيئة|بيئي|environnement|environment/i, "nature landscape environment"],
-  [/مناخ|climat|climate/i, "climate landscape ecology"],
-  [/مياه|ماء|eau|water/i, "clean water landscape"],
-  [/فلاح|زراع|agricult/i, "agriculture field green crop"],
-  [/سياحة|tourisme|tourism/i, "tourism landmarks architectural"],
-  [/نقل|transport/i, "transportation logistics railway"],
-  [/لوجست|سلسلة الإمداد|logistique|supply chain|logistics/i, "logistics warehouse freight"],
-  [/صناعة|صناعي|industri/i, "industry modern factory robotics"],
-  [/مؤسسات صغيرة|مؤسسة صغيرة|pme|sme|small business/i, "modern small business workspace"],
-  [/مقاولاتية|ريادة الأعمال|entrepreneuriat|entrepreneurship|startup/i, "modern tech startup office"],
-  [/مؤسسة|شركة|entreprise|company|firm/i, "corporate headquarters skyscraper"],
-  [/موارد بشرية|ressources humaines|human resources/i, "modern office workspace conference"],
-  [/تسويق|marketing/i, "digital marketing dashboard analytics"],
-  [/إشهار|إعلان|publicité|advertising/i, "advertising digital billboard"],
-  [/جودة|qualité|quality/i, "quality control laboratory technical"],
-  [/استراتيج|stratégi|strateg/i, "corporate business strategy boardroom"],
-  [/قيادة|leadership/i, "corporate executive boardroom"],
-  [/حوكمة|gouvernance|governance/i, "corporate governance architecture"],
-  [/ابتكار|innovation/i, "innovation technology laboratory"],
-  [/تسيير|إدارة|ادارة|gestion|management/i, "business management office"],
-  [/أداء|performance/i, "financial performance chart analytics"],
-  [/اتصال|communication/i, "digital communication technology"],
-  [/إعلام|صحافة|médias|journalisme|media|journalism/i, "broadcast studio media equipment"],
-  [/شبكات التواصل|مواقع التواصل|réseaux sociaux|social media/i, "social media technology digital"],
-  [/قانون|قانوني|تشريع|droit|juridique|législation|law|legal/i, "courthouse law scale justice books"],
-  [/دستور|constitution/i, "constitution law legal archive"],
-  [/قضاء|محكمة|tribunal|justice|court/i, "courthouse pillars justice"],
-  [/جريمة|جنائي|crime|pénal|criminal/i, "legal justice crime evidence court"],
-  [/عقد|عقود|contrat|contract/i, "contract document pen legal"],
-  [/انتخاب|élection|election/i, "election ballot box government"],
-  [/علاقات دولية|relations internationales|international relations|diplomat/i, "diplomacy flags government summit"],
-  [/سياسة|سياسي|politique|politic/i, "government parliament building architecture"],
-  [/صحة|صحي|santé|health/i, "modern medical hospital facility"],
-  [/مستشفى|hôpital|hospital/i, "modern hospital building clinic"],
-  [/دواء|أدوية|صيدلة|médicament|pharmac/i, "pharmacy pharmaceutical laboratory"],
-  [/سكري|diabète|diabetes/i, "medical healthcare laboratory"],
-  [/سرطان|cancer/i, "oncology medical research laboratory"],
-  [/وباء|فيروس|كورونا|épidémie|virus|pandemic|covid/i, "medical research laboratory microscope"],
-  [/تغذية|nutrition/i, "healthy agricultural food harvest"],
-  [/تمريض|infirm|nursing/i, "medical clinical equipment clinic"],
-  [/تعليم|تربية|enseignement|éducation|education/i, "modern university campus classroom"],
-  [/جامعة|طلبة|طالب|université|étudiant|university|student/i, "university library books architecture"],
-  [/مدرسة|école|school/i, "school campus building classroom"],
-  [/أسرة|عائلة|famille|family/i, "residential home architecture"],
-  [/شباب|jeunes|youth/i, "modern university library study"],
-  [/طفل|أطفال|enfant|children|child/i, "school education learning books"],
-  [/مرأة|نساء|femme|women/i, "corporate leadership office boardroom"],
-  [/علم النفس|نفسي|psycholog/i, "brain neuroscience abstract concept"],
-  [/علم الاجتماع|مجتمع|اجتماعي|sociolog|société|society|social/i, "modern city urban architecture"],
-  [/تاريخ|histoire|history/i, "historical museum archives monument"],
-  [/فلسفة|philosophie|philosophy/i, "philosophy library classic books"],
-  [/أدب|لغة|littérature|langue|literature|language/i, "ancient books library literature"],
-  [/ثقافة|culture/i, "cultural museum heritage architecture"],
-  [/رياضة|sport/i, "modern sports stadium arena"],
-  [/مدينة|عمران|حضري|ville|urbain|city|urban/i, "modern city skyline architecture"],
-  [/فقر|pauvreté|poverty/i, "economic development crisis abstract"],
-  [/عولمة|mondialisation|globalization/i, "globalization world map technology"],
+  [/تضخم|inflation/i, "inflation economy"],
+  [/بطالة|chômage|unemployment/i, "unemployment crisis"],
+  [/نمو اقتصادي|croissance économique|economic growth/i, "economic growth"],
+  [/تنمية مستدامة|développement durable|sustainable development/i, "sustainable ecology"],
+  [/تنمية|développement|development/i, "city development"],
+  [/اقتصاد|économi|econom/i, "finance economy"],
+  [/بنك|بنوك|مصرف|banque|bank/i, "bank architecture"],
+  [/بورصة|أسهم|bourse|stock market|actions/i, "stock market"],
+  [/تأمين|assurance|insurance/i, "insurance office"],
+  [/ضريب|جباية|fiscal|impôt|tax/i, "tax documents"],
+  [/ميزانية|budget/i, "budget planning"],
+  [/محاسب|comptab|accounting/i, "accounting calculator"],
+  [/تدقيق|مراجعة الحسابات|audit/i, "financial audit"],
+  [/تمويل|financement|financing/i, "finance investment"],
+  [/استثمار|investissement|investment/i, "investment capital"],
+  [/عقار|immobilier|real estate/i, "real estate architecture"],
+  [/سكن|logement|housing/i, "residential buildings"],
+  [/بناء|تشييد|construction/i, "construction building"],
+  [/تجارة خارجية|صادرات|واردات|export|import|commerce extérieur|foreign trade/i, "cargo containers"],
+  [/تجارة|commerce|trade/i, "commercial trade"],
+  [/محروقات|نفط|بترول|pétrole|hydrocarbures|oil|petroleum/i, "oil refinery"],
+  [/طاقة متجددة|énergies? renouvelables?|renewable energy/i, "renewable energy"],
+  [/طاقة|énergie|energy/i, "energy technology"],
+  [/بيئة|بيئي|environnement|environment/i, "nature environment"],
+  [/مناخ|climat|climate/i, "climate landscape"],
+  [/مياه|ماء|eau|water/i, "clean water"],
+  [/فلاح|زراع|agricult/i, "agriculture field"],
+  [/سياحة|tourisme|tourism/i, "tourism landmarks"],
+  [/نقل|transport/i, "transportation logistics"],
+  [/لوجست|سلسلة الإمداد|logistique|supply chain|logistics/i, "warehouse logistics"],
+  [/صناعة|صناعي|industri/i, "modern factory"],
+  [/مؤسسات صغيرة|مؤسسة صغيرة|pme|sme|small business/i, "small business"],
+  [/مقاولاتية|ريادة الأعمال|entrepreneuriat|entrepreneurship|startup/i, "tech startup"],
+  [/مؤسسة|شركة|entreprise|company|firm/i, "corporate skyscraper"],
+  [/موارد بشرية|ressources humaines|human resources/i, "modern office"],
+  [/تسويق|marketing/i, "digital marketing"],
+  [/إشهار|إعلان|publicité|advertising/i, "advertising billboard"],
+  [/جودة|qualité|quality/i, "quality control"],
+  [/استراتيج|stratégi|strateg/i, "business strategy"],
+  [/قيادة|leadership/i, "executive boardroom"],
+  [/حوكمة|gouvernance|governance/i, "corporate governance"],
+  [/ابتكار|innovation/i, "technology innovation"],
+  [/تسيير|إدارة|ادارة|gestion|management/i, "business management"],
+  [/أداء|performance/i, "performance analytics"],
+  [/اتصال|communication/i, "digital communication"],
+  [/إعلام|صحافة|médias|journalisme|media|journalism/i, "broadcast studio"],
+  [/شبكات التواصل|مواقع التواصل|réseaux sociaux|social media/i, "social media technology"],
+  [/قانون|قانوني|تشريع|droit|juridique|législation|law|legal/i, "courthouse law"],
+  [/دستور|constitution/i, "constitution law"],
+  [/قضاء|محكمة|tribunal|justice|court/i, "justice courthouse"],
+  [/جريمة|جنائي|crime|pénal|criminal/i, "legal justice"],
+  [/عقد|عقود|contrat|contract/i, "legal contract"],
+  [/انتخاب|élection|election/i, "ballot box"],
+  [/علاقات دولية|relations internationales|international relations|diplomat/i, "diplomacy flags"],
+  [/سياسة|سياسي|politique|politic/i, "parliament building"],
+  [/صحة|صحي|santé|health/i, "hospital medical"],
+  [/مستشفى|hôpital|hospital/i, "hospital clinic"],
+  [/دواء|أدوية|صيدلة|médicament|pharmac/i, "pharmaceutical laboratory"],
+  [/سكري|diabète|diabetes/i, "medical healthcare"],
+  [/سرطان|cancer/i, "medical research"],
+  [/وباء|فيروس|كورونا|épidémie|virus|pandemic|covid/i, "microscope laboratory"],
+  [/تغذية|nutrition/i, "healthy food"],
+  [/تمريض|infirm|nursing/i, "medical clinical"],
+  [/تعليم|تربية|enseignement|éducation|education/i, "university campus"],
+  [/جامعة|طلبة|طالب|université|étudiant|university|student/i, "university library"],
+  [/مدرسة|école|school/i, "school campus"],
+  [/أسرة|عائلة|famille|family/i, "residential home"],
+  [/شباب|jeunes|youth/i, "university library"],
+  [/طفل|أطفال|enfant|children|child/i, "education books"],
+  [/مرأة|نساء|femme|women/i, "executive office"],
+  [/علم النفس|نفسي|psycholog/i, "brain neuroscience"],
+  [/علم الاجتماع|مجتمع|اجتماعي|sociolog|société|society|social/i, "city architecture"],
+  [/تاريخ|histoire|history/i, "historical monument"],
+  [/فلسفة|philosophie|philosophy/i, "ancient books"],
+  [/أدب|لغة|littérature|langue|literature|language/i, "classic library"],
+  [/ثقافة|culture/i, "museum architecture"],
+  [/رياضة|sport/i, "sports stadium"],
+  [/مدينة|عمران|حضري|ville|urbain|city|urban/i, "city skyline"],
+  [/فقر|pauvreté|poverty/i, "economic crisis"],
+  [/عولمة|mondialisation|globalization/i, "globalization map"],
 ];
 
 function englishTerms(text: string): string[] {
@@ -189,7 +189,7 @@ export function buildImageQuery(s: Slide, deck: SlideDeck, th: SlideTheme, rotat
   if (s.kind === "content" && s.imageQuery?.trim()) return s.imageQuery.trim();
   if (s.kind === "closing") {
     const topic = englishTerms(deck.title);
-    return topic.length ? `${topic[0]} architecture minimalist` : "modern architecture minimalism";
+    return topic.length ? `${topic[0]} architecture` : "modern architecture minimalism";
   }
   const title =
     s.kind === "content" || s.kind === "section"
@@ -204,9 +204,10 @@ export function buildImageQuery(s: Slide, deck: SlideDeck, th: SlideTheme, rotat
   const topic = englishTerms(deck.title);
   const terms = [...own, ...body];
   if (!terms.length) terms.push(...topic);
-  const q = terms.slice(0, 2).join(" ");
-  if (q) return q;
-  const fb = th.photo?.queries?.length ? th.photo.queries : ["abstract architecture"];
+  if (terms.length > 0) {
+    return terms[rotation % terms.length];
+  }
+  const fb = th.photo?.queries?.length ? th.photo.queries : ["modern architecture", "academic library", "business office"];
   return fb[rotation % fb.length];
 }
 
@@ -238,10 +239,15 @@ export function planDeckImagery(deck: SlideDeck, th: SlideTheme, maxImages = 14)
     }
     const txt = pointsText(s.points);
     const bullets = s.points.filter((p) => p.kind === "bullet").length;
-    // الصور للشرائح النصية الخفيفة (عبارة محورية أو قائمة قصيرة)؛ البطاقات والمخططات تبقى هندسية
+    // الصور للشرائح النصية (عبارة محورية أو قائمة قصيرة أو مطلب رئيسي خفيف)؛ البطاقات والمخططات الكثيفة تبقى هندسية
     const eligible =
       s.layout === "statement" ||
-      (s.layout === "list" && s.part === 1 && bullets <= 5 && txt.length <= 520 && !s.points.some((p) => p.kind === "sub"));
+      ((s.layout === "list" || s.layout === "cards") &&
+        s.part === 1 &&
+        bullets >= 1 &&
+        bullets <= 4 &&
+        txt.length <= 540 &&
+        !s.points.some((p) => p.kind === "sub"));
     if (eligible && sinceLast >= 2) {
       content.push(i);
       sinceLast = 0;

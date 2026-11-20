@@ -67,6 +67,70 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
     return PEOPLE_FILTER_REGEX.test(text);
   }
 
+  // تحويل استعلامات البحث العربية أو الفرنسية إلى مصطلحات إنجليزية احترافية تلائم Pixabay
+  const ACADEMIC_TERMS_MAP: [RegExp, string][] = [
+    [/تضخم|inflation/i, 'financial charts economy currency'],
+    [/بطالة|chômage|unemployment/i, 'economic crisis market office'],
+    [/نمو اقتصادي|croissance|economic growth/i, 'economic growth chart city'],
+    [/تنمية مستدامة|développement durable|sustainable/i, 'sustainable development green tech'],
+    [/اقتصاد|مالية|نقود|économi|finance|money/i, 'economy finance chart'],
+    [/بنك|بنوك|مصرف|banque|bank/i, 'bank architecture building'],
+    [/بورصة|أسهم|bourse|stock market|shares/i, 'stock market financial display'],
+    [/ضرائب|جباية|fiscal|tax/i, 'tax documents office'],
+    [/محاسبة|تدقيق|comptab|audit|accounting/i, 'accounting calculator spreadsheet'],
+    [/استثمار|تمويل|invest|financing/i, 'finance investment capital'],
+    [/عقار|سكن|بناء|immobilier|real estate|housing/i, 'modern real estate architecture'],
+    [/تجارة|صادرات|واردات|trade|commerce|export|import/i, 'cargo port shipping containers'],
+    [/طاقة|بترول|نفط|غاز|energy|oil|petroleum/i, 'energy technology power plant'],
+    [/طاقات متجددة|شمسية|رياح|renewable energy/i, 'renewable solar wind energy'],
+    [/بيئة|مناخ|تلوث|climat|environment/i, 'nature landscape environment'],
+    [/فلاحة|زراعة|محاصيل|agricult/i, 'agriculture green crop field'],
+    [/سياحة|فندقة|tourisme|tourism/i, 'tourism landmarks architecture'],
+    [/نقل|لوجستية|سلسلة الإمداد|transport|logistics/i, 'logistics warehouse freight transport'],
+    [/صناعة|مصنع|إنتاج|industrie|factory/i, 'industry modern factory robotics'],
+    [/مؤسسة|شركة|أعمال|entreprise|business|company/i, 'corporate skyscraper modern office'],
+    [/ريادة الأعمال|مقاولاتية|startup|entrepreneur/i, 'modern tech startup office'],
+    [/تسويق|إشهار|ترويج|marketing|advertising/i, 'digital marketing dashboard'],
+    [/حوكمة|استراتيجية|إدارة|governance|strategy|management/i, 'business strategy corporate office'],
+    [/ذكاء اصطناعي|خوارزميات|ai|artificial intelligence/i, 'artificial intelligence network'],
+    [/تعلم آلي|بيانات ضخمة|machine learning|big data/i, 'data center network technology'],
+    [/أمن سيبراني|حماية|cybersecurity|security/i, 'cyber security code technology'],
+    [/تحول رقمي|رقمنة|digital transformation/i, 'digital transformation futuristic'],
+    [/حوسبة سحابية|شبكات|cloud|network/i, 'cloud computing data servers'],
+    [/برمجة|تطوير برمجيات|software|programming/i, 'software code programming screen'],
+    [/إنترنت|اتصالات|اتصال|telecom|internet/i, 'internet communication technology'],
+    [/قانون|قضاء|محكمة|عدالة|تشريع|droit|justice|court|law/i, 'courthouse law balance justice books'],
+    [/دستور|حقوق|constitution|rights/i, 'constitution legal archive books'],
+    [/علاقات دولية|دبلوماسية|diplomacy|international/i, 'flags summit government architecture'],
+    [/سياسة|حكومة|برلمان|politique|government/i, 'government parliament building'],
+    [/صحة|مستشفى|طب|santé|medical|hospital/i, 'modern hospital medical laboratory'],
+    [/أدوية|صيدلة|علاج|pharmac|medicine/i, 'pharmaceutical laboratory research'],
+    [/أوبئة|فيروس|ميكروب|virus|pandemic/i, 'medical research microscope laboratory'],
+    [/تعليم|جامعة|تربية|مدرسة|éducation|university|school/i, 'university library books architecture'],
+    [/بحث علمي|مختبر|علم|science|laboratory/i, 'scientific laboratory research test'],
+    [/تاريخ|آثار|متحف|histoire|history/i, 'historical monument museum archive'],
+    [/فلسفة|أدب|كتب|مكتبة|philosophy|literature|library/i, 'classic library ancient books'],
+    [/ثقافة|فنون|تراث|culture|heritage/i, 'cultural heritage museum architecture'],
+    [/عمران|مدينة|مدن|urban|city/i, 'modern city skyline architecture'],
+    [/رياضة|ملعب|sport|stadium/i, 'modern sports stadium arena'],
+  ];
+
+  function normalizeToEnglishQuery(rawQuery: string): string {
+    const trimmed = (rawQuery || '').trim();
+    if (!trimmed) return 'modern architecture minimalism';
+    // إذا كان الاستعلام يحتوي على أحرف إنجليزية فقط
+    if (!/[^\x00-\x7F]/.test(trimmed)) {
+      return trimmed;
+    }
+    // فحص القاموس الأكاديمي
+    for (const [re, en] of ACADEMIC_TERMS_MAP) {
+      if (re.test(trimmed)) {
+        return en;
+      }
+    }
+    return 'modern university architecture academic';
+  }
+
   return {
     name: 'slide-images-api',
     configureServer(server) {
@@ -76,33 +140,36 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
         if (parsed.pathname === '/api/slide-images') {
           res.setHeader('Content-Type', 'application/json');
           res.setHeader('Access-Control-Allow-Origin', '*');
-          const q = parsed.searchParams.get('q') || '';
+          const rawQ = parsed.searchParams.get('q') || '';
           const orientation = parsed.searchParams.get('orientation') || 'landscape';
           const perPage = parsed.searchParams.get('per_page') || '10';
 
-          const cacheKey = `${q}|${orientation}|${perPage}`;
+          const cacheKey = `${rawQ}|${orientation}|${perPage}`;
           if (searchCache.has(cacheKey)) {
             res.end(JSON.stringify({ results: searchCache.get(cacheKey) }));
             return;
           }
 
+          const q = normalizeToEnglishQuery(rawQ);
           const unsplashKey = env?.UNSPLASH_ACCESS_KEY || process.env.UNSPLASH_ACCESS_KEY;
           const pexelsKey = env?.PEXELS_API_KEY || process.env.PEXELS_API_KEY;
           const pixabayKey = env?.PIXABAY_API_KEY || process.env.PIXABAY_API_KEY;
 
           let results: any[] = [];
 
-          // 1. Pixabay API (المزود الرئيسي: 5,000 طلب في الساعة مجاناً، سريع وموثوق مع استبعاد صور الأشخاص والوجوه)
+          // 1. Pixabay API (المزود الرئيسي مع استبعاد صارم للأشخاص والوجوه)
           if (pixabayKey && q) {
             try {
               const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
+              // استبعاد مباشر عبر الكلمات السلبية في Pixabay لضمان عدم ظهور وجوه أو أشخاص (دون استبعاد portrait لأنها تعني الاتجاه العمودي)
+              const safeQuery = `${q} -person -people -face -man -woman`.slice(0, 95);
               const pRes = await fetch(
-                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q.slice(0, 95))}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=10&min_width=1200`
+                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(safeQuery)}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=12&min_width=1200`
               );
               if (pRes.ok) {
                 const pData: any = await pRes.json();
                 results = (pData.hits || [])
-                  .filter((h: any) => !hasPeople(h.tags || ''))
+                  .filter((h: any) => !hasPeople(`${h.tags || ''} ${h.user || ''}`))
                   .map((h: any) => ({
                     id: `pixabay:${h.id}`,
                     provider: 'pixabay',

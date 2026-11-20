@@ -470,8 +470,8 @@ function pickVariant(s: Extract<Slide, { kind: "content" }>, ctx: Ctx): Variant 
     const ordered = sh.items.filter((p) => ORDER_LABEL_RE.test(p.label || p.text)).length >= 2;
     if (ordered || PROCESS_RE.test(`${s.title} ${sh.lead?.text || ""}`)) return "timeline";
   }
+  if (ctx.img && !sh.hasSub && (s.layout === "cards" ? n <= 4 : true)) return "split";
   if (s.layout === "cards") return n === 2 ? "compare" : n === 3 ? "pillars" : "tiles";
-  if (ctx.img && !sh.hasSub) return "split";
   if (clean && n >= 2 && n <= 6 && !sh.items.some((p) => p.prose) && sh.items.every((p) => pointText(p).length <= 260)) return "rows";
   return "plain";
 }

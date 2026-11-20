@@ -171,6 +171,25 @@ function createDefaultPersisted(lang: ResearchLanguage = "ar"): Persisted {
   };
 }
 
+function cleanDeckImages(saved: unknown): DeckImages | undefined {
+  if (!saved || typeof saved !== "object") return undefined;
+  const clean: DeckImages = {};
+  for (const [k, v] of Object.entries(saved as Record<string, any>)) {
+    if (
+      v &&
+      typeof v.src === "string" &&
+      !v.src.includes("wikimedia") &&
+      !v.src.includes("wikipedia") &&
+      !v.credit?.toLowerCase().includes("wikimedia") &&
+      !v.credit?.toLowerCase().includes("wikipedia") &&
+      (v.provider === "pixabay" || v.provider === "pexels" || v.provider === "unsplash")
+    ) {
+      clean[Number(k)] = v;
+    }
+  }
+  return Object.keys(clean).length > 0 ? clean : undefined;
+}
+
 function load(): Persisted | null {
   try {
     // تنظيف التخزين القديم الذي كان يستورد بيانات غلاف A4 تلقائياً لضمان الفصل التام
@@ -220,6 +239,10 @@ function load(): Persisted | null {
           ? topicAnalysis.cleanedTopic
           : "");
     }
+    const cleanedImages = cleanDeckImages(p.savedImages);
+    const imagesWereCleaned =
+      Boolean(p.savedImages && typeof p.savedImages === "object") &&
+      Object.keys(p.savedImages as object).length !== (cleanedImages ? Object.keys(cleanedImages).length : 0);
     const next: Persisted = {
       mode: p.mode === "ai" ? "ai" : "draft",
       draftText: p.draftText || "",
@@ -232,9 +255,9 @@ function load(): Persisted | null {
       caseStudyCompany,
       language: p.language || "ar",
       includeImages: p.includeImages ?? true,
-      savedImages: p.savedImages,
+      savedImages: cleanedImages,
     };
-    if (cleanMetaTitle !== (rawMeta.title || "")) {
+    if (cleanMetaTitle !== (rawMeta.title || "") || imagesWereCleaned) {
       try {
         localStorage.setItem(KEY, JSON.stringify(next));
       } catch {
@@ -349,7 +372,9 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     [state.autoTheme, state.themeId, deck?.title, cleanTopicHint, draft],
   );
 
-  const [images, setImagesState] = useState<DeckImages | undefined>(() => state.savedImages);
+  const [images, setImagesState] = useState<DeckImages | undefined>(() =>
+    cleanDeckImages(state.savedImages),
+  );
   const [loadingImages, setLoadingImages] = useState(false);
   const [imagesDuration, setImagesDuration] = useState<number | undefined>(undefined);
   const includeImages = state.includeImages ?? true;
@@ -590,10 +615,11 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         pickSafe(analysis.cleanedTopic) ||
         (looksLikePlanLeak(topic) || isStructuralTitleOnly(topic) ? fallbackCoverTitle : topic);
       hasUserEditedRef.current = true;
+      const curLang: ResearchLanguage = (state.language || effectiveLang || "ar") as ResearchLanguage;
+      const curSub = (state.meta.subtitle || "").trim();
+      const shouldUpdateSub = KNOWN_DEFAULT_SUBTITLES.has(curSub) || !curSub;
+      const cleanSubtitle = shouldUpdateSub ? DEFAULT_SUBTITLES[curLang] : state.meta.subtitle;
       setState((s) => {
-        const curLang = s.language || effectiveLang || "ar";
-        const curSub = (s.meta.subtitle || "").trim();
-        const shouldUpdateSub = KNOWN_DEFAULT_SUBTITLES.has(curSub) || !curSub;
         return {
           ...s,
           language: curLang,
@@ -601,7 +627,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
           meta: {
             ...s.meta,
             title: cleanCoverTitle,
-            subtitle: shouldUpdateSub ? DEFAULT_SUBTITLES[curLang] : s.meta.subtitle,
+            subtitle: cleanSubtitle,
           },
         };
       });
@@ -612,6 +638,41 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
         duration: r.startedAt ? Math.round((Date.now() - r.startedAt) / 100) / 10 : undefined,
       }));
       setCompletedVersion((v) => v + 1);
+
+      // جلب صور Pixabay وحلها مباشرة فور اكتمال التوليد دون انتظار مؤقت أو إعادة تصيير
+      if (state.includeImages ?? true) {
+        setLoadingImages(true);
+        const imgStartT = Date.now();
+        try {
+          const finalMeta: CoverMeta = {
+            title: cleanCoverTitle,
+            subtitle: cleanSubtitle,
+            institution: state.meta.institution,
+            faculty: state.meta.faculty,
+            presenters: state.meta.presentersText
+              .split("\n")
+              .map((l) => l.trim())
+              .filter(Boolean),
+            supervisor: state.meta.supervisor,
+            year: state.meta.year,
+            logo: state.meta.logoUrl,
+            language: curLang,
+          };
+          const generatedDeck = buildDeckFromText(text, finalMeta, state.options);
+          const resolved = await resolveDeckImages(generatedDeck, themeRef.current);
+          if (runIdRef.current === myRunId) {
+            setImages(resolved);
+            setLoadingImages(false);
+            setImagesDuration(Math.round((Date.now() - imgStartT) / 100) / 10);
+          }
+        } catch (e) {
+          console.warn("Direct image resolution failed:", e);
+          if (runIdRef.current === myRunId) {
+            setLoadingImages(false);
+          }
+        }
+      }
+
       ui.toast("اكتمل توليد محتوى العرض", {
         description: analysis.hasCustomPlan
           ? `نُظّم المحتوى وفق خطتك (${analysis.customMabahith.length} مباحث${

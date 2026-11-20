@@ -79,8 +79,12 @@ function PrimView({ p }: { p: Prim }) {
         <img
           src={p.src}
           alt={p.alt || ""}
+          crossOrigin="anonymous"
+          loading="eager"
+          decoding="async"
           onError={(e) => {
-            (e.currentTarget as HTMLElement).style.display = "none";
+            console.warn("[SlideCanvas] Image load error:", p.src);
+            (e.currentTarget as HTMLElement).style.opacity = "0";
           }}
           style={{
             ...box(p.x, p.y, p.w, p.h),
