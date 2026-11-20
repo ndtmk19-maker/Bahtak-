@@ -40,8 +40,22 @@ function iconToPng(name: SlideIconName, color: string, px = 256): Promise<string
   return job;
 }
 
-/** تحميل الشعار كـ data URL مع أبعاده الطبيعية */
-async function loadImage(src: string): Promise<{ data: string; w: number; h: number } | null> {
+type LoadedImage = { data: string; w: number; h: number };
+const imageCache = new Map<string, Promise<LoadedImage | null>>();
+
+/** تحميل الصورة (شعار أو صورة فوتوغرافية) كـ data URL مع أبعادها الطبيعية، مع تخزين مؤقت */
+function loadImage(src: string): Promise<LoadedImage | null> {
+  const hit = imageCache.get(src);
+  if (hit) return hit;
+  const job = loadImageUncached(src);
+  imageCache.set(src, job);
+  job.then((r) => {
+    if (!r) imageCache.delete(src);
+  });
+  return job;
+}
+
+async function loadImageUncached(src: string): Promise<LoadedImage | null> {
   try {
     let data = src.startsWith("data:") ? src : await imageToDataUrl(src);
     if (!data.startsWith("data:")) return null;
@@ -64,6 +78,38 @@ async function loadImage(src: string): Promise<{ data: string; w: number; h: num
       data = c.toDataURL("image/png");
     }
     return { data, ...dims };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * قص الصورة لتملأ الإطار (object-fit: cover) وضغطها إلى JPEG بدقة مناسبة للعرض،
+ * فلا تتشوه ولا يتضخم حجم ملف PPTX.
+ */
+async function coverCrop(img: LoadedImage, boxW: number, boxH: number): Promise<string | null> {
+  try {
+    if (typeof document === "undefined") return null;
+    const el = new Image();
+    await new Promise((r, j) => ((el.onload = r), (el.onerror = j), (el.src = img.data)));
+    const target = boxW / boxH;
+    let sw = img.w;
+    let sh = img.w / target;
+    if (sh > img.h) {
+      sh = img.h;
+      sw = img.h * target;
+    }
+    const sx = (img.w - sw) / 2;
+    const sy = (img.h - sh) * 0.45;
+    const outW = Math.round(Math.min(sw, boxW * 160, 2200));
+    const outH = Math.round(outW / target);
+    const c = document.createElement("canvas");
+    c.width = outW;
+    c.height = outH;
+    const ctx = c.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(el, sx, sy, sw, sh, 0, 0, outW, outH);
+    return c.toDataURL("image/jpeg", 0.86);
   } catch {
     return null;
   }
@@ -106,7 +152,26 @@ async function addPrim(pptx: PptxGenJS, slide: PptxGenJS.Slide, p: Prim) {
     case "image": {
       const img = await loadImage(p.src);
       if (!img) break;
-      // احتواء الصورة داخل الإطار مع الحفاظ على نسبة أبعادها الأصلية
+      if (p.fit === "cover") {
+        // صورة فوتوغرافية: قص لملء الإطار؛ وإن تعذر القص (مثلاً CORS) نستعمل خاصية القص في PowerPoint
+        const cropped = await coverCrop(img, p.w, p.h);
+        if (cropped) {
+          slide.addImage({ data: cropped, x: p.x, y: p.y, w: p.w, h: p.h, altText: p.alt || "" });
+        } else {
+          const k = Math.max(p.w / img.w, p.h / img.h);
+          slide.addImage({
+            data: img.data,
+            x: p.x,
+            y: p.y,
+            w: img.w * k,
+            h: img.h * k,
+            sizing: { type: "crop", x: (img.w * k - p.w) / 2, y: (img.h * k - p.h) / 2, w: p.w, h: p.h },
+            altText: p.alt || "",
+          });
+        }
+        break;
+      }
+      // احتواء الصورة داخل الإطار مع الحفاظ على نسبة أبعادها الأصلية (الشعارات)
       const k = Math.min(p.w / img.w, p.h / img.h);
       const w = img.w * k;
       const h = img.h * k;
@@ -116,7 +181,7 @@ async function addPrim(pptx: PptxGenJS, slide: PptxGenJS.Slide, p: Prim) {
         y: p.y + (p.h - h) / 2,
         w,
         h,
-        altText: "شعار الجامعة",
+        altText: p.alt || "شعار الجامعة",
       });
       break;
     }

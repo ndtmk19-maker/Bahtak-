@@ -11,7 +11,9 @@ const H = SLIDE_H * IN;
 
 const rgba = (hex?: string, alpha = 1) => {
   if (!hex) return "transparent";
-  const n = parseInt(hex, 16);
+  const clean = hex.startsWith("#") ? hex.slice(1) : hex;
+  const n = parseInt(clean, 16);
+  if (isNaN(n)) return "transparent";
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 };
 
@@ -23,7 +25,7 @@ const box = (x: number, y: number, w: number, h: number): CSSProperties => ({
   height: h * IN,
 });
 
-function Para({ p }: { p: TPara }) {
+function Para({ p, isGhost }: { p: TPara; isGhost?: boolean }) {
   return (
     <p
       dir={p.rtl ? "rtl" : "ltr"}
@@ -31,12 +33,14 @@ function Para({ p }: { p: TPara }) {
         margin: 0,
         marginBottom: (p.spaceAfter || 0) * PT,
         fontSize: p.size * PT,
-        lineHeight: LINE_SPACING * 1.2,
+        lineHeight: isGhost ? 0.9 : LINE_SPACING * 1.2,
         color: `#${p.color}`,
         textAlign: p.align,
+        direction: p.rtl ? "rtl" : "ltr",
         fontWeight: p.bold ? 700 : 400,
         position: "relative",
         paddingInlineStart: p.bullet ? 18 * PT : 0,
+        whiteSpace: isGhost ? "nowrap" : undefined,
       }}
     >
       {p.bullet && (
@@ -72,7 +76,17 @@ function PrimView({ p }: { p: Prim }) {
   switch (p.t) {
     case "image":
       return (
-        <img src={p.src} alt="" style={{ ...box(p.x, p.y, p.w, p.h), objectFit: "contain" }} />
+        <img
+          src={p.src}
+          alt={p.alt || ""}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
+          style={{
+            ...box(p.x, p.y, p.w, p.h),
+            objectFit: p.fit === "cover" ? "cover" : "contain",
+          }}
+        />
       );
     case "rect":
       return (
@@ -81,7 +95,9 @@ function PrimView({ p }: { p: Prim }) {
             ...box(p.x, p.y, p.w, p.h),
             background: rgba(p.fill, p.alpha ?? 1),
             borderRadius: (p.radius || 0) * IN,
-            border: p.line ? `${(p.lineW || 1) * PT}px solid #${p.line}` : undefined,
+            border: p.line
+              ? `${(p.lineW || 1) * PT}px solid ${rgba(p.line, 1)}`
+              : undefined,
             boxSizing: "border-box",
           }}
         />
@@ -94,7 +110,7 @@ function PrimView({ p }: { p: Prim }) {
             borderRadius: "50%",
             background: rgba(p.fill, p.alpha ?? 1),
             border: p.line
-              ? `${(p.lineW || 1) * PT}px solid ${rgba(p.line, p.fill ? 1 : (p.alpha ?? 1))}`
+              ? `${(p.lineW || 1) * PT}px solid ${rgba(p.line, 1)}`
               : undefined,
             boxSizing: "border-box",
           }}
@@ -130,7 +146,8 @@ function PrimView({ p }: { p: Prim }) {
           />
         </svg>
       );
-    case "text":
+    case "text": {
+      const isGhost = p.role === "ghost";
       return (
         <div
           style={{
@@ -141,15 +158,19 @@ function PrimView({ p }: { p: Prim }) {
             justifyContent:
               p.valign === "middle" ? "center" : p.valign === "bottom" ? "flex-end" : "flex-start",
             overflowWrap: "anywhere",
+            pointerEvents: isGhost ? "none" : undefined,
+            userSelect: isGhost ? "none" : undefined,
           }}
         >
           {p.paras.map((q, i) => (
-            <Para key={i} p={q} />
+            <Para key={i} p={q} isGhost={isGhost} />
           ))}
         </div>
       );
+    }
     case "icon": {
       const Icon = SLIDE_ICONS[p.name];
+      if (!Icon) return null;
       return (
         <div style={box(p.x, p.y, p.w, p.h)}>
           <Icon width="100%" height="100%" color={`#${p.color}`} strokeWidth={1.75} />

@@ -63,6 +63,18 @@ interface MabhathNode {
   kicker: string;
   title: string;
   matalib: MatlabNode[];
+  /** دراسة حالة / جانب تطبيقي: تُعرض بعد آخر مبحث وقبل الخاتمة */
+  caseStudy?: boolean;
+}
+
+/** التعرف على محور دراسة الحالة (عربي / فرنسي / إنجليزي) */
+const CASE_STUDY_RE =
+  /دراسة\s+(?:ال)?حالة|الدراسة\s+الميدانية|الجانب\s+التطبيقي|الإطار\s+التطبيقي|دراسة\s+تطبيقية|étude\s+de\s+cas|cas\s+pratique|étude\s+empirique|partie\s+pratique|case\s+study|empirical\s+study|practical\s+part/i;
+
+const CASE_STUDY_PREFIX_RE = new RegExp(`^\\s*(?:${CASE_STUDY_RE.source})\\s*[:：\\-–—]\\s*`, "i");
+
+export function isCaseStudyHeading(text: string): boolean {
+  return CASE_STUDY_RE.test(text || "");
 }
 interface Outline {
   intro: Group[];
@@ -327,6 +339,14 @@ export function buildOutline(a: ResearchAnalysis, lang: ResearchLanguage = "ar")
     }
   }
   o.intro = o.intro.filter((g) => g.points.length);
+
+  // دراسة الحالة: تُعلَّم وتُنقل بعد آخر مبحث نظري (قبل الخاتمة) دون المساس بترتيب المباحث الأخرى
+  o.mabahith.forEach((mb) => {
+    mb.caseStudy = isCaseStudyHeading(`${mb.kicker} ${mb.title}`);
+  });
+  if (o.mabahith.some((mb) => mb.caseStudy) && o.mabahith.some((mb) => !mb.caseStudy)) {
+    o.mabahith = [...o.mabahith.filter((mb) => !mb.caseStudy), ...o.mabahith.filter((mb) => mb.caseStudy)];
+  }
   return o;
 }
 
@@ -595,14 +615,17 @@ export function planDeck(
   // 3. المباحث: شريحة فاصلة لكل مبحث ثم مطالبه (بحد أقصى شريحتين لكل مطلب في الوضع القياسي لمنع التضخم)
   const maxSlidesPerMatlab = density === "airy" ? 1 : density === "detailed" ? 3 : 2;
 
+  const caseKicker = lang === "fr" ? "Étude de cas" : lang === "en" ? "Case Study" : "دراسة حالة";
   o.mabahith.forEach((mb, i) => {
     if (opts.includeSectionDividers) {
       slides.push({
         kind: "section",
         number: i + 1,
-        kicker: mb.kicker,
-        title: mb.title,
+        kicker: mb.caseStudy && !isCaseStudyHeading(mb.kicker) ? caseKicker : mb.kicker,
+        // «دراسة حالة: مؤسسة X» ← البادئة في الشارة والعنوان «مؤسسة X»
+        title: (mb.caseStudy ? mb.title.replace(CASE_STUDY_PREFIX_RE, "").trim() : "") || mb.title,
         children: mb.matalib.map((mt) => mt.title).filter(Boolean),
+        variant: mb.caseStudy ? "case-study" : "chapter",
       });
     }
     mb.matalib.forEach((mt) => {

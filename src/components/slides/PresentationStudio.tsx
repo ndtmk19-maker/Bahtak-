@@ -11,6 +11,7 @@ import {
   Download,
   FlaskConical,
   GraduationCap,
+  Image as ImageIcon,
   ImageUp,
   Landmark,
   ListTree,
@@ -448,49 +449,122 @@ function AiFields() {
       >
         {p.run.running ? "جاري توليد محتوى الشرائح..." : "توليد محتوى العرض"}
       </Button>
-      {(p.run.running || p.run.stage === "done") && <AiProgress />}
+      {(p.run.running || p.run.stage === "done" || p.loadingImages) && <AiProgress />}
     </Section>
   );
 }
 
 function AiProgress() {
-  const { run, deck, setMode } = usePresentation();
+  const { run, deck, setMode, loadingImages, images, imagesDuration, includeImages } = usePresentation();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!run.running && !loadingImages) return;
+    const t = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(t);
+  }, [run.running, loadingImages]);
+
+  const seconds = run.duration ?? (run.startedAt ? (now - run.startedAt) / 1000 : 0);
+  const imagesCount = images ? Object.keys(images).length : 0;
+  const isWorking = run.running || loadingImages;
+
   const stage =
     run.stage === "plan"
-      ? "صياغة خطة العرض..."
+      ? "الخطوة 1: صياغة خطة وهيكل العرض..."
       : run.stage === "writing"
-        ? "كتابة المحاور بالتوازي وتوزيعها على الشرائح..."
-        : "اكتمل التوليد.";
+        ? "الخطوة 2: كتابة محاور الشرائح بالتوازي والبث اللحظي..."
+        : loadingImages
+          ? "الخطوة 3: جلب وتنسيق صور الشرائح الأكاديمية (Pixabay)..."
+          : "اكتمل التوليد وتجهيز الشرائح.";
+
   return (
     <div
-      className="animate-rise rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/70"
+      className="animate-rise overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md shadow-xs"
       aria-live="polite"
     >
       <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 px-3.5 py-2.5 text-[0.8rem] font-semibold text-zinc-900 dark:text-zinc-100">
         <span className="flex items-center gap-2">
-          {run.running ? (
-            <Loader2 className="size-4 animate-spin" />
+          {isWorking ? (
+            <Loader2 className="size-4 animate-spin text-amber-500" />
           ) : (
             <CircleCheck className="size-4 text-emerald-500" />
           )}
           {stage}
         </span>
-        {deck && <Badge tone="ok">{deck.slides.length} شريحة</Badge>}
+        <div className="flex items-center gap-1.5">
+          {deck && <Badge tone="ok">{deck.slides.length} شريحة</Badge>}
+          {seconds > 0 && (
+            <span className="rounded-md border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 font-mono text-[0.74rem] font-bold text-zinc-900 dark:text-white tabular-nums">
+              {seconds.toFixed(1)} ث
+            </span>
+          )}
+        </div>
       </div>
       <ul className="grid grid-cols-2 gap-1.5 p-2.5">
         {run.sections.map((s) => (
           <li
             key={s.id}
-            className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-[0.74rem] ${s.status === "done" ? "border-emerald-500/20 bg-emerald-500/10" : s.status === "error" ? "border-red-500/20 bg-red-500/10" : "border-black/10 dark:border-white/10"}`}
+            className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-[0.74rem] ${
+              s.status === "done"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200"
+                : s.status === "error"
+                  ? "border-red-500/20 bg-red-500/10 text-red-950 dark:text-red-200"
+                  : "border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04]"
+            }`}
           >
             <span className="font-semibold text-zinc-800 dark:text-zinc-200">{s.label}</span>
-            <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-              {s.status === "error" ? "تعذر" : s.words ? `${s.words} كلمة` : "..."}
+            <span className="tabular-nums font-bold text-zinc-600 dark:text-zinc-300">
+              {s.status === "done" ? (s.words ? `${s.words} كلمة` : "✓") : s.status === "error" ? "تعذر" : s.words ? `${s.words} كلمة` : "جارٍ..."}
             </span>
           </li>
         ))}
+
+        {includeImages && (
+          <li
+            className={`col-span-2 relative flex items-center justify-between gap-2 overflow-hidden rounded-lg border px-3 py-2 text-[0.76rem] transition-colors ${
+              loadingImages
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                : imagesCount > 0
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
+                  : "border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04]"
+            }`}
+          >
+            {loadingImages && (
+              <span className="absolute inset-0 animate-shimmer bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.1),transparent)] bg-[length:200%_100%]" />
+            )}
+            <div className="relative flex items-center gap-2">
+              {loadingImages ? (
+                <Loader2 className="size-4 animate-spin text-amber-600 dark:text-amber-400" />
+              ) : imagesCount > 0 ? (
+                <CircleCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <ImageIcon className="size-4 text-zinc-400" />
+              )}
+              <span className="font-bold">
+                جلب واختيار صور الشرائح (Pixabay)
+              </span>
+            </div>
+            <span
+              className={`relative tabular-nums font-bold ${
+                loadingImages
+                  ? "text-amber-700 dark:text-amber-300"
+                  : imagesCount > 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-zinc-500 dark:text-zinc-400"
+              }`}
+            >
+              {loadingImages
+                ? "جارٍ الجلب والتصفية..."
+                : imagesCount > 0
+                  ? `${imagesCount} صورة جاهزة${imagesDuration ? ` (${imagesDuration} ث)` : ""}`
+                  : !run.running
+                    ? "تصاميم هندسية بديلة"
+                    : "في الانتظار..."}
+            </span>
+          </li>
+        )}
       </ul>
-      {!run.running && (
+      {!isWorking && (
         <div className="border-t border-black/10 dark:border-white/10 px-3.5 py-2 text-[0.74rem] text-zinc-600 dark:text-zinc-400">
           المحتوى المولد محفوظ كمسودة.{" "}
           <button
@@ -779,7 +853,7 @@ function ThemePicker() {
 }
 
 function StructureOptions() {
-  const { options, setOptions } = usePresentation();
+  const { options, setOptions, includeImages, setIncludeImages } = usePresentation();
   const rows: {
     key:
       | "includeAgenda"
@@ -829,6 +903,21 @@ function StructureOptions() {
         </span>
       </div>
       <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+        <div className="flex items-center justify-between gap-3 py-2.5">
+          <div>
+            <div className="text-[0.82rem] font-semibold text-zinc-900 dark:text-zinc-100">
+              الصور الفوتوغرافية
+            </div>
+            <div className="text-[0.72rem] text-zinc-500 dark:text-zinc-400">
+              إدراج صور عالية الجودة تلقائياً للغلاف والفواصل (أو إيقافها لعرض هندسي تنفيذي).
+            </div>
+          </div>
+          <Switch
+            checked={includeImages}
+            onChange={setIncludeImages}
+            label="الصور الفوتوغرافية"
+          />
+        </div>
         {rows.map((r) => (
           <div key={r.key} className="flex items-center justify-between gap-3 py-2.5">
             <div>
@@ -877,8 +966,20 @@ function Stage({
   className: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { deck, laid, theme, exportPptx, exporting, mode, setMode, resetVersion, completedVersion, error } =
-    usePresentation();
+  const {
+    deck,
+    laid,
+    theme,
+    exportPptx,
+    exporting,
+    mode,
+    setMode,
+    resetVersion,
+    completedVersion,
+    error,
+    loadingImages,
+    images,
+  } = usePresentation();
   const [sel, setSel] = useState(0);
   const count = laid.length;
   useEffect(() => {
@@ -932,6 +1033,17 @@ function Stage({
             />
             {theme.name}
           </span>
+          {loadingImages ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[0.72rem] font-semibold text-amber-700 dark:text-amber-400 animate-pulse">
+              <Loader2 className="size-3 animate-spin" />
+              <span>جلب الصور (Pixabay)...</span>
+            </span>
+          ) : images && Object.keys(images).length > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[0.72rem] font-medium text-emerald-700 dark:text-emerald-400">
+              <CircleCheck className="size-3" />
+              <span>{Object.keys(images).length} صورة مدمجة</span>
+            </span>
+          ) : null}
         </div>
         <Button
           variant="primary"
@@ -996,6 +1108,12 @@ function Stage({
                 slide={current}
                 className="rounded-xl shadow-[0_10px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/10 dark:ring-white/10"
               />
+              {loadingImages && (
+                <div className="pointer-events-none absolute top-3.5 inset-inline-start-3.5 z-20 flex items-center gap-2 rounded-full border border-amber-500/40 bg-zinc-950/85 px-3 py-1.5 text-[0.72rem] font-semibold text-amber-300 backdrop-blur-md shadow-xl">
+                  <Loader2 className="size-3.5 animate-spin text-amber-400" />
+                  <span>جاري جلب واختيار صور السلايدات (Pixabay)...</span>
+                </div>
+              )}
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <Button
