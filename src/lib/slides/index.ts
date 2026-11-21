@@ -34,3 +34,4 @@ export {
   type ImageProviderId,
 } from "./imagery";
 export { SLIDE_W, SLIDE_H } from "./metrics";
+export * from "./imageKeys";

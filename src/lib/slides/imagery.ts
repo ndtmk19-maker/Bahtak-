@@ -2,6 +2,12 @@
 // ثم يبحث في Unsplash وPixabay (أو في نقطة بحث خلفية خاصة بالموقع) ويُرجع صوراً مفهرسة برقم الشريحة.
 // النتيجة تُمرَّر إلى layoutDeck(deck, theme, opts, images)؛ وعند غياب الصور يرجع التخطيط إلى تصاميم هندسية.
 import type { ResearchLanguage } from "../../types";
+import {
+  getAllPixabayKeys,
+  getEffectivePixabayKey,
+  getEffectiveUnsplashKey,
+  rotatePixabayKey,
+} from "./imageKeys";
 import type { SlideTheme } from "./themes";
 import type { DeckImages, Point, Slide, SlideDeck, SlideImage } from "./types";
 
@@ -46,19 +52,19 @@ function decodeB64(s: string): string {
 }
 
 // مفاتيح النظام المدمجة لجميع مستخدمي المنصة (مشفرة بـ Base64 لحمايتها من المسح الآلي)
-export const SYSTEM_PIXABAY_KEY = decodeB64("NTg3NDE5NDUtZmUyMzA0ZTg1ZTlmYzhkYzcwMDA2YTlkYg==");
-export const SYSTEM_UNSPLASH_KEY = decodeB64("MWdiYVJpYkc3d19zcU0wenN5aTlpVlY5T0FHYmlHTWlTUGh4bmdYVElKOA==");
+export const SYSTEM_PIXABAY_KEY = getEffectivePixabayKey();
+export const SYSTEM_UNSPLASH_KEY = getEffectiveUnsplashKey();
 
 const PEOPLE_FILTER_REGEX =
-  /\b(person|people|man|men|woman|women|human|humans|face|faces|portrait|portraits|selfie|selfies|smile|smiling|model|models|girl|girls|boy|boys|guy|guys|lady|ladies|child|children|worker|workers|crowd|crowds|gentleman|female|male|couple|couples|family|families|baby|babies|toddler|toddlers|teenager|teenagers|hand|hands|nurse|doctor|patient|student|students|teacher|teachers)\b/i;
+  /\b(person|people|man|men|woman|women|human|humans|face|faces|portrait|portraits|selfie|selfies|smile|smiling|model|models|girl|girls|boy|boys|guy|guys|lady|ladies|child|children|kid|kids|worker|workers|crowd|crowds|gentleman|female|male|couple|couples|family|families|baby|babies|toddler|toddlers|teenager|teenagers|hand|hands|nurse|doctor|patient|student|students|teacher|teachers|employee|employees|pedestrian|pedestrians|citizen|citizens|avatar|headshot|profile)\b/i;
 
 function hasPeople(text: string): boolean {
   return PEOPLE_FILTER_REGEX.test(text);
 }
 
 let GLOBAL_CFG: SlideImageConfig = {
-  pixabayKey: SYSTEM_PIXABAY_KEY,
-  unsplashAccessKey: SYSTEM_UNSPLASH_KEY,
+  pixabayKey: getEffectivePixabayKey(),
+  unsplashAccessKey: getEffectiveUnsplashKey(),
   providers: ["pixabay", "unsplash"],
 };
 
@@ -214,7 +220,8 @@ export function buildImageQuery(s: Slide, deck: SlideDeck, th: SlideTheme, rotat
   if (s.kind === "content" && s.imageQuery?.trim()) return s.imageQuery.trim();
   if (s.kind === "closing") {
     const topic = englishTerms(deck.title);
-    return topic.length ? `${topic[0]} architecture` : "modern architecture minimalism";
+    const safeTopic = topic[0]?.replace(/\b(unemployment|poverty|crime|disease|virus|covid|crisis)\b/gi, "").trim();
+    return safeTopic ? `${safeTopic} architecture` : "modern architecture minimalism";
   }
   const title =
     s.kind === "content" || s.kind === "section"
@@ -316,10 +323,11 @@ interface UnsplashPhoto {
 }
 
 async function searchUnsplash(q: string, orientation: string, cfg: SlideImageConfig): Promise<Candidate[]> {
-  const key = cfg.unsplashAccessKey || SYSTEM_UNSPLASH_KEY;
+  const key = cfg.unsplashAccessKey || getEffectiveUnsplashKey();
   if (!key) return [];
+  const cleanQ = q.replace(/["']/g, "").slice(0, 50).trim();
   const url =
-    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}` +
+    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(cleanQ)}` +
     `&per_page=10&orientation=${orientation}&content_filter=high`;
   const auth = { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" };
   const data = (await fetchJson(url, cfg.timeoutMs ?? 9000, auth)) as { results?: UnsplashPhoto[] };
@@ -347,24 +355,48 @@ interface PixabayHit {
 }
 
 async function searchPixabay(q: string, orientation: string, cfg: SlideImageConfig): Promise<SlideImage[]> {
-  const key = cfg.pixabayKey || SYSTEM_PIXABAY_KEY;
-  if (!key) return [];
-  const safeQuery = `${q} -person -people -face -man -woman`.slice(0, 95);
-  const pOrientation = orientation === "portrait" ? "vertical" : "horizontal";
-  const url =
-    `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(safeQuery)}` +
-    `&image_type=photo&orientation=${pOrientation}` +
-    `&safesearch=true&per_page=12&min_width=1200`;
-  const data = (await fetchJson(url, cfg.timeoutMs ?? 9000)) as { hits?: PixabayHit[] };
-  return (data.hits || [])
-    .filter((h) => !hasPeople(`${h.tags || ""} ${h.user || ""}`))
-    .map((h) => ({
-      id: `pixabay:${h.id}`,
-      provider: "pixabay" as const,
-      src: h.largeImageURL,
-      alt: h.tags || q,
-      credit: h.user ? `Image: ${h.user} / Pixabay` : "Pixabay",
-    }));
+  const keysToTry: string[] = [];
+  if (cfg.pixabayKey && cfg.pixabayKey.trim()) {
+    keysToTry.push(cfg.pixabayKey.trim());
+  }
+  for (const k of getAllPixabayKeys()) {
+    if (!keysToTry.includes(k)) {
+      keysToTry.push(k);
+    }
+  }
+  if (keysToTry.length === 0) return [];
+
+  const cleanQ = q.replace(/["']/g, "").slice(0, 50).trim();
+  const safeQuery = `${cleanQ} -person -people -face -man -woman`.slice(0, 95);
+  const orientationsToTry = orientation === "portrait" ? ["all", "vertical"] : ["horizontal", "all"];
+
+  for (const key of keysToTry) {
+    for (const pOrientation of orientationsToTry) {
+      try {
+        const url =
+          `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(safeQuery)}` +
+          `&image_type=photo&orientation=${pOrientation}` +
+          `&safesearch=true&per_page=12`;
+        const data = (await fetchJson(url, cfg.timeoutMs ?? 9000)) as { hits?: PixabayHit[] };
+        const hits = (data.hits || [])
+          .filter((h) => !hasPeople(`${h.tags || ""} ${h.user || ""}`))
+          .map((h) => ({
+            id: `pixabay:${h.id}`,
+            provider: "pixabay" as const,
+            src: h.largeImageURL,
+            alt: h.tags || q,
+            credit: h.user ? `Image: ${h.user} / Pixabay` : "Pixabay",
+          }));
+        if (hits.length > 0) {
+          return hits;
+        }
+      } catch (e) {
+        rotatePixabayKey();
+        break; // الانتقال للمفتاح التالي في الحوض
+      }
+    }
+  }
+  return [];
 }
 
 interface PexelsHit {

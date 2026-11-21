@@ -60,8 +60,23 @@ export default defineConfig(({ mode }) => {
 function slideImagesPlugin(env?: Record<string, string>): Plugin {
   const searchCache = new Map<string, any[]>();
 
+  const SYSTEM_PIXABAY_KEYS_B64 = [
+    'NTg3NDE5NDUtZmUyMzA0ZTg1ZTlmYzhkYzcwMDA2YTlkYg==', // مفتاح 1: 58741945-...
+    'NTg3NDYxOTYtZDFjZWNiNTg1YjNmNjJlMzQ2ZTAyYWVjMQ==', // مفتاح 2: 58746196-...
+    'NTg3NDYyMTAtNGE5NjQ4NGJmMGE1NDUzN2UxMWJiMzVhMg==', // مفتاح 3: 58746210-...
+    'NTg3NDYyMjctNzUxY2UxYzBhZDQyZDE1ZmQxNzFmNDcwZg==', // مفتاح 4: 58746227-...
+  ];
+
+  function decodeB64(s: string): string {
+    try {
+      return Buffer.from(s, 'base64').toString('utf-8');
+    } catch {
+      return s;
+    }
+  }
+
   const PEOPLE_FILTER_REGEX =
-    /\b(person|people|man|men|woman|women|human|humans|face|faces|portrait|portraits|selfie|selfies|smile|smiling|model|models|girl|girls|boy|boys|guy|guys|lady|ladies|child|children|worker|workers|crowd|crowds|gentleman|female|male|couple|couples|family|families|baby|babies|toddler|toddlers|teenager|teenagers|hand|hands|nurse|doctor|patient|student|students|teacher|teachers)\b/i;
+    /\b(person|people|man|men|woman|women|human|humans|face|faces|portrait|portraits|selfie|selfies|smile|smiling|model|models|girl|girls|boy|boys|guy|guys|lady|ladies|child|children|kid|kids|worker|workers|crowd|crowds|gentleman|female|male|couple|couples|family|families|baby|babies|toddler|toddlers|teenager|teenagers|hand|hands|nurse|doctor|patient|student|students|teacher|teachers|employee|employees|pedestrian|pedestrians|citizen|citizens|avatar|headshot|profile)\b/i;
 
   function hasPeople(text: string): boolean {
     return PEOPLE_FILTER_REGEX.test(text);
@@ -156,36 +171,51 @@ function slideImagesPlugin(env?: Record<string, string>): Plugin {
             process.env.UNSPLASH_ACCESS_KEY ||
             '1gbaRibG7w_sqM0zsyi9iVV9OAGbiGMiSPxngXTIeJ8';
           const pexelsKey = env?.PEXELS_API_KEY || process.env.PEXELS_API_KEY;
-          const pixabayKey =
-            env?.PIXABAY_API_KEY ||
-            process.env.PIXABAY_API_KEY ||
-            '58741945-fe2304e85e9fc8dc70006a9db';
+          const rawPixabayKeys = [
+            env?.PIXABAY_API_KEY,
+            process.env.PIXABAY_API_KEY,
+            ...SYSTEM_PIXABAY_KEYS_B64.map(decodeB64),
+          ].filter(Boolean) as string[];
+          const pixabayKeys = Array.from(new Set(rawPixabayKeys));
 
           let results: any[] = [];
 
-          // 1. Pixabay API (المزود الرئيسي مع استبعاد صارم للأشخاص والوجوه)
-          if (pixabayKey && q) {
-            try {
-              const pOrientation = orientation === 'portrait' ? 'vertical' : 'horizontal';
-              // استبعاد مباشر عبر الكلمات السلبية في Pixabay لضمان عدم ظهور وجوه أو أشخاص (دون استبعاد portrait لأنها تعني الاتجاه العمودي)
-              const safeQuery = `${q} -person -people -face -man -woman`.slice(0, 95);
-              const pRes = await fetch(
-                `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(safeQuery)}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=12&min_width=1200`
-              );
-              if (pRes.ok) {
-                const pData: any = await pRes.json();
-                results = (pData.hits || [])
-                  .filter((h: any) => !hasPeople(`${h.tags || ''} ${h.user || ''}`))
-                  .map((h: any) => ({
-                    id: `pixabay:${h.id}`,
-                    provider: 'pixabay',
-                    src: h.largeImageURL,
-                    alt: h.tags || q,
-                    credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
-                  }));
+          // 1. Pixabay API (المزود الرئيسي مع مجموعة مفاتيح مدارة تلقائياً للعامة وتدوير عند الحصص)
+          if (pixabayKeys.length > 0 && q) {
+            const cleanQ = q.replace(/["']/g, '').slice(0, 50).trim();
+            const safeQuery = `${cleanQ} -person -people -face -man -woman`.slice(0, 95);
+            const orientationsToTry = orientation === 'portrait' ? ['all', 'vertical'] : ['horizontal', 'all'];
+
+            for (const key of pixabayKeys) {
+              if (results.length > 0) break;
+              for (const pOrientation of orientationsToTry) {
+                try {
+                  const pRes = await fetch(
+                    `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(safeQuery)}&image_type=photo&orientation=${pOrientation}&safesearch=true&per_page=12`
+                  );
+                  if (pRes.ok) {
+                    const pData: any = await pRes.json();
+                    const hits = (pData.hits || [])
+                      .filter((h: any) => !hasPeople(`${h.tags || ''} ${h.user || ''}`))
+                      .map((h: any) => ({
+                        id: `pixabay:${h.id}`,
+                        provider: 'pixabay',
+                        src: h.largeImageURL,
+                        alt: h.tags || q,
+                        credit: h.user ? `Image: ${h.user} / Pixabay` : 'Pixabay',
+                      }));
+                    if (hits.length > 0) {
+                      results = hits;
+                      break;
+                    }
+                  } else if (pRes.status === 429) {
+                    break; // تجربة المفتاح التالي في الحوض
+                  }
+                } catch (e) {
+                  console.warn('[slide-images] pixabay error:', e);
+                  break;
+                }
               }
-            } catch (e) {
-              console.warn('[slide-images] pixabay error:', e);
             }
           }
 
