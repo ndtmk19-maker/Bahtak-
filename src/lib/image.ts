@@ -1,14 +1,25 @@
-/** تحويل صورة إلى Base64 لتضمينها ذاتياً في ملف Word */
+/** تحويل صورة إلى Base64 لتضمينها ذاتياً في ملف Word أو PowerPoint */
 export async function imageToDataUrl(url: string): Promise<string> {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
+
+  let targetUrl = url;
+  if (targetUrl.includes('/api/image-proxy?url=')) {
+    try {
+      const raw = decodeURIComponent(targetUrl.split('/api/image-proxy?url=')[1]);
+      if (raw && raw.startsWith('http')) {
+        targetUrl = raw;
+      }
+    } catch {}
+  }
+
   try {
-    const res = await fetch(url);
+    const res = await fetch(targetUrl);
     if (!res.ok) throw new Error(String(res.status));
     const blob = await res.blob();
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve((reader.result as string) || url);
+      reader.onloadend = () => resolve((reader.result as string) || targetUrl);
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
     });
@@ -24,11 +35,11 @@ export async function imageToDataUrl(url: string): Promise<string> {
           canvas.getContext('2d')?.drawImage(img, 0, 0);
           resolve(canvas.toDataURL('image/png'));
         } catch {
-          resolve(url);
+          resolve(targetUrl);
         }
       };
-      img.onerror = () => resolve(url);
-      img.src = url;
+      img.onerror = () => resolve(targetUrl);
+      img.src = targetUrl;
     });
   }
 }

@@ -42,10 +42,11 @@ import {
 } from "../lib/slides";
 import { generatePresentationDraft, type SlideAiSize } from "../lib/slides/ai";
 
-// تفعيل نقطة البحث ووكيل الصور
+// تفعيل نقطة البحث ووكيل الصور: صور Pixabay تدعم CORS مباشرة ولا تحتاج وكيلاً
 configureSlideImages({
   searchEndpoint: "/api/slide-images",
-  proxyImageUrl: (u) => `/api/image-proxy?url=${encodeURIComponent(u)}`,
+  proxyImageUrl: (u) =>
+    u.includes("pixabay.com") ? u : `/api/image-proxy?url=${encodeURIComponent(u)}`,
 });
 
 export type PresentationMode = "draft" | "ai";
