@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Building2, ImageUp, Landmark, Palette, ScrollText, Users, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Building2, Eye, ImageUp, Landmark, Palette, ScrollText, Sparkles, Users, X } from 'lucide-react';
 import { PanelShell } from './PanelShell';
 import { Button } from '../ui/Button';
 import { ChoiceCards, Segmented, Switch } from '../ui/Controls';
@@ -11,12 +11,15 @@ import { useUI } from '../../state/UIContext';
 import { ALGERIAN_WILAYAS } from '../../data/universities';
 import { imageToDataUrl, readFileAsDataUrl } from '../../lib/image';
 import type { CoverTheme, LogoPosition, LogoSize } from '../../types';
+import { COVER_TEMPLATES } from '../preview/cover/templates';
+import { CoverShowcaseModal } from '../modals/CoverShowcaseModal';
 
 export function CoverPanel() {
   const { doc, updateCover, updateCoverWith } = useDocument();
   const { toast } = useUI();
   const cs = doc.coverState;
   const fileRef = useRef<HTMLInputElement>(null);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
   const wilaya = ALGERIAN_WILAYAS.find((w) => w.id === cs.selectedWilaya);
 
   const clearLogo = () => updateCover({ logoUrl: '', logoBase64: '', selectedUnivId: '' });
@@ -52,7 +55,7 @@ export function CoverPanel() {
       <div className={`flex flex-col gap-3.5 transition-opacity ${cs.enabled ? '' : 'pointer-events-none opacity-45'}`} aria-disabled={!cs.enabled}>
         <Section title="مظهر الغلاف" icon={<Palette />}>
           <ChoiceCards<CoverTheme>
-            label="ثيم الغلاف"
+            label="ثيم الغلاف الكلاسيكي"
             value={cs.theme}
             onChange={(v) => updateCover({ theme: v })}
             options={[
@@ -60,6 +63,88 @@ export function CoverPanel() {
               { value: 'gold', title: 'ذهبي ملكي فاخر', desc: 'إطار ذهبي وعناوين كحلية', preview: <ThemeSwatch frame="#c5a059" title="#0f2952" /> },
             ]}
           />
+
+          <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-3.5 dark:bg-amber-500/[0.08]">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black text-[0.68rem]">
+                  BETA
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-[0.82rem] font-bold text-zinc-900 dark:text-zinc-100">
+                    <span>تصاميم الأغلفة التجريبية</span>
+                    <span className="rounded bg-amber-500/20 px-1.5 py-0.2 text-[0.65rem] font-bold text-amber-700 dark:text-amber-300">
+                      12 قالباً
+                    </span>
+                  </div>
+                  <div className="text-[0.7rem] text-zinc-500 dark:text-zinc-400">
+                    أطر هندسية وزخارف مذهّبة جديدة قيد الاختبار
+                  </div>
+                </div>
+              </div>
+              <Switch
+                label="تفعيل الأغلفة التجريبية"
+                checked={!!cs.useExperimentalDesign}
+                onChange={(v) =>
+                  updateCover({
+                    useExperimentalDesign: v,
+                    coverTemplate: v ? cs.coverTemplate || 'classic-ornate' : undefined,
+                  })
+                }
+              />
+            </div>
+
+            {cs.useExperimentalDesign && (
+              <div className="mt-3.5 space-y-2.5 border-t border-amber-500/20 pt-3 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.74rem] font-bold text-zinc-700 dark:text-zinc-300">
+                    القالب التجريبي المختار:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowcaseOpen(true)}
+                    className="flex items-center gap-1 text-[0.72rem] font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 cursor-pointer"
+                  >
+                    <Eye className="size-3.5" />
+                    <span>معاينة شاملة (مختبر الأغلفة)</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {COVER_TEMPLATES.map((t) => {
+                    const active = (cs.coverTemplate || 'classic-ornate') === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => updateCover({ coverTemplate: t.id })}
+                        className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-right transition cursor-pointer ${
+                          active
+                            ? 'border-amber-500 bg-amber-500/15 text-amber-950 dark:text-amber-200 font-bold shadow-xs'
+                            : 'border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        <span
+                          className={`size-1.5 rounded-full ${active ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-600'} shrink-0`}
+                        />
+                        <span className="truncate text-[0.73rem]">{t.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Sparkles className="size-3.5 text-amber-500" />}
+                  onClick={() => setShowcaseOpen(true)}
+                  className="w-full mt-1 text-[0.75rem]"
+                >
+                  فتح معمل الأغلفة لاختبار ومقارنة القوالب
+                </Button>
+              </div>
+            )}
+          </div>
         </Section>
 
         <Section title="شعار الجامعة" icon={<Landmark />} description="اختر ولايتك ثم جامعتك ليظهر الشعار الرسمي في ترويسة الغلاف.">
@@ -158,6 +243,8 @@ export function CoverPanel() {
           </div>
         </Section>
       </div>
+
+      <CoverShowcaseModal open={showcaseOpen} onClose={() => setShowcaseOpen(false)} />
     </PanelShell>
   );
 }
