@@ -13,9 +13,6 @@ export interface ResearchPage {
   footnotes: string[];
 }
 
-import type { CoverTemplateId } from './types/document';
-export type { CoverTemplateId };
-
 export interface CoverState {
   enabled: boolean;
   theme: CoverTheme;
@@ -36,8 +33,6 @@ export interface CoverState {
   supervisor: string;
   group: string;
   academicYear: string;
-  useExperimentalDesign?: boolean;
-  coverTemplate?: CoverTemplateId;
 }
 
 export interface PlanState {

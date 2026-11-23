@@ -15,7 +15,6 @@ import {
   Printer,
   RefreshCw,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "./ui/Button";
 import { AndroidIcon } from "./ui/BrandIcons";
@@ -32,7 +31,6 @@ import { SectionNav, useMediaQuery } from "./Navigation";
 import { isIOS, triggerPrintDocument } from "../lib/printDocument";
 import { trackEvent, trackApkDownload } from "../lib/analytics";
 import { LanguageSelector } from "./ui/LanguageSelector";
-import { CoverShowcaseModal } from "./modals/CoverShowcaseModal";
 
 export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const isWide = useMediaQuery("(min-width: 1280px)");
@@ -56,7 +54,6 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ current: number; total: number } | null>(null);
-  const [coverLabOpen, setCoverLabOpen] = useState(false);
   const logoClicksRef = useRef(0);
   const logoTimerRef = useRef<number | null>(null);
 
@@ -245,15 +242,6 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
               <SectionNav compact={!isWide} />
               <button
                 type="button"
-                onClick={() => setCoverLabOpen(true)}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 text-[0.76rem] font-bold text-amber-800 dark:text-amber-200 shadow-xs transition hover:bg-amber-500/20 cursor-pointer"
-                title="تجربة ومقارنة 12 تصميماً رسمياً لصفحة الغلاف A4"
-              >
-                <Sparkles className="size-3.5 text-amber-500" />
-                <span>أغلفة تجريبية (12)</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setViewMode("wizard")}
                 className="flex h-9 items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-800/80 px-3.5 text-[0.78rem] font-semibold text-zinc-800 dark:text-zinc-200 shadow-xs transition hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
                 title="إعادة فتح معالج إعداد البحث خطوة بخطوة"
@@ -268,15 +256,6 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
                 <Compass className="size-4 text-neutral-700 dark:text-neutral-300" />
                 <span>معالج إعداد وتنسيق البحث (3 خطوات)</span>
               </span>
-              <button
-                type="button"
-                onClick={() => setCoverLabOpen(true)}
-                className="flex h-8 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 text-[0.74rem] font-bold text-amber-800 dark:text-amber-200 shadow-xs transition hover:bg-amber-500/20 cursor-pointer"
-                title="تجربة ومقارنة 12 تصميماً رسمياً لصفحة الغلاف A4"
-              >
-                <Sparkles className="size-3.5 text-amber-500" />
-                <span>أغلفة تجريبية (12)</span>
-              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -357,8 +336,6 @@ export function AppHeader({ isDesktop }: { isDesktop: boolean }) {
           onPrint={print}
         />
       </div>
-
-      <CoverShowcaseModal open={coverLabOpen} onClose={() => setCoverLabOpen(false)} />
     </header>
   );
 }
